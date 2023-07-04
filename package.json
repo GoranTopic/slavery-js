@@ -23,5 +23,8 @@
   "bugs": {
     "url": "https://github.com/GoranTopic/slavery-js/issues"
   },
-  "homepage": "https://github.com/GoranTopic/slavery-js#readme"
+  "homepage": "https://github.com/GoranTopic/slavery-js#readme",
+  "dependencies": {
+    "socket.io": "^4.7.1"
+  }
 }
