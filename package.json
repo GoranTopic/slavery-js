@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A simple clustering app that allows you to scale an application on multiple thread and multiple machines ",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
