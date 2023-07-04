@@ -96,7 +96,7 @@ class Slave {
         return new Promise((resolve, reject) => {
             this.socket.emit('_is_error' );
             this.socket.on('_is_error_result', result => {
-                console.log('error_run: ', result);
+                //console.log('error_run: ', result);
                 resolve(result);
             });
         });

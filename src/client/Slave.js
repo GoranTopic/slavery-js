@@ -33,12 +33,12 @@ class Slave {
         this.socket = io( this.endpoint );
         // sent up funtion that connects to server
         this.socket.on("connect", () => {
-            console.log('slave is connected')
+            //console.log('slave is connected')
             this.connected = true;
         });
         // if it disconnects
         this.socket.on("diconnect", () => {
-            console.log('slave is disconnected')
+            //console.log('slave is disconnected')
             this.connected = false;
         });
         // check if work is idel
