@@ -13,11 +13,9 @@ let make_timeout = s =>
 
 // test adding values
 describe('README Example', () => {
-    // array to check the results
-    let results = {};
     // optinos to pass to the engine    
     let options = {
-        //numberOfSlaves: 9, // number of processes to run concurrently, this includes the master process
+        numberOfSlaves: 9, // number of processes to run concurrently, this includes the master process
         // if this is not set, it will create process relative the the number of cores in the machine
         port: 3003, // port to be used to communicate between salve and master
         host: 'localhost', // network host
@@ -33,6 +31,7 @@ describe('README Example', () => {
             // for every number in the array
             for (let timeout of [ 1, 2, 3, 4, 5, 6, 7, 8 ].reverse() ){
                 // get a slave that is not currely working
+
                 let slave = await master.getIdel(); 
                 slave.run(timeout)
                     .then( result => {
@@ -42,7 +41,6 @@ describe('README Example', () => {
                         it('should return a result', () => {
                             expect(result).to.have.property('result');
                         });
-                        results[timeout] = result;
                     });
             }
         })
