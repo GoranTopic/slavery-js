@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node node_modules/mocha/bin/_mocha"
   },
   "repository": {
     "type": "git",
@@ -26,6 +26,11 @@
   },
   "homepage": "https://github.com/GoranTopic/slavery-js#readme",
   "dependencies": {
-    "socket.io": "^4.7.1"
+    "socket.io": "^4.7.1",
+    "socket.io-client": "^4.7.1"
+  },
+  "devDependencies": {
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0"
   }
 }

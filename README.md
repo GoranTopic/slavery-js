@@ -10,9 +10,14 @@ npm install salvery-js
 ```javascript
 import slavery from 'slavery.js';
 
+// function to count sum of numbers, purely for the porpuse of processing
+let countSum = limit => 
+    Array(limit).fill(0).map((_, i) => i ).reduce((a, b) => a + b, 0);
+
 // optinos to pass to the engine    
 let options = {
     numberOfSlaves: 3, // number of processes to run concurrently, this includes the master process
+    // if this is not set, it will create process relative the the number of cores in the machine
     port: 3003, // port to be used to communicate between salve and master
     host: 'localhost', // network host
 }

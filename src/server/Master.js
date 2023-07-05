@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import Slave from "./Slave.js";
+import Queue from "./Queue.js";
 
 class Master {
     /* Master class that will communicate with the slaves */
@@ -9,7 +10,7 @@ class Master {
         // create a new socket.io server instance
         this.io = null;
         // create a new socket.io client instance
-        this.slaves = [];
+        this.slaves = new Queue();
         // initilize
         this.init();
     }
@@ -20,7 +21,7 @@ class Master {
         // create a new socket.io client instance
         this.io.on("connection", socket => {
             // add to salve to list of slaves
-            this.slaves.push( new Slave(socket) );
+            this.slaves.enqueue( new Slave(socket) );
         });
     }
 
@@ -29,7 +30,7 @@ class Master {
             let interval, timeout;
             // set interval to check for connection
             interval = setInterval(() => {
-                if(this.slaves.length >= number) {
+                if(this.slaves.size() >= number) {
                     clearInterval(interval);
                     clearTimeout(timeout);
                     resolve();
@@ -50,7 +51,7 @@ class Master {
 
     async untilNewConnection() {
         return new Promise((resolve, reject) => {
-            let number = this.slaves.length;
+            let number = this.slaves.size();
             let interval, timeout;
             // set interval to check for new connection
             interval = setInterval(() => {
@@ -78,22 +79,33 @@ class Master {
 
     async getSlaves() {
         // get all sockets
-        this.sockets = await this.io.fetchSockets();
+        let sockets = await this.io.fetchSockets();
+        console.log(sockets.map(s => s.id));
         // make into slave objects
-        this.sockets = this.sockets.map( s => new Slave(s) );
+        //this.sockets = this.sockets.map( s => new Slave(s) );
         // return
-        return this.sockets;
+        return this.sockets.dequeue();
     }
 
     async getIdel() {
-        return new Promise((resolve, reject) => {
-            this.slaves.forEach( slave => {
-                if(slave.isIdel()) {
-                    resolve(slave);
-                }
-            });
+        return new Promise( async (resolve, reject) => {
+            // if there are no slaves reject
+            if(this.slaves.size() == 0) reject('no slaves');
+            // get
+            let slave = null;
+            let isIdel = false;
+            while(isIdel === false) {
+                // get next slave
+                slave = this.slaves.next()
+                isIdel = await slave.isIdel();
+                // check if slave is idel
+                if(isIdel) resolve(slave);
+            }
         });
     }
+    
+    // for every idel slave run the callback
+    
 
 }
 

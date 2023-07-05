@@ -61,6 +61,13 @@ class Slave {
             this.work = work;
             this.socket.emit("_set_work_result", true );
         });
+        // run function
+        this.socket.on("_run", params => {
+            // add paramters to work
+            this.params = params;
+            // check if we have a function to run
+            this.run();
+        });
         // if it sends a function to run
         this.socket.on("_work", workStr => {
             let func = eval( "(" + workStr + ")" );
@@ -75,13 +82,6 @@ class Slave {
                 return this.work(this.work);
             else
                 return this.error('no function to run found')
-        });
-        // run function
-        this.socket.on("_run", params => {
-            // add paramters to work
-            this.params = params;
-            // check if we have a function to run
-            this.run();
         });
     }
 
@@ -168,7 +168,6 @@ class Slave {
             // start work
             this.setIdel(false);
             // this rnns the function
-            //console.log('running callback')
             let result = await this.callback(this.params, this);
             // send result to master
             this.socket.emit("_run_result", result );

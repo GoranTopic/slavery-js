@@ -50,7 +50,7 @@ class Slave {
             // if error occurs
             this.socket.on('_run_error', error => {
                 this.status = 'idle';
-                reject(error, 'error from slave: ', this.socket.id);
+                reject(error + 'error from slave: ' + this.socket.id);
             });
         });
     }
@@ -59,7 +59,7 @@ class Slave {
     async setParameers(parameters) {
         return new Promise((resolve, reject) => {
             this.socket.emit('_set_parameters', work);
-            this.socket.on('_set_parameters_result', (result) => {
+            this.socket.once('_set_parameters_result', (result) => {
                 resolve(result);
             });
         });
@@ -76,7 +76,7 @@ class Slave {
     async setWork(work) {
         return new Promise((resolve, reject) => {
             this.socket.emit('_set_work', work);
-            this.socket.on('_set_work_result', (result) => {
+            this.socket.once('_set_work_result', (result) => {
                 resolve(result);
             });
         });
@@ -86,7 +86,7 @@ class Slave {
     async isIdel() {
         return new Promise((resolve, reject) => {
             this.socket.emit('_is_idel' );
-            this.socket.on('_is_idel_result', (result) => {
+            this.socket.once('_is_idel_result', (result) => {
                 resolve(result);
             });
         });
@@ -95,7 +95,7 @@ class Slave {
     async isError() {
         return new Promise((resolve, reject) => {
             this.socket.emit('_is_error' );
-            this.socket.on('_is_error_result', result => {
+            this.socket.once('_is_error_result', result => {
                 //console.log('error_run: ', result);
                 resolve(result);
             });
