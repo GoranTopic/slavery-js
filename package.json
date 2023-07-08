@@ -1,6 +1,6 @@
 {
   "name": "slavery-js",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "A simple clustering app that allows you to scale an application on multiple thread and multiple machines ",
   "main": "index.js",
   "type": "module",
@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/GoranTopic/slavery-js#readme",
   "dependencies": {
+    "serialize-error": "^11.0.0",
     "socket.io": "^4.7.1",
     "socket.io-client": "^4.7.1"
   },

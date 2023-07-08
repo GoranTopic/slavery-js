@@ -1,10 +1,8 @@
 import Master from './server/Master.js';
 import Slave from './client/Slave.js';
-
 import cluster from 'node:cluster';
 import process from 'node:process';
 import { availableParallelism } from 'node:os';
-
 
 class Slavery {
     constructor() {
@@ -13,11 +11,13 @@ class Slavery {
         this.number_of_slaves = null;
     }   
 
-    init( options={}) {
+    init( options={} ) {
         this.options = options;
         if(cluster.isPrimary){
             // get number of slaves
-            let { numberOfSlaves } = options ;
+            let { numberOfSlaves, debug } = options ;
+            // if debug is set
+            if(debug) process.env.debug = debug ?? false;
             // get available cores
             let available_cores = availableParallelism();
             // if number of slaves is not set

@@ -1,49 +1,61 @@
 class Queue {
     constructor() {
-        this.items = {}
-        this.frontIndex = 0
-        this.backIndex = 0
+        this.items = []
     }
     
     enqueue(item) {
-        this.items[this.backIndex] = item
-        this.backIndex++
+        // push item to the end of the queue
+        this.items.push(item)
         return true;
     }
 
     dequeue() {
-        const item = this.items[this.frontIndex]
-        delete this.items[this.frontIndex]
-        this.frontIndex++
-        return item
+        // remove item from the beginning of the queue
+        if(this.items.length > 0) {
+            return this.items.shift()
+        }
+        return false;
     }
 
     next() {
+        /*
+        console.log(`
+this.items: ${this.items}
+length: ${this.items.length}
+`)
+*/
         // dequeue and enqueue
-        const item = this.items[this.frontIndex]
-        delete this.items[this.frontIndex]
-        this.frontIndex++
-        this.items[this.backIndex] = item
-        this.backIndex++
-        return item
+        if(this.items.length > 0) {
+            const item = this.items.shift()
+            this.items.push(item)
+            return item
+        }
     }
     
     // remove value while maintaining order
-    remove( index ) {
-        if (index < 0 || index >= this.backIndex) {
-            return 'Invalid index'
+    removeAt( index ) {
+        if (index > -1 && index < this.items.length) {
+            return this.items.splice(index, 1)[0];
+        }else {
+            return false;
         }
-        const item = this.items[index]
-        for (let i = index; i < this.backIndex; i++) {
-            this.items[i] = this.items[i + 1]
+    }
+
+    indexOf(item) {
+        return this.items.indexOf(item);
+    }
+
+    remove(item) {
+        const index = this.items.indexOf(item);
+        if (index > -1) {
+            return this.items.splice(index, 1)[0];
+        }else {
+            return false;
         }
-        delete this.items[this.backIndex - 1]
-        this.backIndex--
-        return item
     }
 
     peek() {
-        return this.items[this.frontIndex]
+        return this.items[0]
     }
 
     printQueue() {
@@ -52,25 +64,32 @@ class Queue {
 
     // return array of items in the order they were added
     toArray() {
-        let arr = [];
-        for(let i = this.frontIndex; i < this.backIndex; i++)
-            arr.push(this.items[i]);
-        return arr;
+        return this.items;
     }
 
     // return object of items in the order they were added
     toObject() {
         let obj = {};
-        for(let i = this.frontIndex; i < this.backIndex; i++)
-            obj[i] = this.items[i];
+        this.items.forEach((item, index) => {
+            obj[index] = item;
+        });
         return obj;
     }
 
     // get the size of the queue
     size() {
-        return this.backIndex - this.frontIndex;
+        return this.items.length;
     }
-    
+
+    // lenght of the queue
+    length() {
+        return this.items.length;
+    }
+
+    // check if queue is empty
+    isEmpty() {
+        return this.items.length === 0;
+    }
 }
 
 export default Queue;

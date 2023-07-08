@@ -1,4 +1,6 @@
 import { io } from "socket.io-client";
+import { serializeError } from 'serialize-error';
+import log from '../utils/log.js';
 
 // initilized the Slave instance with socket io. try to connect to 
 // create worker with each worker socket io connection
@@ -12,38 +14,57 @@ class Slave {
         this.endpoint = `ws://${this.host}:${this.port}`;
         // has it connected to server?
         this.connected = false;
+        // id ot be used by the server
+        this.id = null
         // function to run on demand
         this.work = null;
         // function to run on demand
         this.callback = null;
         // is it working
-        this.isIdel = true;
+        this.isIdle = true;
         // is it working
         this.isError = false;
-        // list of slaves
-        this.socket = null;
+        // if the function _run is just done, usefuel for disconects
+        this.isRunDone = false;
+        // socket io connection
+        this.socket = io( this.endpoint, { reconnection: true });
         // paramters to run with a function
         this.parameters = null
+        // the return value of the function
+        this.result = null
+        // if master is in the same machine
+        this.runningMasterOnSameMachine = true;
         // initilize
         this.init();
     }
 
     init(){
         // initilize the socket
-        this.socket = io( this.endpoint );
         // sent up funtion that connects to server
         this.socket.on("connect", () => {
-            //console.log('slave is connected')
+            log(`[${this.id}] slave is connected: ${this.socket.id}`)
             this.connected = true;
         });
         // if it disconnects
-        this.socket.on("diconnect", () => {
-            //console.log('slave is disconnected')
+        this.socket.io.on("reconnect", (attempt) => {
+            log(`[${this.id}] reconnecting: ${attempt}`)
+        });
+        // if it disconnects
+        this.socket.io.on("diconnect", () => {
+            log(`[${this.id}] slave is disconnected`)
             this.connected = false;
         });
-        // check if work is idel
-        this.socket.on("_is_idel", () => {
-            this.socket.emit("_is_idel_result", this.isIdel );
+        // get slave id from server
+        this.socket.on("set_slave_id", slaveId => {
+            this.socket.auth = { slaveId };
+            this.id = slaveId;
+            // send back to server
+            this.socket.emit("set_slave_id_result", slaveId );
+        });
+        // check if work is idle
+        this.socket.on("_is_idle", () => {
+            //console.log('[slave] _is_Idle: ', this.isIdle)
+            this.socket.emit("_is_idle_result", this.isIdle );
         });
         // check if there was a error
         this.socket.on("_is_error", () => {
@@ -66,7 +87,7 @@ class Slave {
             // add paramters to work
             this.params = params;
             // check if we have a function to run
-            this.run();
+            this.run(params);
         });
         // if it sends a function to run
         this.socket.on("_work", workStr => {
@@ -89,30 +110,58 @@ class Slave {
         this.callback = callback
     }
 
+    // this function is in the creation of the slave
+    // it only should run when it revice the signal '_run'
+    // on another thread
+    async run(callback){
+        // wait until connected
+        try{
+            // start work
+            this.setIdle(false);
+            // this runs the function
+            //console.log('[slave] running callback');
+            this.result = await this.callback(this.params, this);
+            // send result back to master
+            this.socket.emit("_run_result", this.result );
+            // isIdle again
+            this.setIdle(true);
+        }catch(err){
+            // isIdle again
+            this.setIdle(true);
+            // is error too
+            this.isError = err;
+            // print on terminal
+            if(!this.runningMasterOnSameMachine)
+                // send error back to master
+                this.socket.emit( "_run_error", serializeError(err) );
+            console.error(err);
+        }
+    }
+
     // this function is called when a functio is passed form the master
     // through the socket io connection
     async work(callback){
         return new Promise( 
             resolve => {
                 // start work
-                this.setIdel(false);
+                this.setIdle(false);
                 // function 
                 if(this.params) resolve(func(...this.params));
                 else resolve(func());
             })
             .then( result => {
-                // isIdel again
-                this.setIdel(true);
+                // isIdle again
+                this.setIdle(true);
                 // send result back to master
                 this.socket.emit("_work_result", result );
             })
             .catch( e => { 
-                // isIdel again
-                this.setIdel(true);
+                // isIdle again
+                this.setIdle(true);
                 // is error too
                 this.isError = e;
                 // send error back to master
-                this.socket.emit("_wor_error", e );
+                this.socket.emit("_work_error", e );
                 // print on terminal
                 console.error('from slave: ', e);
             })
@@ -159,39 +208,11 @@ class Slave {
         });
     }
 
-    // this function is in the creation of the slave
-    // it only should run when it revice the signal '_run'
-    // on another thread
-    async run(callback){
-        // wait until connected
-        try{
-            // start work
-            this.setIdel(false);
-            // this rnns the function
-            let result = await this.callback(this.params, this);
-            // send result to master
-            this.socket.emit("_run_result", result );
-            // isIdel again
-            this.setIdel(true);
-        }catch(e){
-            // isIdel again
-            this.setIdel(true);
-            // is error too
-            this.isError = e;
-            // send error back to master
-            this.socket.emit("_run_error", e.toString() );
-            // print on terminal
-            console.error(e);
-        }
-    }
-
-    setIdel(isIdel){
-        this.isIdel = isIdel;
+    setIdle(isIdle){
+        this.isIdle = isIdle;
         // send result to master
-        this.socket.emit("_set_idel", isIdel );
-
+        this.socket.emit("_set_idle", isIdle );
     }
-
 
     error(eStr){
         // send error back to master
@@ -199,6 +220,38 @@ class Slave {
         // print on terminal
         console.error(new Error(eStr));
         return;
+    }
+
+    async _ping_master(){
+        return new Promise((resolve, reject) => {
+            // make a timeout
+            let timeout = 1000 * 10; // 10 seconds
+            const timeoutId = setTimeout(() => {
+                reject(false); // Reject the promise if timeout occurs
+            }, timeout);
+            // ping master
+            this.socket.emit("_ping", true);
+            // wait for response
+            this.socket.on("_pong", (result) => {
+                clearTimeout(timeoutId); // Cancel the timeout
+                resolve(true); // Resolve promise
+            });
+        });
+    }
+
+    _json_size(json){
+        return Buffer.byteLength(JSON.stringify(json))
+    }
+
+    _reconnect(){
+        //make a new socket io connection with the same id
+        this.socket = io(this.url, {
+            auth: {
+                slaveId: this.id
+            }
+        });
+        // initialize the socket io connection
+        this.init();
     }
 
 }
