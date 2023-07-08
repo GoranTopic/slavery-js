@@ -66,15 +66,25 @@ class Slave {
             // if result is returned
             this.socket.once("_run_result", res => {
                 log('[slave] got _run_result from slave ', this.id);
+                // set state as idle
                 this._setIdle();
+                // set return value
                 this.return = res;
+                // remove error listener
+                this.socket.off('_run_error');
+                // resolve promise
                 resolve(res);
             });
             // if error occurs
             this.socket.once('_run_error', e => {
                 log('[Slave] get _run_error from slave ', this.id );
+                // set state as idle
                 this._setIdle()
+                // remove result listener
+                this.socket.off('_run_result');
+                // deserialize error
                 let error = deserializeError(e);
+                // reject promise
                 reject(error);
             });
         });
