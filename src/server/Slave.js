@@ -64,7 +64,7 @@ class Slave {
             this._setBusy();
             this.socket.emit('_run', params);
             // if result is returned
-            this.socket.on("_run_result", res => {
+            this.socket.once("_run_result", res => {
                 log('[slave] got _run_result from slave ', this.id);
                 this._setIdle();
                 this.return = res;
