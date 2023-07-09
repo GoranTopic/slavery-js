@@ -1,3 +1,4 @@
+import { createServer } from "http";
 import { Server } from "socket.io";
 import Slave from "./Slave.js";
 import Pool from "./Pool.js";
@@ -17,21 +18,40 @@ let checkSlaveIdMiddleware = (socket, next) => {
 class Master {
     /* Master class that will communicate with the slaves */
     constructor(options={}) {
-        let { port } = options;
+        // if master options in options in set
+        if(options.masterOptions) options = { ...options, ...options.masterOptions };
+        // get options
+        let { port, host, maxTransferSize } = options;
         this.port = port || 3003;
+        // define host
+        this.host = host || 'localhost';
+        // define if network will be over lan or not
+        this.isOverLan = this.host !== 'localhost';
+        // define max transfer size for socket.io
+        this.maxTransferSize = maxTransferSize || 1e9; // 1GB
+        // options for the socket.io server
+        this.ioOptions = { 
+            maxHttpBufferSize: this.maxTransferSize,
+        }
         // create a new socket.io server instance
-        this.io = null;
+        if(this.isOverLan) { // if this is over lan
+            this.httpServer = createServer();
+            this.io = new Server(this.httpServer, this.ioOptions);
+        }else // create a new socket.io server instanece on localhost
+            this.io = new Server(this.port, this.ioOptions );
         // create a new socket.io client instance
         this.slaves = new Pool();
         // initilize
         this.init();
+        // if it is over lan run start
+        if(this.isOverLan)
+            this.httpServer.listen(this.port, this.host, () => 
+                console.log(`Server is running on http://${this.host}:${this.port}`)
+            );
     }
 
     init() {
-        // create a new socket.io server instanece
-        this.io = new Server(this.port, {
-            maxHttpBufferSize: 1e9 // 1GB
-        });
+        
         // create a new socket.io client instance
         this.io.on("connection", this._handleSocketConnection.bind(this));
         this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
@@ -125,7 +145,7 @@ class Master {
         // create a new id
         let id = Math.random().toString(36).substr(2, 9);
         // check if id is already in use
-        log('[master] this.slaves: ', this.slaves);
+        log('[master] created slaveId: ', id);
         if(this.slaves.has(id)) {
             // if so, create a new id
             return this._createSlaveId();

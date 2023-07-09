@@ -13,6 +13,7 @@ class Slavery {
 
     init( options={} ) {
         this.options = options;
+        // separate master and slave options 
         if(cluster.isPrimary){
             // get number of slaves
             let { numberOfSlaves, debug } = options ;

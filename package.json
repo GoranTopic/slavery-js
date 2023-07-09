@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node node_modules/mocha/bin/_mocha"
+    "test": "node ./test/functionality.js"
   },
   "repository": {
     "type": "git",

@@ -71,7 +71,7 @@ class Slave {
                 // set return value
                 this.return = res;
                 // remove error listener
-                this.socket.off('_run_error');
+                this.socket.off('_run_error', e => { });
                 // resolve promise
                 resolve(res);
             });
@@ -81,7 +81,7 @@ class Slave {
                 // set state as idle
                 this._setIdle()
                 // remove result listener
-                this.socket.off('_run_result');
+                this.socket.off('_run_result', res => { });
                 // deserialize error
                 let error = deserializeError(e);
                 // reject promise
