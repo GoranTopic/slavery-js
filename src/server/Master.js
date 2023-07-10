@@ -21,7 +21,7 @@ class Master {
         // if master options in options in set
         if(options.masterOptions) options = { ...options, ...options.masterOptions };
         // get options
-        let { port, host, maxTransferSize } = options;
+        let { port, host, maxTransferSize, io } = options;
         this.port = port || 3003;
         // define host
         this.host = host || 'localhost';
@@ -34,7 +34,9 @@ class Master {
             maxHttpBufferSize: this.maxTransferSize,
         }
         // create a new socket.io server instance
-        if(this.isOverLan) { // if this is over lan
+        if(io) {
+            this.io = io;
+        }else if(this.isOverLan) { // if this is over lan
             this.httpServer = createServer();
             this.io = new Server(this.httpServer, this.ioOptions);
         }else // create a new socket.io server instanece on localhost
@@ -46,7 +48,7 @@ class Master {
         // if it is over lan run start
         if(this.isOverLan)
             this.httpServer.listen(this.port, this.host, () => 
-                console.log(`Server is running on http://${this.host}:${this.port}`)
+                console.log(`Master is running on http://${this.host}:${this.port}`)
             );
     }
 
