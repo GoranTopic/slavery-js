@@ -230,8 +230,6 @@ class Master {
             log('[master] making new slaveId: ', newSlaveId);
             // send slaveId to client
             socket.emit("set_slave_id", newSlaveId);
-            let newSlave;
-            let isNew = false;
             // make new slave
             socket.once("set_slave_id_result", slaveId => {
                 log('[master] got slaveId back form client: ', slaveId);
@@ -244,11 +242,6 @@ class Master {
                 // added new slave
                 isNew = true;
             });
-            // if we added a new slave
-            console.log('this ran', newSlave);
-            if(isNew){
-                 return newSlave;
-            }
         }
     }
 
