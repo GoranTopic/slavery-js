@@ -53,7 +53,6 @@ class Master {
     }
 
     init() {
-        
         // create a new socket.io client instance
         this.io.on("connection", this._handleSocketConnection.bind(this));
         this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
@@ -82,6 +81,24 @@ class Master {
             , 1000 * 60 ); // 1 minute
         });
     }
+
+    async onNewConnection(callback) {
+        this.io.on("connection", socket => {
+            let slave = this._handleSocketConnection(socket);   
+            console.log('[master] slave: ', slave);
+            if(slave) callback(slave);
+        });
+    }
+
+    async onIdle(callback) {
+        return new Promise((resolve, reject) => {
+            let interval = setInterval(async () => {
+                let slave = await this.getIdle();
+                callback(slave);
+            }, 1000); // 1 second
+        });
+    }
+
 
 
     async untilNewConnection() {
@@ -139,9 +156,20 @@ class Master {
         );
     }
 
-    async printState() {
-        // for every idle slave run the callback
+    status() {
+        return {
+            connections: this.slaves.getConnections().length,
+            idle: this.slaves.getEnabled().length,
+            busy: this.slaves.getDisabled().length
+        }
     }
+    
+    printStatus() {
+        let {connections, idle, busy} = this.status();
+        this._updateLine(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}`);
+    }
+
+
 
     _createSlaveId() {
         // create a new id
@@ -202,18 +230,35 @@ class Master {
             log('[master] making new slaveId: ', newSlaveId);
             // send slaveId to client
             socket.emit("set_slave_id", newSlaveId);
+            let newSlave;
+            let isNew = false;
             // make new slave
             socket.once("set_slave_id_result", slaveId => {
                 log('[master] got slaveId back form client: ', slaveId);
                 // make new slave and add tot he pool
-                let newSlave = new Slave(slaveId, socket);
+                newSlave = new Slave(slaveId, socket);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
                 this.slaves.add(slaveId, newSlave);
+                // added new slave
+                isNew = true;
             });
+            // if we added a new slave
+            console.log('this ran', newSlave);
+            if(isNew){
+                 return newSlave;
+            }
         }
     }
+
+    _updateLine(str){
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+        process.stdout.write(str +'\n');
+
+    }
+
 
 }
 

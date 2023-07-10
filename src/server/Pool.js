@@ -135,6 +135,18 @@ class Pool {
         console.log(this.toArray());
     }
 
+    getEnabled() {
+        return this.enabled.toArray();
+    }
+
+    getDisabled() {
+        return this.disabled;
+    }
+
+    getConnections() {
+        return Object.keys(this.items);
+    }
+
 }
 
 export default Pool;
