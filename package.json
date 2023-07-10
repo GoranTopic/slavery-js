@@ -1,6 +1,6 @@
 {
   "name": "slavery-js",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "A simple clustering app that allows you to scale an application on multiple thread and multiple machines ",
   "main": "index.js",
   "type": "module",
