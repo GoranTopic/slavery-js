@@ -27,7 +27,7 @@ class Pool {
     }
 
     disable(id){
-        if( !this.has(id) ) return false;
+        if( !this.has(id) ) return null;
         // if it is in the disable list, job done
         if( this.disabled.indexOf(id) !== -1 ) return true;
         // if it is in the enabled list, remove it
@@ -41,7 +41,7 @@ class Pool {
 
     enable(id){
         // if it is not in the pool, return false
-        if( !this.has(id) ) return false;
+        if( !this.has(id) ) return null;
         // if it is already enabled, job done
         if( this.enabled.indexOf(id) !== -1 ) return true;
         // if it is in the disabled list, remove it
@@ -56,9 +56,9 @@ class Pool {
     }
 
     rotate() { // dequeue and enqueue
-        if(this.size() === 0) return false
+        if(this.size() === 0) return null
         const id = this.enabled.dequeue()
-        if(!id) return false
+        if(!id) return null
         this.enabled.enqueue(id)
         return this.items[id]
     }
@@ -67,11 +67,12 @@ class Pool {
         return this.rotate();
     }
 
-    nextAndDisbale() { // dequeue and disable
-        if(this.size() === 0) return false
+    nextAndDisable() { // dequeue and disable
+        if(this.size() === 0) return null
         const id = this.enabled.dequeue();
-        this.disable(id);
-        return this.items[id]
+        if(!id) return null
+        this.disabled.push(id);
+        return this.items[id];
     }
 
     // remove value while maintaining order
