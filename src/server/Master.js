@@ -234,7 +234,7 @@ class Master {
             socket.once("set_slave_id_result", slaveId => {
                 log('[master] got slaveId back form client: ', slaveId);
                 // make new slave and add tot he pool
-                newSlave = new Slave(slaveId, socket);
+                let newSlave = new Slave(slaveId, socket);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
