@@ -239,8 +239,6 @@ class Master {
                 newSlave.setPool(this.slaves);
                 // add to pool
                 this.slaves.add(slaveId, newSlave);
-                // added new slave
-                isNew = true;
             });
         }
     }
