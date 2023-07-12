@@ -156,19 +156,17 @@ class Master {
     }
 
     status() {
-        return {
-            connections: this.slaves.getConnections().length,
-            idle: this.slaves.getEnabled().length,
-            busy: this.slaves.getDisabled().length
-        }
+        let connections = this.slaves.getConnections().length;
+        let idle = this.slaves.getEnabled().length;
+        let busy = this.slaves.getDisabled().length;
+        let idealRate = idle / connections;
+        return { connections, idle, busy, idealRate }
     }
     
     printStatus() {
-        let {connections, idle, busy} = this.status();
-        this._updateLine(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}`);
+        let {connections, idle, busy, idleRate} = this.status();
+        this._updateLine(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}, idleRate: ${idleRate}`);
     }
-
-
 
     _createSlaveId() {
         // create a new id
@@ -245,7 +243,7 @@ class Master {
     _updateLine(str){
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
-        process.stdout.write(str +'\n');
+        process.stdout.write(str +'\r\n');
 
     }
 
