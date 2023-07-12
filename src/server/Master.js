@@ -44,7 +44,7 @@ class Master {
         // create a new socket.io client instance
         this.slaves = new Pool();
         // this heatbeat is used to check if slave is idle
-        this.heartBeat = this.heartBeat ?? 100; // 100ms
+        this.heartBeat = heartBeat ?? 100; // 100ms
         // initilize
         this.init();
         // if it is over lan run start
@@ -136,18 +136,17 @@ class Master {
         return new Promise( async (resolve, reject) => {
             // which check all the sockets
             let interval = setInterval(() => {
-                // loop through all the slaves
-                for(let i = 0; i < this.slaves.size(); i++) {
-                    // get the slave
-                    let slave = this.slaves.next();
-                    // check if slave is idle
-                    if(slave?.status === 'idle') {
-                        clearInterval(interval);
-                        //clearTimeout(timeout);
-                        log('[master] got idle slave: ', slave.id);
-                        //log('[master] pool queue: ', this.slaves.enabled.toArray());
-                        resolve(slave);
-                    }
+                // get the slave
+                let slave = this.slaves.next();
+                // check if slave is idle
+                if(slave?.status === 'idle') {
+                    clearInterval(interval);
+                    //clearTimeout(timeout);
+                    log('[master] got idle slave: ', slave.id);
+                    //log('[master] pool queue: ', this.slaves.enabled.toArray());
+                    resolve(slave);
+                    // adjust heart beat
+                    this._adjustHeartBeat();
                 }
             }, this.heartBeat);
         }).catch( error =>
@@ -159,9 +158,32 @@ class Master {
         let connections = this.slaves.getConnections().length;
         let idle = this.slaves.getEnabled().length;
         let busy = this.slaves.getDisabled().length;
-        let idealRate = idle / connections;
-        return { connections, idle, busy, idealRate }
+        let idleRate = (idle / connections * 100).toFixed(2);
+        return { connections, idle, busy, idleRate }
     }
+
+    _adjustHeartBeat() {
+        // set min and max heart beat
+        let heartBeatRange = [50, 5000];
+        // set min and max heart beat
+        let idleRateRange = [5, 15];
+        // get idle rate
+        let { idleRate } = this.status();
+        // if idle rate is more than 20%
+        log('[master] idleRate: ', idleRate);
+        log('[master] this.heartBeat: ', this.heartBeat);
+        if(this.heartBeat < heartBeatRange[0])  // if heart beat is less than lower limit
+            this.heartBeat = this.heartBeat * 1.1;
+        else if(this.heartBeat > heartBeatRange[1])  // if heart beat is more than upper limit
+            this.heartBeat = this.heartBeat * 0.9;
+        else {
+            if(idleRate > idleRateRange[1])  // if idle rate is more than 20%
+                this.heartBeat = this.heartBeat * 0.9;
+            else if(idleRate < idleRateRange[0])  // if idle rate is less than 5%
+                this.heartBeat = this.heartBeat * 1.1;
+        }
+    }
+
     
     printStatus() {
         let {connections, idle, busy, idleRate} = this.status();
