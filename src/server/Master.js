@@ -21,7 +21,7 @@ class Master {
         // if master options in options in set
         if(options.masterOptions) options = { ...options, ...options.masterOptions };
         // get options
-        let { port, host, maxTransferSize, io } = options;
+        let { port, host, maxTransferSize, io, heartBeat } = options;
         this.port = port || 3003;
         // define host
         this.host = host || 'localhost';
@@ -43,6 +43,8 @@ class Master {
             this.io = new Server(this.port, this.ioOptions );
         // create a new socket.io client instance
         this.slaves = new Pool();
+        // this heatbeat is used to check if slave is idle
+        this.heartBeat = this.heartBeat ?? 100; // 100ms
         // initilize
         this.init();
         // if it is over lan run start
@@ -72,7 +74,7 @@ class Master {
                     clearTimeout(timeout);
                     resolve();
                 }
-            }, 1000); // 1 second
+            }, this.heartBeat);
             // set timeout to reject if no connection
             timeout = setTimeout(() => {
                 clearInterval(interval);
@@ -95,7 +97,7 @@ class Master {
             let interval = setInterval(async () => {
                 let slave = await this.getIdle();
                 callback(slave);
-            }, 1000); // 1 second
+            }, this.heartBeat);
         });
     }
 
@@ -112,12 +114,12 @@ class Master {
                     clearTimeout(timeout);
                     resolve();
                 }
-            }, 1000); // 1 second
+            }, this.heartBeat);
             // set timeout to reject if no new connection
             timeout = setTimeout(() => {
                 clearInterval(interval);
                 reject('timeout');
-            }, 1000 * 1 ); // 1 minute
+            }, 1000 * 60 ); // 1 minute
         });
     }
 
@@ -130,13 +132,10 @@ class Master {
 
     async getIdle() {
         log('[master] awaiting getIdle');
-        // await until connection
-        await this.connected();  
         // search all sockets
         return new Promise( async (resolve, reject) => {
-            let interval //,timeout;
             // which check all the sockets
-            interval = setInterval(() => {
+            let interval = setInterval(() => {
                 // loop through all the slaves
                 for(let i = 0; i < this.slaves.size(); i++) {
                     // get the slave
@@ -150,7 +149,7 @@ class Master {
                         resolve(slave);
                     }
                 }
-            }, 1000); // 1 second
+            }, this.heartBeat);
         }).catch( error =>
             console.error('[master] getIdle error: ', error)
         );
