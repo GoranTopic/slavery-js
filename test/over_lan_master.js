@@ -17,6 +17,7 @@ let master_function = async master => {
                 console.log('✅ slave returned the correct result');
             else 
                 console.log('❌ slave returned the wrong result');
+            master.exit()
         });
 }
 

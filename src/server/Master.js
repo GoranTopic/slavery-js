@@ -1,5 +1,6 @@
 import { createServer } from "http";
 import { Server } from "socket.io";
+import process from 'node:process';
 import Slave from "./Slave.js";
 import Pool from "./Pool.js";
 import log from '../utils/log.js';
@@ -20,8 +21,9 @@ class Master {
     constructor(options={}) {
         // if master options in options in set
         if(options.masterOptions) options = { ...options, ...options.masterOptions };
+        this.options = options;
         // get options
-        let { port, host, maxTransferSize, io, heartBeat } = options;
+        let { port, host, timeout, maxTransferSize, io, heartBeat } = this.options;
         this.port = port || 3003;
         // define host
         this.host = host || 'localhost';
@@ -29,6 +31,8 @@ class Master {
         this.isOverLan = this.host !== 'localhost';
         // define max transfer size for socket.io
         this.maxTransferSize = maxTransferSize || 1e9; // 1GB
+        // set timeout for slave run 
+        this.timeout_ms = timeout || null;
         // options for the socket.io server
         this.ioOptions = { 
             maxHttpBufferSize: this.maxTransferSize,
@@ -57,9 +61,10 @@ class Master {
     init() {
         // create a new socket.io client instance
         this.io.on("connection", this._handleSocketConnection.bind(this));
-        this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
+        this.io.on("reconnect", () => log("[master] on reconnect triggered"));
     }
 
+    // this run the master function passed as callback
     async run(callback) {
         await callback(this);
     }
@@ -84,10 +89,26 @@ class Master {
         });
     }
 
-    async onNewConnection(callback) {
+    async exit() {
+        // broadcast exit to all slaves
+        this.io.emit('_exit');
+        // close all sockets
+        this.io.close();
+        // close all processes
+        process.send('exit');
+    }
+
+
+    async newConnection(callback) {
+        /* 
+         * this function does not work! th problem is that we nned to return a slave 
+         * in the _handleSocketConnection which is handles there response from the client
+         * we can promisify the _handleSocketConnection but i cant be bothered
+         */
         this.io.on("connection", socket => {
+            this._handleSocketConnection(socket);
             let slave = this._handleSocketConnection(socket);   
-            console.log('[master] slave: ', slave);
+            log('[master] new slave: ', slave);
             if(slave) callback(slave);
         });
     }
@@ -100,8 +121,6 @@ class Master {
             }, this.heartBeat);
         });
     }
-
-
 
     async untilNewConnection() {
         return new Promise((resolve, reject) => {
@@ -159,7 +178,13 @@ class Master {
         let idle = this.slaves.getEnabled().length;
         let busy = this.slaves.getDisabled().length;
         let idleRate = (idle / connections * 100).toFixed(2);
-        return { connections, idle, busy, idleRate }
+        let heartBeat = this.heartBeat;    
+        return { connections, idle, busy, idleRate, heartBeat };
+    }
+
+    printStatus() {
+        let {connections, idle, busy, idleRate, heartBeat } = this.status();
+        console.log(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}, idleRate: ${idleRate} heartBeat: ${heartBeat}`);
     }
 
     _adjustHeartBeat() {
@@ -182,12 +207,6 @@ class Master {
             else if(idleRate < idleRateRange[0])  // if idle rate is less than 5%
                 this.heartBeat = this.heartBeat * 1.1;
         }
-    }
-
-    
-    printStatus() {
-        let {connections, idle, busy, idleRate} = this.status();
-        this._updateLine(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}, idleRate: ${idleRate}`);
     }
 
     _createSlaveId() {
@@ -221,7 +240,7 @@ class Master {
                 slave.socket.disconnect();
                 // make new slave
                 log('[master] making new slave');
-                let newSlave = new Slave(slaveId, socket);
+                let newSlave = new Slave(slaveId, socket, this.options);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // pass status value
@@ -237,7 +256,7 @@ class Master {
             } else { 
                 log('[master] slaveId not in pool');
                 // if it is not in the pool, make new slave
-                let newSlave = new Slave(slaveId, socket);
+                let newSlave = new Slave(slaveId, socket, this.options);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
@@ -253,7 +272,7 @@ class Master {
             socket.once("set_slave_id_result", slaveId => {
                 log('[master] got slaveId back form client: ', slaveId);
                 // make new slave and add tot he pool
-                let newSlave = new Slave(slaveId, socket);
+                let newSlave = new Slave(slaveId, socket, this.options);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
@@ -266,9 +285,7 @@ class Master {
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);
         process.stdout.write(str +'\r\n');
-
     }
-
 
 }
 

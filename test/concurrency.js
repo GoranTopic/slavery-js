@@ -50,13 +50,15 @@ let master_function = async master => { // initialize the master
         console.log('❌ concurrent test failed, took: ', seconds, 'seconds' );
     else 
         console.log('✅ concurrent test passed, took: ', seconds, 'seconds' );
+    master.exit();
 }
 
 
 let slave_function = async (parameter, slave) => { // create the salve 
     /* 
      * it takes a function which is to be run then master runs: 'slave.run(params)
-     * the params passed to slave.run(params) is the first paramter of this function, in this case 'counter'.
+     * the params passed to slave.run(params) is the first paramter of this function, 
+     * in this case 'counter'. 
      * the second is the slave object. 
      * */
     // count sum of numbers

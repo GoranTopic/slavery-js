@@ -46,13 +46,24 @@ class Pool {
         if( this.enabled.indexOf(id) !== -1 ) return true;
         // if it is in the disabled list, remove it
         if( this.disabled.indexOf(id) !== -1 ){
+            log('[pool] enabling', id);
             // remove the slave from the disable list
             this.disabled = this.disabled.filter( e => e !== id );
             // add the slave to the queue
-            log('[pool] enabling', id);
             this.enabled.enqueue(id);
             return true
         }
+    }
+
+    nextAndEnable(){
+        // if the diabled list is empty, return false
+        if( this.disabled.length === 0 ) return false;
+        // get the first element of the disabled list
+        let id = this.disabled[0];
+        // and enable it
+        this.enable(id);
+        // return the id
+        return id;
     }
 
     rotate() { // dequeue and enqueue
@@ -146,6 +157,15 @@ class Pool {
 
     getConnections() {
         return Object.keys(this.items);
+    }
+
+    healthCheck() {
+        let totalConnections = this.size();
+        let enabledConnections = this.getEnabled().length;
+        let disabledConnections = this.getDisabled().length;
+        if(totalConnections === (enabledConnections + disabledConnections))
+            return true;
+        else return false;
     }
 
 }

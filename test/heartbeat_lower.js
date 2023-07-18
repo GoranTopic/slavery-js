@@ -1,4 +1,6 @@
 import slavery from '../index.js'
+/* slavery should atuomatically detect th emost optimal 'heartBeat' for given slaves,
+ * */
 
 // function to count sum of numbers, purely for the porpuse of processing
 let make_timeout = s =>
@@ -9,12 +11,11 @@ let make_timeout = s =>
     })
 
 let options = {
-    //numberOfSlaves: 40, // number of processes to run concurrently, this includes the master process
     // if this is not set, it will create process relative the the number of cores in the machine
     port: 3003, // port to be used to communicate between salve and master
     host: 'localhost', // network host
     heartBeat: 5000, // heart beat interval in milliseconds
-    debug: true,
+    debug: true, 
 }
 
 // start the timer
@@ -26,33 +27,29 @@ let master_function = async master => { // initialize the master
     let array = Array(1000).fill(1);
     for( let i = 0; i < array.length; i++ ){
         // get a slave that is not currely working
+        console.log('master is looking for a slave')
         let slave = await master.getIdle(); 
+        //console.log('master got slave', slave)
         slave.run(10)
             .then( result => {
-                //console.log('index: ', index);
-                master.printStatus();
+                console.log('master is working on', i)
+                //console.log(result)
+                console.log(master.status())
             });
     }
 };
 
-
-
-let slave_function = async (parameter, slave) => { // create the salve 
-    /* 
-     * it takes a function which is to be run then master runs: 'slave.run(params)
-     * the params passed to slave.run(params) is the first paramter of this function, in this case 'counter'.
-     * the second is the slave object. 
-     * */
+let slave_function = async (parameter, slave) => { 
     // count sum of numbers
+    //console.log('slave is working on', parameter)
     let timeout = make_timeout(parameter);
     let s = await timeout;
+    //console.log('slave is done with', parameter)
     return true;
 };
-
 
 // create the engine
 slavery(options)
     .master( master_function )
     .slave( slave_function )
-
 

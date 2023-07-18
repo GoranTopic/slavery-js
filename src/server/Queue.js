@@ -18,12 +18,6 @@ class Queue {
     }
 
     next() {
-        /*
-        console.log(`
-this.items: ${this.items}
-length: ${this.items.length}
-`)
-*/
         // dequeue and enqueue
         if(this.items.length > 0) {
             const item = this.items.shift()

@@ -3,6 +3,7 @@ import Slave from './client/Slave.js';
 import cluster from 'node:cluster';
 import process from 'node:process';
 import { availableParallelism } from 'node:os';
+import log from './utils/log.js';
 
 class Slavery {
     constructor() {
@@ -25,9 +26,9 @@ class Slavery {
             this.number_of_slaves = numberOfSlaves || available_cores;
             // if number of slaves is more than available cores
             if(this.number_of_slaves > available_cores)
-                console.error(
-                    new Error(`number of workers is more than available cores, available cores: ${available_cores}`)
-                )
+                console.warn(
+                    `number of workers is more than available cores, available cores: ${available_cores}`
+                );
             // calculate number of slaves
             this._calc_available_cores();
         }
@@ -41,8 +42,12 @@ class Slavery {
             this._calc_available_cores();
             // make master node
             process.env.type = 'master';
-            // make slave nodes
-            cluster.fork();
+            // make master process
+            let masterProcess = cluster.fork();
+            // set listerner for master process exit
+            masterProcess.on('message', msg => {
+                if(msg === 'exit') this._exit_all_processes();
+            });
             // set type to primary again
             process.env.type = 'primary';
         }
@@ -70,7 +75,11 @@ class Slavery {
                 // set type to slave
                 process.env.type = 'slave';
                 // make slave process
-                cluster.fork({ type: 'slave'});
+                let worker = cluster.fork({ type: 'slave'});
+                // set listerner for master process exit
+                worker.on('message', msg => {
+                    if(msg === 'exit') this._exit_all_processes();
+                });
                 // set type to primary again
                 process.env.type = 'primary';
             }
@@ -91,6 +100,16 @@ class Slavery {
         // get number of slaves left
         this.number_of_slaves = this.number_of_slaves - Object.values(cluster.workers).length
     }
+
+    // exit all processes
+    _exit_all_processes() {
+        // send singal to all workers to exit
+        for (var id in cluster.workers) 
+            cluster.workers[id].kill();
+        // exit the master process
+        process.exit(0);
+    }
+
 }
 
 function make_slavery ( options={} ){

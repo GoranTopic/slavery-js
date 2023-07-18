@@ -6,10 +6,18 @@ import log from '../utils/log.js';
 // create worker with each worker socket io connection
 class Slave {
     constructor(options={}){
-        let { host, port } = options
+        if(options.slaveOptions)
+            options = { 
+                ...options, 
+                ...options.slaveOptions
+            }
+        this.options = options;
+        let { host, port, timeout } = options
         // endpoint to connect to socke.io server
         this.host = host ?? "localhost";
         this.port = port ?? 3003;
+        // set the timeout
+        this.timeout_ms = timeout ?? null;
         // endpoint to connect to socke.io server
         this.endpoint = `ws://${this.host}:${this.port}`;
         // has it connected to server?
@@ -104,6 +112,13 @@ class Slave {
             else
                 return this.error('no function to run found')
         });
+        // _exit function
+        this.socket.on("_exit", () => {
+            // log 
+            log(`[${this.id}] slave is exiting`)
+            // send the exit signal to the primary process
+            process.send('exit');
+        });
     }
 
     setCallback(callback){
@@ -114,28 +129,50 @@ class Slave {
     // it only should run when it revice the signal '_run'
     // on another thread
     async run(callback){
-        // wait until connected
-        try{
+        let timeout;
+        return new Promise( async(resolve, reject) => {
+            // set timeout for process
+            if(this.timeout_ms){ 
+                timeout = setTimeout(() =>{ 
+                    reject( new Error(`Slave has timed out: ${this.timeout_ms} ms`))
+                }, this.timeout_ms)
+            };
             // start work
-            this.setIdle(false);
+            this.setBusy();
             // this runs the function
-            //console.log('[slave] running callback');
             this.result = await this.callback(this.params, this);
             // send result back to master
             this.socket.emit("_run_result", this.result );
             // isIdle again
-            this.setIdle(true);
-        }catch(err){
+            this.setIdle();
+            // resolve 
+            resolve();
+        }).catch( err => {
             // isIdle again
-            this.setIdle(true);
+            this.setIdle();
             // is error too
             this.isError = err;
-            // print on terminal
-            if(!this.runningMasterOnSameMachine)
+            let isItTimeout = 
+                err.toString().includes('timed out')
+            // if we are running the master on the same machine
+            // there is no need to send the error message 
+            // as it will be printed twice.
+            //  if we are not running master on the same machine
+            //  then we do send it.
+            //  if it is also a timeout error we send it
+            if(!this.runningMasterOnSameMachine || isItTimeout)
                 // send error back to master
-                this.socket.emit( "_run_error", serializeError(err) );
-            console.error(err);
-        }
+                this.socket.emit( "_run_error", 
+                    serializeError(err) 
+                );
+            console.error(`Error`, err)
+        }).finally( () => {
+            // clear timeout
+            if(this.timeout_ms) 
+                clearTimeout(timeout);
+            // set isRunDone
+            this.isRunDone = true;
+        })
     }
 
     // this function is called when a functio is passed form the master
@@ -144,20 +181,20 @@ class Slave {
         return new Promise( 
             resolve => {
                 // start work
-                this.setIdle(false);
+                this.setBusy();
                 // function 
                 if(this.params) resolve(func(...this.params));
                 else resolve(func());
             })
             .then( result => {
                 // isIdle again
-                this.setIdle(true);
+                this.setIdle();
                 // send result back to master
                 this.socket.emit("_work_result", result );
             })
             .catch( e => { 
                 // isIdle again
-                this.setIdle(true);
+                this.setIdle();
                 // is error too
                 this.isError = e;
                 // send error back to master
@@ -208,10 +245,16 @@ class Slave {
         });
     }
 
-    setIdle(isIdle){
-        this.isIdle = isIdle;
+    setIdle(){
+        this.isIdle = true;
         // send result to master
-        this.socket.emit("_set_idle", isIdle );
+        //this.socket.emit("_set_idle", true);
+    }
+
+    setBusy(){
+        this.isIdle = false;
+        // send result to master
+        //this.socket.emit("_set_idle", false );
     }
 
     error(eStr){

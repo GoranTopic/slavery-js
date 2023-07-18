@@ -2,13 +2,16 @@ import { deserializeError } from 'serialize-error';
 import log from '../utils/log.js';
 
 class Slave {
-    /**
-     * constructor
+    /** constructor
      * @param {string} slaveId - id of slave
      * @param {Socket} socket - socket.io socket
      * @param {string} name - name of slave
      **/
-    constructor(slaveId, socket) {
+    constructor(slaveId, socket, options = {}) {
+        // get options
+        let { timeout } = options;
+        // set timeout
+        this.timeout_ms = timeout || null;
         this.name = 'Slave';
         this.status = 'idle';
         this.socket = socket;
@@ -56,14 +59,27 @@ class Slave {
             this._setIdle();
             this.return = result;
         });  
-         
     }
 
     // run work on slave
     async run(params) {
         return new Promise((resolve, reject) => {
+            // set state as busy
             this._setBusy();
+            // send runn command to slave
             this.socket.emit('_run', params);
+            // if there is a timeout set it
+            let timeout = (this.timeout_ms)? setTimeout(() => {
+                log('[Slave] timeout on wating from slave response: ', 
+                    this.timeout_ms);
+                // set state as idle
+                this._setIdle();
+                // remove result listener
+                this.socket.off('_run_result', res => {});
+                this.socket.off('_run_error', e => {});
+                // reject promise
+                reject(new Error('Slave run callback has timed out'));
+            }, this.timeout_ms ) : null;
             // if result is returned
             this.socket.once("_run_result", res => {
                 log('[slave] got _run_result from slave ', this.id);
@@ -73,6 +89,8 @@ class Slave {
                 this.return = res;
                 // remove error listener
                 this.socket.off('_run_error', e => { });
+                // if there is a timeout clear it
+                clearTimeout(timeout);
                 // resolve promise
                 resolve(res);
             });
@@ -85,12 +103,18 @@ class Slave {
                 this.socket.off('_run_result', res => { });
                 // deserialize error
                 let error = deserializeError(e);
+                // if there is a timeout clear it
+                clearTimeout(timeout);
                 // reject promise
                 reject(error);
             });
         });
     }
 
+    timeout( ms ) { // set timeout
+        this.timeout_ms = ms;
+        return this;
+    }
 
     // send paramteres to the slave
     async setParameers(parameters) {
@@ -117,8 +141,8 @@ class Slave {
     async isIdle() {
         if(this.querySlave)
             return new Promise((resolve, reject) => {
-                this.socket.emit('_is_idle' );
-                this.socket.once('_is_idle_result', (result) => {
+                this.socket.emit('_is_idle');
+                this.socket.once('_is_idle_result', result => {
                     resolve(result);
                 });
             });

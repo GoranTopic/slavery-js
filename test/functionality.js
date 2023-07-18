@@ -19,6 +19,7 @@ let master_function = async master => { // initialize the master
                 console.log('✅ return from slave is successfully');
             else
                 console.log('❌ return from slave is not successfully');
+            master.exit();
         });
 }
 
