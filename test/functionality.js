@@ -1,3 +1,4 @@
+
 import slavery from '../index.js'
 
 let options = {
@@ -11,6 +12,7 @@ let options = {
 
 let master_function = async master => { // initialize the master
     /* this is the functions that will run in the master */
+    console.log(`[${process.argv[1]}] testing basic functionality:`);
     let parameter = 'some parameter';
     let slave = await master.getIdle(); 
     slave.run(parameter)

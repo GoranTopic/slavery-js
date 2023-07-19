@@ -29,6 +29,7 @@ let options = {
 /* this code checks that the slave run s cycle, on the salve queue */
 slavery(options)
     .master( async master => { // initialize the master
+        console.log(`[${process.argv[1]}] testing the slaves are being rotated correcly`);
         let rotation = false;
         let num_of_slaves = numberOfSlaves - 1;
         let first_slave = await master.getIdle();

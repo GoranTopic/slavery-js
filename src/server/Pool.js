@@ -129,13 +129,13 @@ class Pool {
     _lookUp( id ) {
         // look in the queue for the id
         let index = this.enabled.indexOf(id);
-        if(!index === -1)
+        if(!(index === -1))
             return { index, list: 'enabled' };
+        
         // look in the disable list for the id
         index = this.disabled.indexOf(id);
-        if(!index === -1){
+        if(!(index === -1))
             return { index, list: 'disabled' };
-        }
         return false;
     }
 

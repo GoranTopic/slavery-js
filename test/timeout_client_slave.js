@@ -19,6 +19,7 @@ let options = {
 
 slavery(options)
     .master( async master => { 
+        console.log(`[${process.argv[1]}] test if the client will timeout when the slave times out`);
         let slave = await master.getIdle(); 
         slave.run()
             .then( result => {

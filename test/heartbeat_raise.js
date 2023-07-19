@@ -13,31 +13,51 @@ let options = {
     // if this is not set, it will create process relative the the number of cores in the machine
     port: 3003, // port to be used to communicate between salve and master
     host: 'localhost', // network host
-    heartBeat: 5000, // heart beat interval in milliseconds
-    debug: true,
+    heartBeat: 10, // heart beat interval in milliseconds
+    debug: false,
 }
 
 // start the timer
 
 let master_function = async master => { // initialize the master
+    console.log(`[${process.argv[1]}] testing to check if heart beat is raised when the idle rate is low enough`);
+    let heartBeats = [];
+    let promises = [];
     /* this is the functions that will run in the master */
     // random array of big numbers
     // for every number in the array
-    let array = Array(1000).fill(1);
+    let array = Array(30).fill(1);
     for( let i = 0; i < array.length; i++ ){
         // get a slave that is not currely working
         let slave = await master.getIdle(); 
-        slave.run(10)
+        promises.push(
+            slave.run(10)
             .then( result => {
-                //console.log('index: ', index);
-                master.printStatus();
-            });
+                let { heartBeat, idleRate } = master.status();
+                console.log(
+                    'heartBeat', heartBeat,
+                    'idleRate', idleRate
+                );
+            })
+        );
     }
+    // wait for all promises to be resolved
+    await Promise.all(promises);
+// split the heart beats by half
+    let heartBeats1 = heartBeats.slice(0, heartBeats.length/2);
+    // check if all values are in decending order
+    let isAscending = 
+        heartBeats1.every( (v,i,a) => !i || a[i-1] <= v );
+    if( isAscending )
+        console.log('✅ heart beats are in ascending');
+    else
+        console.log('❌ heart beats are not in ascending');
+    master.exit();
 };
 
 
-
-let slave_function = async (parameter, slave) => { // create the salve 
+let slave_function = async (parameter, slave) => { 
+    // create the slave 
     /* 
      * it takes a function which is to be run then master runs: 'slave.run(params)
      * the params passed to slave.run(params) is the first paramter of this function, in this case 'counter'.

@@ -13,6 +13,7 @@ let options = {
 
 slavery(options)
     .master( async master => { 
+        console.log(`[${process.argv[1]}] test if the timeout is working correcly with when passed as an option`);
         let slave = await master.getIdle(); 
         slave.run()
             .then( result => {

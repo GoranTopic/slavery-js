@@ -18,8 +18,8 @@ let options = {
 
 
 // start the timer
-
 let master_function = async master => { // initialize the master
+    console.log(`[${process.argv[1]}] testing to see how slavery handles large number of short tasks`);
     /* this is the functions that will run in the master */
     // random array of big numbers
     // for every number in the array
@@ -27,8 +27,7 @@ let master_function = async master => { // initialize the master
     let end = null; 
     let timetaken = 0;
     await Promise.all( 
-        Array(1000)
-        .fill(1)
+        Array(1000).fill(1)
         .map( async (counter, index) => 
             new Promise( async resolve => {
                 // get a slave that is not currely working
@@ -46,9 +45,9 @@ let master_function = async master => { // initialize the master
     let  seconds = ((end - start)/1000).toFixed(2);
     if( seconds > 150 )
         // if it takes more than 15 seconds, then it is not working
-        console.log('❌ concurrent test failed, took: ', seconds, 'seconds' );
+        console.log('❌ many tasks test failed, took: ', seconds, 'seconds' );
     else 
-        console.log('✅ concurrent test passed, took: ', seconds, 'seconds' );
+        console.log('✅ many tasks test passed, took: ', seconds, 'seconds' );
     master.exit();
 }
 

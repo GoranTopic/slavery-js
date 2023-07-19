@@ -29,7 +29,6 @@ class Slave {
         });
         // on disconnect
         this.socket.on('disconnect', () => {
-            log('[Slave] disconnected from slave: ' + this.id);
             this.pool.remove(this.id);
         });
         // on reconnect

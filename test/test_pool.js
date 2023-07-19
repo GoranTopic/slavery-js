@@ -1,3 +1,5 @@
+console.log(`[${process.argv[1]}] testing if the Pool data sctructure is working correcly`);
+
 import Pool from '../src/server/Pool.js';
 
 let p = new Pool();

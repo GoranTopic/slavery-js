@@ -16,13 +16,14 @@ let options = {
     host: 'localhost', // network host
 }
 
-
 // start the timer
 
 let master_function = async master => { // initialize the master
     /* this is the functions that will run in the master */
     // random array of big numbers
     // for every number in the array
+    console.log(`[${process.argv[1]}]
+testing to check if slavery runs processes concurrently: `);
     let start = performance.now();
     let end = null; 
     let timetaken = 0;

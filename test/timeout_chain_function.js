@@ -14,6 +14,7 @@ let options = {
 
 slavery(options)
     .master( async master => { 
+        console.log(`[${process.argv[1]}] test if the timeout is working correcly with the chain function`);
         let slave = await master.getIdle(); 
         slave.timeout(1000) // <- set timeout here
             .run()

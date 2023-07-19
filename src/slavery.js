@@ -1,3 +1,6 @@
+import events from 'node:events';
+events.EventEmitter.prototype._maxListeners = 100;
+// set max listeners to 100
 import Master from './server/Master.js';
 import Slave from './client/Slave.js';
 import cluster from 'node:cluster';

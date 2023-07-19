@@ -1,3 +1,5 @@
+console.log(`[${process.argv[2]}] testing if we can connect with slaves over lan`);
+
 import slavery from '../index.js'
 
 
