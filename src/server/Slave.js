@@ -69,8 +69,7 @@ class Slave {
             this.socket.emit('_run', params);
             // if there is a timeout set it
             let timeout = (this.timeout_ms)? setTimeout(() => {
-                log('[Slave] timeout on wating from slave response: ', 
-                    this.timeout_ms);
+                log(`[Slave] timeout of ${this.timeout_ms} ms set on slave`);
                 // set state as idle
                 this._setIdle();
                 // remove result listener

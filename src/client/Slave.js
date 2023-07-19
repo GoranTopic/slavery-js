@@ -95,7 +95,7 @@ class Slave {
             // add paramters to work
             this.params = params;
             // check if we have a function to run
-            this.run(params);
+            this.run(params)
         });
         // if it sends a function to run
         this.socket.on("_work", workStr => {
@@ -129,50 +129,36 @@ class Slave {
     // it only should run when it revice the signal '_run'
     // on another thread
     async run(callback){
-        let timeout;
-        return new Promise( async(resolve, reject) => {
-            // set timeout for process
-            if(this.timeout_ms){ 
-                timeout = setTimeout(() =>{ 
-                    reject( new Error(`Slave has timed out: ${this.timeout_ms} ms`))
-                }, this.timeout_ms)
-            };
+        try{
             // start work
             this.setBusy();
-            // this runs the function
-            this.result = await this.callback(this.params, this);
+            // promesify the run function so that it will have a timeout
+            this.result = await new Promise( (resolve, reject) => {
+                if(this.timeout_ms){ 
+                    timeout = setTimeout(() => { 
+                        reject( new Error(`Slave has timed out: ${this.timeout_ms} ms`))
+                    }, this.timeout_ms)
+                };
+                let result = this.callback(this.params, this)
+                resolve(result)
+            }).catch( err => {
+                throw err
+            })
             // send result back to master
             this.socket.emit("_run_result", this.result );
             // isIdle again
             this.setIdle();
-            // resolve 
-            resolve();
-        }).catch( err => {
+        }catch(err){
             // isIdle again
             this.setIdle();
             // is error too
             this.isError = err;
-            let isItTimeout = 
-                err.toString().includes('timed out')
-            // if we are running the master on the same machine
-            // there is no need to send the error message 
-            // as it will be printed twice.
-            //  if we are not running master on the same machine
-            //  then we do send it.
-            //  if it is also a timeout error we send it
-            if(!this.runningMasterOnSameMachine || isItTimeout)
-                // send error back to master
-                this.socket.emit( "_run_error", 
-                    serializeError(err) 
-                );
-            console.error(`Error`, err)
-        }).finally( () => {
-            // clear timeout
-            if(this.timeout_ms) 
-                clearTimeout(timeout);
-            // set isRunDone
-            this.isRunDone = true;
-        })
+            // if it is on the same no machine as master print
+            if(!this.runningMasterOnSameMachine)
+                console.error(err)
+            // send error back to master
+            this.socket.emit("_run_error", serializeError(err));
+        }
     }
 
     // this function is called when a functio is passed form the master
@@ -222,6 +208,8 @@ class Slave {
                 reject('timeout');
             }
             , 1000 * 60 ); // 1 minute
+        }).catch( err => {
+            console.error(err);
         });
     }
 
@@ -242,7 +230,9 @@ class Slave {
             // set timeout to reject if no connection
             // 1 minute
             setTimeout(() => reject('timeout'), 1000 * 60 ); 
-        });
+        }).catch( err => {
+            console.error(err);
+        })
     }
 
     setIdle(){
@@ -279,6 +269,8 @@ class Slave {
                 clearTimeout(timeoutId); // Cancel the timeout
                 resolve(true); // Resolve promise
             });
+        }).catch( err => {
+            console.error(err);
         });
     }
 
