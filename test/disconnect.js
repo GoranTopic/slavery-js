@@ -13,6 +13,7 @@ let options = {
 slavery(
     options
 ).master( async master => { // initialize the master
+    console.log(`[${process.argv[1]}] test if the client will timeout when the slave times out`);
     // rotate
     await master.connected(10);
     console.log('got all slaves');
