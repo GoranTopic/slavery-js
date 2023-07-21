@@ -19,12 +19,14 @@ class Slave {
         this.return = null;
         this.pool = null;
         this.querySlave = false;
+        this.lastUpdateAt = Date.now();
         this.init();
     }
 
     init() {
         // on connect
         this.socket.on('connect', () => {
+            this.lastUpdateAt = Date.now();
             log('[Slave] connected to slave: ' + this.id);
         });
         // on disconnect
@@ -33,27 +35,31 @@ class Slave {
         });
         // on reconnect
         this.socket.on('reconnect', () => {
+            this.lastUpdateAt = Date.now();
             log('[Slave] got result from slave: ' + this.id);
         });
         this.socket.on('_ping', result => {
+            this.lastUpdateAt = Date.now();
             log('[Slave] got ping from slave: ' + this.id);
             log('[Slave] result', result);
             this.socket.emit('_pong');
         });
-
         // initiliaze listeneres with slave
         this.socket.on('_set_idle', idle => {
+            this.lastUpdateAt = Date.now();
             if (idle) this._setIdle();
             else this._setBusy();
         });
         // error handling from socket
         this.socket.on('_error', e => {
+            this.lastUpdateAt = Date.now();
             this._setIdle();
             this.error = 'error';
             console.error('error from slave: ', e.error);
         });
         // set reciver for result
         this.socket.on('_result', result => {
+            this.lastUpdateAt = Date.now();
             log('[Slave] got result from slave: ' + result );
             this._setIdle();
             this.return = result;
@@ -80,6 +86,7 @@ class Slave {
             }, this.timeout_ms ) : null;
             // if result is returned
             this.socket.once("_run_result", res => {
+                this.lastUpdateAt = Date.now();
                 log('[slave] got _run_result from slave ', this.id);
                 // set state as idle
                 this._setIdle();
@@ -94,6 +101,7 @@ class Slave {
             });
             // if error occurs
             this.socket.once('_run_error', e => {
+                this.lastUpdateAt = Date.now();
                 log('[Slave] get _run_error from slave ', this.id );
                 // set state as idle
                 this._setIdle()
@@ -119,6 +127,7 @@ class Slave {
         return new Promise((resolve, reject) => {
             this.socket.emit('_set_parameters', work);
             this.socket.once('_set_parameters_result', res => {
+                this.lastUpdateAt = Date.now();
                 resolve(res);
             });
         });
@@ -130,6 +139,7 @@ class Slave {
         return new Promise((resolve, reject) => {
             this.socket.emit('_set_work', work);
             this.socket.once('_set_work_result', (result) => {
+                this.lastUpdateAt = Date.now();
                 resolve(result);
             });
         });
@@ -141,6 +151,7 @@ class Slave {
             return new Promise((resolve, reject) => {
                 this.socket.emit('_is_idle');
                 this.socket.once('_is_idle_result', result => {
+                    this.lastUpdateAt = Date.now();
                     resolve(result);
                 });
             });
@@ -154,6 +165,7 @@ class Slave {
             return new Promise((resolve, reject) => {
                 this.socket.emit('_is_error' );
                 this.socket.once('_is_error_result', result => {
+                    this.lastUpdateAt = Date.now();
                     resolve(result);
                 });
             });

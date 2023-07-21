@@ -174,12 +174,18 @@ class Master {
     }
 
     status() {
-        let connections = this.slaves.getConnections().length;
-        let idle = this.slaves.getEnabled().length;
-        let busy = this.slaves.getDisabled().length;
+        let slaves = this.slaves.getConnections()
+        let connections = slaves.length;
+        let idle = this.slaves.getEnabled().length
+        let busy = this.slaves.getDisabled().length
         let idleRate = (idle / connections * 100).toFixed(2);
         let heartBeat = this.heartBeat;    
-        return { connections, idle, busy, idleRate, heartBeat };
+        let unResponsive = slaves
+        // if slave last update has been in more then 10 minutes
+            .filter( s => s.lastUpdateAt < Date.now() - 1000 * 60 * 10 )
+        // map to id and last update
+            .map( s => ({ id: s.id, lastHearFrom: Date.now() - s.lastUpdateAt }) );
+        return { connections, idle, busy, idleRate, heartBeat, unResponsive };
     }
 
     printStatus() {
@@ -197,14 +203,14 @@ class Master {
         // if idle rate is more than 20%
         log('[master] idleRate: ', idleRate);
         log('[master] this.heartBeat: ', this.heartBeat);
-        if(this.heartBeat < heartBeatRange[0])  // if heart beat is less than lower limit
+        if(this.heartBeat < heartBeatRange[0]) // if heart beat is less than lower limit
             this.heartBeat = this.heartBeat * 1.1;
-        else if(this.heartBeat > heartBeatRange[1])  // if heart beat is more than upper limit
+        else if(this.heartBeat > heartBeatRange[1]) // if heart beat is more than upper limit
             this.heartBeat = this.heartBeat * 0.9;
         else {
-            if(idleRate > idleRateRange[1])  // if idle rate is more than 20%
+            if(idleRate > idleRateRange[1]) // if idle rate is more than 20%
                 this.heartBeat = this.heartBeat * 0.9;
-            else if(idleRate < idleRateRange[0])  // if idle rate is less than 5%
+            else if(idleRate < idleRateRange[0]) // if idle rate is less than 5%
                 this.heartBeat = this.heartBeat * 1.1;
         }
     }
