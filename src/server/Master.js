@@ -179,7 +179,7 @@ class Master {
         let idle = this.slaves.getEnabled().length
         let busy = this.slaves.getDisabled().length
         let idleRate = (idle / connections * 100).toFixed(2);
-        let heartBeat = this.heartBeat;    
+        let heartBeat = this.heartBeat.toFixed(2);    
         let unResponsive = slaves
         // if slave last update has been in more then 10 minutes
             .filter( s => s.lastUpdateAt < Date.now() - 1000 * 60 * 10 )
