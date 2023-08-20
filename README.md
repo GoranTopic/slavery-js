@@ -1,16 +1,16 @@
-salvery-js
+slavery-js
 =======
-#### A simple lib to make manage multiple processes on nodejs. It its makes so that it can scale on multiple machines
+#### A simple lib to make manage multiple processes on nodejs. It makes horizontal scaling easy on multiple machines.
 
 ## Installation
 ```
-npm install salvery-js
+npm install slavery-js
 ```
 ## Usage
 ```javascript
 import slavery from 'slavery.js';
 
-// make diffrent time outs
+//Make different timeouts
 let make_timeout = s =>
     new Promise( resolve => {
         setTimeout( () => {
@@ -20,25 +20,25 @@ let make_timeout = s =>
 
 let timeouts = [ 1, 2, 3, 4, 5, 6, 7, 8 ].reverse()
 
-// optinos to pass to the engine    
+// options to pass to the engine    
 let options = {
     numberOfSlaves: 9, // number of processes to run concurrently, this includes the master process
-    // if this is not set, it will create process relative the the number of cores in the machine
-    port: 3003, // port to be used to communicate between salve and master
+    // if this is not set, it will create a process relative to the number of cores in the machine
+    port: 3003, // port to be used to communicate between slave and master
     host: 'localhost', // network host
 }
 
-// create the engine
+//Create the engine
     slavery(options)
         .master( async master => { // initialize the master
-            /* this is the functions that will run in the master */
+            /* This is the functions that will run in the master */
             // wait until at least one salve is connected
             await master.untilConnected();  
             // random array of big numbers
             // for every number in the array
             for (let timeout of timeouts ){
-                // get a slave that is not currely working
-                let slave = await master.getIdel(); 
+                // Get a slave that is not currently working
+                let slave = await master.getIdle(); 
                 slave.run(timeout)
                     .then( result => // result returned by slave
                         console.log( result )
@@ -48,8 +48,8 @@ let options = {
 .slave( async (parameter, slave) => { // create the salve 
             /* 
              * it takes a function which is to be run then master runs: 'slave.run(params)
-             * the params passed to slave.run(params) is the first paramter of this function, in this case 'counter'.
-             * the second is the slave object. 
+             * the params passed to slave.run(params) is the first parameter of this function, in this case, 'counter'.
+             * The second is the slave object. 
              * */
             let timeout = make_timeout(parameter);
             let s = await timeout;
