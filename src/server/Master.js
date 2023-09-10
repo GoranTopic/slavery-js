@@ -101,7 +101,7 @@ class Master {
 
     async newConnection(callback) {
         /* 
-         * this function does not work! th problem is that we nned to return a slave 
+         * this function does not work! the problem is that we need to return a slave 
          * in the _handleSocketConnection which is handles there response from the client
          * we can promisify the _handleSocketConnection but i cant be bothered
          */

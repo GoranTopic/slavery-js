@@ -117,10 +117,16 @@ class Slave {
         });
     }
 
+    sleepUntil( timeOrCondition ) {
+        // sleep until ms
+        this.pool.disable(this.id, timeOrCondition);
+    }
+
     timeout( ms ) { // set timeout
         this.timeout_ms = ms;
         return this;
     }
+
 
     // send paramteres to the slave
     async setParameers(parameters) {
