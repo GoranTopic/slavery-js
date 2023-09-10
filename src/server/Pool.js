@@ -39,6 +39,36 @@ class Pool {
         }
     }
 
+    disbleUntil(id, timeOrCondition){
+        // if it is not in the pool, return false
+        if( !this.has(id) ) return null;
+        // check if timeOrCondition is a number or a function
+        let time = null;
+        let condition = null;
+        if(typeof timeOrCondition === 'number')
+            time = timeOrCondition;
+        else if(typeof timeOrCondition === 'function')
+            condition = timeOrCondition;
+        else throw new Error('timeOrCondition must be a number or a function');
+        // if it is already disabled, we want to keep it disabled until the timeOrCondition is met
+        // if it is in the enabled list, disable it
+        if( this.enabled.indexOf(id) !== -1 ) this.disabled.push(id);
+        // check that the id is in the disabled list
+        if( this.disabled.indexOf(id) === -1 ) throw new Error('id is not in the disabled list');
+        // if time is defined, set a timeout
+        if(time) setTimeout(() => this.enable(id), time);
+        // if condition is defined, set a interval
+        if(condition){
+            let interval = setInterval(() => {
+                if(condition()){
+                    clearInterval(interval);
+                    this.enable(id);
+                }
+            }, 100);
+        }
+    }
+        
+
     enable(id){
         // if it is not in the pool, return false
         if( !this.has(id) ) return null;
