@@ -37,7 +37,7 @@ testing to check if heart beat is lowered when the idle rate of slave is too hig
             .then( result => {
                 let { heartBeat, idleRate } = master.status();
                 console.log(
-                    'heartBeat:', heartBeat.toFixed(1),
+                    'heartBeat:', heartBeat,
                     'idleRate:', idleRate
                 );
                 heartBeats.push(heartBeat);
@@ -48,7 +48,7 @@ testing to check if heart beat is lowered when the idle rate of slave is too hig
     await Promise.all(promises);
     // split the heart beats by half
     let heartBeats1 = heartBeats.slice(0, heartBeats.length/2);
-    // check if all values are in decending order
+    // check if all values are in decending order or each value is greater than the previous value
     let isDecending = 
         heartBeats1.every( (v,i,a) => !i || a[i-1] >= v );
     if(isDecending)

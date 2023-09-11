@@ -39,7 +39,7 @@ class Pool {
         }
     }
 
-    disbleUntil(id, timeOrCondition){
+    disableUntil(id, timeOrCondition){
         // if it is not in the pool, return false
         if( !this.has(id) ) return null;
         // check if timeOrCondition is a number or a function
@@ -52,7 +52,7 @@ class Pool {
         else throw new Error('timeOrCondition must be a number or a function');
         // if it is already disabled, we want to keep it disabled until the timeOrCondition is met
         // if it is in the enabled list, disable it
-        if( this.enabled.indexOf(id) !== -1 ) this.disabled.push(id);
+        if( this.enabled.indexOf(id) !== -1 ) this.disable(id);
         // check that the id is in the disabled list
         if( this.disabled.indexOf(id) === -1 ) throw new Error('id is not in the disabled list');
         // if time is defined, set a timeout

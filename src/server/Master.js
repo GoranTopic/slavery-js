@@ -194,6 +194,12 @@ class Master {
     }
 
     _adjustHeartBeat() {
+        /* the heart beat is the ammount of time the master waits 
+         * for a response from a slave. If the HeartBeat is too low
+         * the master will not be responsive to the slave, 
+         * it it is too high it will use all of ti resorces on checking the slaves.
+         * is adjusted based on the idle rate.
+         */
         // set min and max heart beat
         let heartBeatRange = [50, 5000];
         // set min and max heart beat

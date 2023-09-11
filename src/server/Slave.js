@@ -119,7 +119,7 @@ class Slave {
 
     sleepUntil( timeOrCondition ) {
         // sleep until ms
-        this.pool.disable(this.id, timeOrCondition);
+        this.pool.disableUntil(this.id, timeOrCondition);
     }
 
     timeout( ms ) { // set timeout

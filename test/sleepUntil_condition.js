@@ -2,15 +2,15 @@ import slavery from '../index.js'
 import { performance } from 'perf_hooks'
 
 console.log(`[${process.argv[1]}] testing if Pool sleep until is working correctly`);
-/* if we have some task that take seconds to be completed by an slave. If Sleep until is working correcly then it will take longer for the task to be completed */
-
+/* if we have some taks that will take 5 seconds to complete but will only be compeleted once a condition is met. In this case a counter reaching a certain value. then the tasks will take longer to be completed */
 // a task which takes s seconds to be completed
-let task = () =>
+let task = () => 
     new Promise( resolve => 
         setTimeout( () =>
             resolve(true), 1000
         )
     )
+
 
 
 let master_function = async master => { // initialize the master
@@ -20,6 +20,14 @@ let master_function = async master => { // initialize the master
     let start = performance.now();
     let end = null; 
     let timetaken = 0;
+
+    let timer = {
+        counter : 0,
+        start : setInterval(() =>{ 
+            timer.counter++
+            console.log('counter: ', timer.counter)
+        }, 1000)
+    } 
 
     // we need to complete 10 tasks in more than 10 seconds
     let tasks = Array(10).fill(1)
@@ -34,10 +42,12 @@ let master_function = async master => { // initialize the master
                 let slave = await master.getIdle(); 
                 slave.run(task)
                     .then( result => {
-                        console.log( '[' + slave.id + ']' + ' result: ',
-                            result, 'sleeping for: 3 seconds' );
-                        // sleepUntil for 3 seconds
-                        slave.sleepUntil(3 * 1000)
+                        console.log( '[' + slave.id + ']' +
+                            'starting again when counter is greater than 5',
+                            'result: ', result
+                        );
+                        // sleepUntil is greater than 3
+                        slave.sleepUntil( () => timer.counter > 5 )
                         // save result 
                         resolve(result);
                     });
@@ -47,7 +57,7 @@ let master_function = async master => { // initialize the master
     // end the timer
     end = performance.now();
     let seconds = ((end - start)/1000).toFixed(2);
-    if( seconds >= 10 )
+    if( seconds >= 5 )
         console.log('✅ sleepUntil test passed, took: ', seconds, 'seconds' );
     // it took more than 10 seconds to complete the tasks
     else 
@@ -58,7 +68,7 @@ let master_function = async master => { // initialize the master
 
 // create the engine
 slavery({
-    numberOfSlaves: 4, // let play with 3 slaves
+    numberOfSlaves: 3,
     port: 3003, 
     host: 'localhost', 
 })
