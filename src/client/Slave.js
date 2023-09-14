@@ -177,11 +177,9 @@ class Slave {
                     throw new Error('every key of the callback object must be a string')
             } else 
                 throw new Error('every value of the callback object must be a function')
-        } else if (typeof callbacks === 'function'){
+        } else if (typeof callbacks === 'function')
             // set the callbacks
             this.callbacks['default'] = callbacks
-        } else
-            throw new Error('Slave gets a function or an object of functions')
     }
 
     // this function is called when a functio is passed form the master

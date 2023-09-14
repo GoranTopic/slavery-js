@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node ./test/concurrency.js; node ./test/exit_both.js; node ./test/exit_master.js; node ./test/functionality.js; node ./test/heartbeat_lower.js; node test/heartbeat_raise.js; node test/many_tasks.js; node test/rotation.js; node test/status.js; node test/test_pool.js; node ./test/timeout_chain_function.js; node test/timeout_client_slave.js; node test/timeout_master_option.js; node test/disconnect.js; node test/sleepUntil_time.js; node test/sleepUntil_condition.js"
+    "test": "node ./test/concurrency.js; node ./test/exit_both.js; node ./test/exit_master.js; node ./test/functionality.js; node ./test/heartbeat_lower.js; node test/heartbeat_raise.js; node test/many_tasks.js; node test/rotation.js; node test/status.js; node test/test_pool.js; node ./test/timeout_chain_function.js; node test/timeout_client_slave.js; node test/timeout_master_option.js; node test/disconnect.js; node test/sleepUntil_time.js; node test/sleepUntil_condition.js; node test/run_multifunction.js"
   },
   "repository": {
     "type": "git",
