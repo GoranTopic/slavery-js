@@ -27,7 +27,7 @@ class Slave {
         // function to run on demand
         this.work = null;
         // function to run on demand
-        this.callback = null;
+        this.callbacks = {};
         // is it working
         this.isIdle = true;
         // is it working
@@ -42,6 +42,8 @@ class Slave {
         this.result = null
         // if master is in the same machine
         this.runningMasterOnSameMachine = true;
+        // user data, is accessed with .set and .get
+        this.userData = {}
         // initilize
         this.init();
     }
@@ -91,11 +93,11 @@ class Slave {
             this.socket.emit("_set_work_result", true );
         });
         // run function
-        this.socket.on("_run", params => {
+        this.socket.on("_run", (params, callback_name) => {
             // add paramters to work
             this.params = params;
-            // check if we have a function to run
-            this.run(params)
+            // run the callback
+            this.run(params, callback_name)
         });
         // if it sends a function to run
         this.socket.on("_work", workStr => {
@@ -121,14 +123,10 @@ class Slave {
         });
     }
 
-    setCallback(callback){
-        this.callback = callback
-    }
-
     // this function is in the creation of the slave
     // it only should run when it revice the signal '_run'
     // on another thread
-    async run(callback){
+    async run(params, callback_name){
         try{
             // start work
             this.setBusy();
@@ -139,7 +137,12 @@ class Slave {
                         reject( new Error(`Slave has timed out: ${this.timeout_ms} ms`))
                     }, this.timeout_ms)
                 };
-                let result = this.callback(this.params, this)
+                // get the callback
+                if(this.callbacks[callback_name] === undefined) 
+                    throw new Error(`callback ${callback_name} is not associated with any function`)
+                let callback = this.callbacks[callback_name]
+                // run the callback
+                let result = callback(params, this)
                 resolve(result)
             }).catch( err => {
                 throw err
@@ -159,6 +162,26 @@ class Slave {
             // send error back to master
             this.socket.emit("_run_error", serializeError(err));
         }
+    }
+
+    setCallback(callbacks){
+        // check if call back in an object
+        if (typeof callbacks === 'object'){
+            // check if every value of the object is a function
+            if (Object.values(callbacks).every( v => typeof v === 'function' )){
+                // check if every key is a string
+                if (Object.keys(callbacks).every( k => typeof k === 'string' )){
+                    // set the callbacks
+                    this.callbacks = callbacks
+                } else 
+                    throw new Error('every key of the callback object must be a string')
+            } else 
+                throw new Error('every value of the callback object must be a function')
+        } else if (typeof callbacks === 'function'){
+            // set the callbacks
+            this.callbacks['default'] = callbacks
+        } else
+            throw new Error('Slave gets a function or an object of functions')
     }
 
     // this function is called when a functio is passed form the master
@@ -213,10 +236,19 @@ class Slave {
         });
     }
 
+    set(key, value){
+        this.userData[key] = value;
+    }
+    
+    get(key){
+        return this.userData[key];
+    }
+
     //  pass the on function to the socket io connection
     on(event, callback){
         this.socket.on(event, callback);
     }
+
     emit(event, data){
         this.socket.emit(event, data);
     }

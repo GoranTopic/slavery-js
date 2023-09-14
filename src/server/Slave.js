@@ -67,12 +67,12 @@ class Slave {
     }
 
     // run work on slave
-    async run(params) {
+    async run(params, callback_name='default') {
         return new Promise((resolve, reject) => {
             // set state as busy
             this._setBusy();
             // send runn command to slave
-            this.socket.emit('_run', params);
+            this.socket.emit('_run', params, callback_name);
             // if there is a timeout set it
             let timeout = (this.timeout_ms)? setTimeout(() => {
                 log(`[Slave] timeout of ${this.timeout_ms} ms set on slave`);
@@ -127,7 +127,6 @@ class Slave {
         return this;
     }
 
-
     // send paramteres to the slave
     async setParameers(parameters) {
         return new Promise((resolve, reject) => {
@@ -138,7 +137,6 @@ class Slave {
             });
         });
     }
-
 
     // set work to be done by slave
     async setWork(work) {

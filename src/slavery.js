@@ -1,5 +1,5 @@
 import events from 'node:events';
-events.EventEmitter.prototype._maxListeners = 100;
+events.EventEmitter.prototype._maxListeners = 1000;
 // set max listeners to 100
 import Master from './server/Master.js';
 import Slave from './client/Slave.js';
@@ -67,7 +67,7 @@ class Slavery {
     }
 
     // make slave nodes
-    slave( callback ) {
+    slave( callbacks ) {
         // if it is primary process and this function is called
         // create node slaves
         if (cluster.isPrimary) {
@@ -91,9 +91,9 @@ class Slavery {
         if(process.env.type === 'slave') {
             //console.log('slave created ', cluster.worker.id)
             // create a master node
-            this.salve_process = new Slave( this.options );
+            this.salve_process = new Slave( { ...this.options } );
             // save the code to be run
-            this.salve_process.setCallback(callback);
+            this.salve_process.setCallback(callbacks);
         }
         return this;
     }
