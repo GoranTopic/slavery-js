@@ -140,6 +140,8 @@ class Slave {
         });
     }
 
+    has_done = this.is_done;
+
 
     sleepUntil( timeOrCondition ) {
         // sleep until ms
