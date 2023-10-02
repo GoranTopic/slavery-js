@@ -6,15 +6,15 @@ let options = {
     host: 'localhost', 
     port: 3003, 
     slaveOptions: {
-        timeout: 2000 // <- set timeout here so that only the slave will have a timeout
+        timeout: 2000 // <- Set timeout here so that only the slave will have a timeout
     }
 }
 
-// lets make sure that the client will also timeout
-// NOTE: while this this is test will display correcly,
-// there is nothing that will stop the function passed to the slave from running after it has timed out.
-// this is becuase of how promise and setTimeout works, 
-// there is not wa to stop the 
+//let's make sure that the client will also timeout
+// NOTE: while this test will display correcly,
+// There is nothing that will stop the function passed to the slave from running after it has timed out.
+// This is because of how promise and setTimeout work, 
+// There is no way to stop the function from running in the backlog
 
 
 slavery(options)
@@ -30,7 +30,7 @@ slavery(options)
                 master.exit();
             });
     }).slave( async (counter, slave) => 
-        // make a axois request to a random ip address so it will timeout
+        // make an axios request to a random IP address so it will timeout
         axios.get('http://123.124.23.4')
         .then( response => {
             return response.data;
