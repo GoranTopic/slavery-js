@@ -117,6 +117,30 @@ class Slave {
         });
     }
 
+    async is_done(callback_name='default') {
+        return new Promise((resolve, reject) => {
+            // query if slave callback is done
+            this.socket.emit('_is_done', callback_name);
+            // if there is a timeout set it
+            let timeout = (this.timeout_ms)? setTimeout(() => {
+                log(`[Slave] timeout of ${this.timeout_ms} ms set on slave`);
+                // set state as idle
+                this._setIdle();
+                // remove result listener
+                this.socket.off('_run_result', res => {});
+                this.socket.off('_run_error', e => {});
+                // reject promise
+                reject(new Error('Slave run callback has timed out'));
+            }, this.timeout_ms ) : null;
+            // if result is returned
+            this.socket.once("_is_done_result", res => {
+                this.lastUpdateAt = Date.now();
+                resolve(res);
+            });
+        });
+    }
+
+
     sleepUntil( timeOrCondition ) {
         // sleep until ms
         this.pool.disableUntil(this.id, timeOrCondition);

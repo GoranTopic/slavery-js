@@ -28,6 +28,8 @@ class Slave {
         this.work = null;
         // function to run on demand
         this.callbacks = {};
+        // callbacks keep track of the callbacks that have ran 
+        this.callbacksDone = {};
         // is it working
         this.isIdle = true;
         // is it working
@@ -73,8 +75,13 @@ class Slave {
         });
         // check if work is idle
         this.socket.on("_is_idle", () => {
-            //console.log('[slave] _is_Idle: ', this.isIdle)
+            // check if we are idle
             this.socket.emit("_is_idle_result", this.isIdle );
+        });
+        // check if a callback has ran successfully
+        this.socket.on("_is_done", callback_name => {
+            // check if we are idle
+            this.socket.emit("_is_done_result", this.callbacksDone[callback_name] );
         });
         // check if there was a error
         this.socket.on("_is_error", () => {
@@ -149,11 +156,11 @@ class Slave {
             })
             // send result back to master
             this.socket.emit("_run_result", this.result );
+            // set callback done
+            this.callbacksDone[callback_name] = true;
             // isIdle again
             this.setIdle();
         }catch(err){
-            // isIdle again
-            this.setIdle();
             // is error too
             this.isError = err;
             // if it is on the same no machine as master print
@@ -161,11 +168,16 @@ class Slave {
                 console.error(err)
             // send error back to master
             this.socket.emit("_run_error", serializeError(err));
+            // set callback not done   
+            this.callbacksDone[callback_name] = false;
+            // isIdle again
+            this.setIdle();
         }
+
     }
 
     setCallback(callbacks){
-        // check if call back in an object
+        // check if callback is an object
         if (typeof callbacks === 'object'){
             // check if every value of the object is a function
             if (Object.values(callbacks).every( v => typeof v === 'function' )){
@@ -173,13 +185,23 @@ class Slave {
                 if (Object.keys(callbacks).every( k => typeof k === 'string' )){
                     // set the callbacks
                     this.callbacks = callbacks
+                    // make also calbacks done
+                    // remove the overwrite the callbacks value of the callback object
+                    this.callbacksDone = Object.keys(callbacks)
+                        .reduce( (acc, key) => {
+                            acc[key] = false;
+                            return acc;
+                        }, {})
                 } else 
                     throw new Error('every key of the callback object must be a string')
             } else 
                 throw new Error('every value of the callback object must be a function')
-        } else if (typeof callbacks === 'function')
+        } else if (typeof callbacks === 'function'){
             // set the callbacks
             this.callbacks['default'] = callbacks
+            // make also calbacks done
+            this.callbacksDone['default'] = false;
+        }
     }
 
     // this function is called when a functio is passed form the master
