@@ -141,7 +141,9 @@ class Slave {
     }
 
     has_done = this.is_done;
-
+    hasDone = this.is_done;
+    isDone = this.is_done;
+    
 
     sleepUntil( timeOrCondition ) {
         // sleep until ms
