@@ -259,10 +259,13 @@ class Slave {
     set(key, value){
         this.userData[key] = value;
     }
+    save = this.set;
+
     
     get(key){
         return this.userData[key];
     }
+    load = this.get;
 
     //  pass the on function to the socket io connection
     on(event, callback){
@@ -308,6 +311,7 @@ class Slave {
     }
 
     async _ping_master(){
+        /* check if the master is alive */
         return new Promise((resolve, reject) => {
             // make a timeout
             let timeout = 1000 * 10; // 10 seconds

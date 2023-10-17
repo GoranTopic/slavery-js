@@ -143,12 +143,22 @@ class Slave {
     has_done = this.is_done;
     hasDone = this.is_done;
     isDone = this.is_done;
+    has_run = this.is_done;
+    hasRun = this.is_done;
+    did_run = this.is_done;
+    didRun = this.is_done;
     
 
     sleepUntil( timeOrCondition ) {
         // sleep until ms
         this.pool.disableUntil(this.id, timeOrCondition);
     }
+    
+    sleep_until = this.sleepUntil;
+    sleep_for = this.sleepUntil;
+    sleepFor = this.sleepUntil;
+
+
 
     timeout( ms ) { // set timeout
         this.timeout_ms = ms;
@@ -156,7 +166,7 @@ class Slave {
     }
 
     // send paramteres to the slave
-    async setParameers(parameters) {
+    async setParamers(parameters) {
         return new Promise((resolve, reject) => {
             this.socket.emit('_set_parameters', work);
             this.socket.once('_set_parameters_result', res => {
@@ -165,6 +175,7 @@ class Slave {
             });
         });
     }
+    set_parameters = this.setParamers;
 
     // set work to be done by slave
     async setWork(work) {
@@ -176,6 +187,7 @@ class Slave {
             });
         });
     }
+    set_work = this.setWork;
 
     // check if salve is idle
     async isIdle() {
@@ -190,6 +202,7 @@ class Slave {
         else 
             return this.status === 'idle'
     }
+    is_idle = this.isIdle;
 
     // check if there is an error
     async hasError() {
@@ -204,6 +217,7 @@ class Slave {
         } else 
             return this.error
     }
+    has_error = this.hasError;
 
     on(event, callback) {
         this.socket.on(event, callback);

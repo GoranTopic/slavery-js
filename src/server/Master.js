@@ -112,6 +112,7 @@ class Master {
             if(slave) callback(slave);
         });
     }
+    new_connection = this.newConnection;
 
     async onIdle(callback) {
         return new Promise((resolve, reject) => {
@@ -121,8 +122,10 @@ class Master {
             }, this.heartBeat);
         });
     }
+    on_idle = this.onIdle;
 
     async untilNewConnection() {
+        // await until connection
         return new Promise((resolve, reject) => {
             let number = this.slaves.size();
             let interval, timeout;
@@ -141,6 +144,11 @@ class Master {
             }, 1000 * 60 ); // 1 minute
         });
     }
+    until_new_connection = this.untilNewConnection;
+    wait_for_new_connection = this.untilNewConnection;
+    waitForNewConnection = this.untilNewConnection;
+    wait_for_connection = this.untilNewConnection;
+    waitForConnection = this.untilNewConnection;
 
     async getSlaves() {
         // await until connection
@@ -148,8 +156,10 @@ class Master {
         // get all sockets
         return this.sockets.toArray()
     }
+    get_slaves = this.getSlaves;
 
     async getIdle() {
+        /* this function return a slave that is idle */
         log('[master] awaiting getIdle');
         // search all sockets
         return new Promise( async (resolve, reject) => {
@@ -172,6 +182,11 @@ class Master {
             console.error('[master] getIdle error: ', error)
         );
     }
+    get_idle = this.getIdle;
+    getIdleSlave = this.getIdle;
+    get_idle_slave = this.getIdle;
+    getSlave = this.getIdle;
+    get_slave = this.getIdle;
 
     status() {
         let slaves = this.slaves.getConnections()
@@ -192,6 +207,9 @@ class Master {
         let {connections, idle, busy, idleRate, heartBeat } = this.status();
         console.log(`[master] connections: ${connections}, idle: ${idle}, busy: ${busy}, idleRate: ${idleRate} heartBeat: ${heartBeat}`);
     }
+    logStatus = this.printStatus;
+    log_status = this.printStatus;
+    log = this.printStatus;
 
     _adjustHeartBeat() {
         /* the heart beat is the ammount of time the master waits 
