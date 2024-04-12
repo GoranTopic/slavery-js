@@ -44,8 +44,7 @@ let options = {
                         console.log( result )
                     );
             }
-        })
-.slave( async (parameter, slave) => { // create the salve 
+        }).slave( async (parameter, slave) => { // create the salve 
             /* 
              * it takes a function which is to be run then master runs: 'slave.run(params)
              * the params passed to slave.run(params) is the first parameter of this function, in this case, 'counter'.
