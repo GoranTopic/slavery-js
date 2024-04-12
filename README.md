@@ -8,7 +8,7 @@ npm install slavery-js
 ```
 ## Usage
 ```javascript
-import slavery from 'slavery.js';
+import slavery from 'slaveryr-js';
 
 //Make different timeouts
 let make_timeout = s =>
@@ -67,7 +67,7 @@ let options = {
 ```
 ## Multiple functions
 ```javascript
-import slavery from 'slavery.js';
+import slavery from 'slavery-js';
 
 slavery({
     numberOfSlaves: 3, // number of processes to run concurrently, this includes the master process
