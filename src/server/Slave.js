@@ -177,18 +177,6 @@ class Slave {
     }
     set_parameters = this.setParamers;
 
-    // set work to be done by slave
-    async setWork(work) {
-        return new Promise((resolve, reject) => {
-            this.socket.emit('_set_work', work);
-            this.socket.once('_set_work_result', (result) => {
-                this.lastUpdateAt = Date.now();
-                resolve(result);
-            });
-        });
-    }
-    set_work = this.setWork;
-
     // check if salve is idle
     async isIdle() {
         if(this.querySlave)

@@ -96,33 +96,12 @@ class Slave {
             this.parameters = parameters;
             this.socket.emit("_set_parameters_result", true );
         });
-        // set work
-        this.socket.on("_set_work", work => {
-            // add paramters to work
-            this.work = work;
-            this.socket.emit("_set_work_result", true );
-        });
         // run function
         this.socket.on("_run", (params, callback_name) => {
             // add paramters to work
             this.params = params;
             // run the callback
             this.run(params, callback_name)
-        });
-        // if it sends a function to run
-        this.socket.on("_work", workStr => {
-            let func = eval( "(" + workStr + ")" );
-            // check if we have a function to run
-            if( func === null && this.work === null) 
-                return this.error('no function passes and no function is set in slave')
-            if( typeof func === "function" ) 
-                // if a func we have a function
-                return this.work(func);
-            else if( typeof this.work === "function" )
-                // if a func we have a function
-                return this.work(this.work);
-            else
-                return this.error('no function to run found')
         });
         // _exit function
         this.socket.on("_exit", () => {
@@ -214,35 +193,6 @@ class Slave {
             // make also calbacks done
             this.callbacksDone['default'] = false;
         }
-    }
-
-    // this function is called when a functio is passed form the master
-    // through the socket io connection
-    async work(callback){
-        return new Promise( 
-            resolve => {
-                // start work
-                this.setBusy();
-                // function 
-                if(this.params) resolve(func(...this.params));
-                else resolve(func());
-            })
-            .then( result => {
-                // isIdle again
-                this.setIdle();
-                // send result back to master
-                this.socket.emit("_work_result", result );
-            })
-            .catch( e => { 
-                // isIdle again
-                this.setIdle();
-                // is error too
-                this.isError = e;
-                // send error back to master
-                this.socket.emit("_work_error", e );
-                // print on terminal
-                console.error('from slave: ', e);
-            })
     }
 
     // this is used to wait until the slave is connected to the server
