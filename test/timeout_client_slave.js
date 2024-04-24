@@ -5,9 +5,7 @@ let options = {
     numberOfSlaves: 2, // only 1 slave
     host: 'localhost', 
     port: 3003, 
-    slaveOptions: {
-        timeout: 2000 // <- Set timeout here so that only the slave will have a timeout
-    }
+    timeout: 2000 // <- Set timeout here so that only the slave will have a timeout
 }
 
 //let's make sure that the client will also timeout

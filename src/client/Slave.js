@@ -12,7 +12,7 @@ class Slave {
                 ...options.slaveOptions
             }
         this.options = options;
-        let { host, port, timeout } = options
+        let { host, port, timeout, passErrorToMaster } = options
         // endpoint to connect to socke.io server
         this.host = host ?? "localhost";
         this.port = port ?? 3003;
@@ -44,6 +44,9 @@ class Slave {
         this.result = null
         // if master is in the same machine
         this.runningMasterOnSameMachine = true;
+        // pass error to master, if this is false, it will crash the process
+        //usefull for when running in docker container
+        this.passErrorToMaster = passErrorToMaster ?? true;
         // user data, is accessed with .set and .get
         this.userData = {}
         // initilize
@@ -137,6 +140,7 @@ class Slave {
         try{
             // start work
             this.setBusy();
+            let timeout;
             // promesify the run function so that it will have a timeout
             this.result = await new Promise( (resolve, reject) => {
                 if(this.timeout_ms){ 
@@ -150,8 +154,14 @@ class Slave {
                 let callback = this.callbacks[callback_name]
                 // run the callback
                 let result = callback(params, this)
+                // clear timeout
+                clearTimeout(timeout);
+                // resolve the result
                 resolve(result)
             }).catch( err => {
+                // clear timeout
+                clearTimeout(timeout);
+                // throw error
                 throw err
             })
             // send result back to master
@@ -167,13 +177,15 @@ class Slave {
             if(!this.runningMasterOnSameMachine)
                 console.error(err)
             // send error back to master
-            this.socket.emit("_run_error", serializeError(err));
+            if(this.passErrorToMaster)
+                this.socket.emit("_run_error", serializeError(err));
+            else // crash the process
+                throw err
             // set callback not done   
             this.callbacksDone[callback_name] = false;
             // isIdle again
             this.setIdle();
         }
-
     }
 
     setCallback(callbacks){
