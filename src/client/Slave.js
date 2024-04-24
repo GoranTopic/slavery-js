@@ -12,7 +12,7 @@ class Slave {
                 ...options.slaveOptions
             }
         this.options = options;
-        let { host, port, timeout, passErrorToMaster } = options
+        let { host, port, timeout, passErrorToMaster, crashOnError } = options
         // endpoint to connect to socke.io server
         this.host = host ?? "localhost";
         this.port = port ?? 3003;
@@ -47,6 +47,8 @@ class Slave {
         // pass error to master, if this is false, it will crash the process
         //usefull for when running in docker container
         this.passErrorToMaster = passErrorToMaster ?? true;
+        // if it should crash on error
+        this.crashOnError = crashOnError ?? false;
         // user data, is accessed with .set and .get
         this.userData = {}
         // initilize
@@ -158,7 +160,8 @@ class Slave {
             // send error back to master
             if(this.passErrorToMaster)
                 this.socket.emit("_run_error", serializeError(err));
-            else // crash the process
+            // if it should crash on error
+            if(this.crashOnError)
                 throw err
             // set callback not done   
             this.callbacksDone[callback_name] = false;
