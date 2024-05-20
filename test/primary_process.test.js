@@ -8,7 +8,7 @@ slavery({
     port: 3003,
     host: 'localhost', // network host
 }).master( async master => { // initialize the master
-    console.log(`[${process.argv[1]}] testing if the primery process is working correctly`);
+    console.log(`[${process.argv[1].split('/').pop()}] testing if the primery process is working correctly`);
     let slave = await master.getIdle(); 
     let count = 100;
     slave.run(count)

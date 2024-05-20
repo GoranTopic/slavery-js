@@ -100,6 +100,8 @@ class Master {
         this.io.close();
         // close all processes
         process.send('exit');
+        // exit process
+        process.exit();
     }
 
 

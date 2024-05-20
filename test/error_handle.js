@@ -13,7 +13,7 @@ let options = {
 slavery(
     options
 ).master( async master => { // initialize the master
-    console.log(`[${process.argv[1]}] test if framework can hanlde errors gracefully`);
+    console.log(`[${process.argv[1].split('/').pop()}] test if framework can hanlde errors gracefully`);
     // rotate
     await master.connected(10);
     console.log('got all slaves');

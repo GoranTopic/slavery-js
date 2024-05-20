@@ -20,7 +20,7 @@ let options = {
 // start the timer
 
 let master_function = async master => { // initialize the master
-    console.log(`[${process.argv[1]}] testing to check if heart beat is raised when the idle rate is low enough`);
+    console.log(`[${process.argv[1].split('/').pop()}] testing to check if heart beat is raised when the idle rate is low enough`);
     let heartBeats = [];
     let promises = [];
     /* this is the functions that will run in the master */

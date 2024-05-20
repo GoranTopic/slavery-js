@@ -1,7 +1,8 @@
 import slavery from '../index.js'
+import { performance } from 'perf_hooks'
 
-// task to run 
-let task = s =>
+// function to count sum of numbers, purely for the porpuse of processing
+let make_timeout = s =>
     new Promise( resolve => {
         setTimeout( () => {
             resolve(s)
@@ -18,7 +19,7 @@ let options = {
 
 // start the timer
 let master_function = async master => { // initialize the master
-    console.log(`[${process.argv[1]}] testing to see how slavery handles large number of short tasks`);
+    console.log(`[${process.argv[1].split('/').pop() }] testing to see how slavery handles large number of short tasks`);
     /* this is the functions that will run in the master */
     // random array of big numbers
     // for every number in the array

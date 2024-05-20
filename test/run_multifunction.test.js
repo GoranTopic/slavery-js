@@ -33,7 +33,7 @@ slavery({
     host: 'localhost', // network host
 })
     .master( async master => { // initialize the master
-        console.log(`[${process.argv[1]}] testing the ability to pass multiple functions to slaves and run the sequntialy`);
+        console.log(`[${process.argv[1].split('/').pop()}] testing the ability to pass multiple functions to slaves and run the sequntialy`);
         await Promise.all( test_classic_names.map( async (name, i) => {
             let slave = await master.getIdle(); 
             return slave.run(name, 'setup')

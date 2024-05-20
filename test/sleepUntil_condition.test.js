@@ -1,7 +1,7 @@
 import slavery from '../index.js'
 import { performance } from 'perf_hooks'
 
-console.log(`[${process.argv[1]}] testing if Pool sleep until is working correctly`);
+console.log(`[${process.argv[1].split('/').pop() }] testing if Pool sleep until is working correctly`);
 /* if we have some taks that will take 5 seconds to complete but will only be compeleted once a condition is met. In this case a counter reaching a certain value. then the tasks will take longer to be completed */
 // a task which takes s seconds to be completed
 let task = () => 

@@ -1,7 +1,7 @@
 import slavery from '../index.js'
 import { performance } from 'perf_hooks'
 
-console.log(`[${process.argv[1]}] testing if Pool sleep until is working correctly`);
+console.log(`[${process.argv[1].split('/').pop()}] testing if Pool sleep until is working correctly`);
 /* if we have some task that take seconds to be completed by an slave. If Sleep until is working correcly then it will take longer for the task to be completed */
 
 // a task which takes s seconds to be completed

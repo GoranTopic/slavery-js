@@ -107,6 +107,7 @@ class Slavery {
         const api = new API(this.master_process);
         //console.log('this.master_process', this.master_process);
         this.master_process.on('message', (msg) => {
+            console.log('got message from master', msg)
             // if master is ready
             if(msg === 'ready') {
                 // run the callback
