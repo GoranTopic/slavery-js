@@ -6,11 +6,12 @@ import Slave from './client/Slave.js';
 import cluster from 'node:cluster';
 import process from 'node:process';
 import { availableParallelism } from 'node:os';
-import log from './utils/log.js';
+import API from './api/api.js';
 
 class Slavery {
     constructor() {
         this.master_process = null;
+        this.master_instance = null;
         this.salve_process = null;
         this.number_of_slaves = null;
     }   
@@ -40,27 +41,25 @@ class Slavery {
 
     master( callback ) {
         // if it is primary and this function is called
-        if (cluster.isPrimary) {
+        if(cluster.isPrimary) { //this code will only run in the primary process
             // calculate number of slaves
             this._calc_available_cores();
             // make master node
             process.env.type = 'master';
             // make master process
-            let masterProcess = cluster.fork();
-            // set listerner for master process exit
-            masterProcess.on('message', msg => {
-                if(msg === 'exit') this._exit_all_processes();
-            });
+            this.master_process = cluster.fork();
             // set type to primary again
             process.env.type = 'primary';
         }
         // if it is the master node and this function is called
-        if(process.env.type === 'master') {
-            //console.log('master created ', cluster.worker.id)
+        if(process.env.type === 'master') { //this code will only run in the master process 
+            //console.log('master process ran')
             // create a master node
-            this.master_process = new Master( this.options );
+            this.master_instance = new Master( this.options );
+            // send signal to the primary process that master is ready
+            process.send('ready');
             // run master code
-            this.master_process.run(callback);
+            this.master_instance.run(callback);
         }
         // return object
         return this;
@@ -70,7 +69,7 @@ class Slavery {
     slave( callbacks ) {
         // if it is primary process and this function is called
         // create node slaves
-        if (cluster.isPrimary) {
+        if (cluster.isPrimary) { // this code will only run in the primary process
             // calculate number of slaves
             this._calc_available_cores();
             // make slave nodes
@@ -78,7 +77,7 @@ class Slavery {
                 // set type to slave
                 process.env.type = 'slave';
                 // make slave process
-                let worker = cluster.fork({ type: 'slave'});
+                let worker = cluster.fork({ type: 'slave' });
                 // set listerner for master process exit
                 worker.on('message', msg => {
                     if(msg === 'exit') this._exit_all_processes();
@@ -88,7 +87,7 @@ class Slavery {
             }
         }
         // if it is the master node and this function is called
-        if(process.env.type === 'slave') {
+        if(process.env.type === 'slave') { // this code will only run in the slave process
             //console.log('slave created ', cluster.worker.id)
             // create a master node
             this.salve_process = new Slave( { ...this.options } );
@@ -96,6 +95,24 @@ class Slavery {
             this.salve_process.setCallback(callbacks);
         }
         return this;
+    }
+
+    // this will only run on primary process
+    // it is usefull for managing the master process programatically
+    primary_process( callback ) {
+        // we need to wait for the master process to be initialized
+        // filter other proceeses out
+        if(!cluster.isPrimary) return;
+        // create an api to pass to the primary process
+        const api = new API(this.master_process);
+        //console.log('this.master_process', this.master_process);
+        this.master_process.on('message', (msg) => {
+            // if master is ready
+            if(msg === 'ready') {
+                // run the callback
+                callback(api)
+            }
+        });
     }
 
     // calculate number of slaves
@@ -115,7 +132,7 @@ class Slavery {
 
 }
 
-function make_slavery ( options={} ){
+function make_slavery( options={} ){
     // add event listener to workers
     const slavery = new Slavery();
     // initialize

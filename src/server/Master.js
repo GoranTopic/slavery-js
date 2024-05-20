@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import { Server } from "socket.io";
 import process from 'node:process';
+import apiListeners from '../api/masterListener.js';
 import Slave from "./Slave.js";
 import Pool from "./Pool.js";
 import log from '../utils/log.js';
@@ -56,6 +57,9 @@ class Master {
             this.httpServer.listen(this.port, this.host, () => 
                 console.log(`Master is running on http://${this.host}:${this.port}`)
             );
+
+        // add listeners 
+        apiListeners(process, this);
     }
 
     init() {
