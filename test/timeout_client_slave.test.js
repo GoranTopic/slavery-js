@@ -2,7 +2,7 @@ import slavery from '../index.js'
 import axios from 'axios'
 
 let options = {
-    numberOfSlaves: 2, // only 1 slave
+    numberOfSlaves: 1, // only 1 slave
     host: 'localhost', 
     port: 3003, 
     timeout: 2000 // <- Set timeout here so that only the slave will have a timeout

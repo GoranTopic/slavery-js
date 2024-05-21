@@ -58,7 +58,7 @@ let master_function = async master => { // initialize the master
 
 // create the engine
 slavery({
-    numberOfSlaves: 4, // let play with 3 slaves
+    numberOfSlaves: 3, // let play with 3 slaves
     port: 3003, 
     host: 'localhost', 
 })

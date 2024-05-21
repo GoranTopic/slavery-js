@@ -21,7 +21,7 @@ slavery(options)
             }).catch( error => {
                 console.error(error);
                 if(error.message === 'Slave run callback has timed out')
-                    console.log('✅ concurrent test passed' );
+                    console.log('✅ timeout success');
             }).finally( () => {
                 master.exit();
             });
