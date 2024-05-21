@@ -73,7 +73,7 @@ class Slavery {
             // calculate number of slaves
             this._calc_available_cores();
             // make slave nodes
-            for(let i = 0; i < this.number_of_slaves; i++){
+            for(let i = 0; i <= this.number_of_slaves; i++){
                 // set type to slave
                 process.env.type = 'slave';
                 // make slave process
