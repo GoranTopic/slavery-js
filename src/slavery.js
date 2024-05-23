@@ -48,6 +48,8 @@ class Slavery {
             process.env.type = 'master';
             // make master process
             this.master_process = cluster.fork();
+            // add type to the worker
+            this.master_process.type = 'master';
             // set type to primary again
             process.env.type = 'primary';
         }
@@ -78,6 +80,8 @@ class Slavery {
                 process.env.type = 'slave';
                 // make slave process
                 let worker = cluster.fork({ type: 'slave' });
+                // add type to the worker
+                worker.type = 'slave';
                 // set listerner for master process exit
                 worker.on('message', msg => {
                     if(msg === 'exit') this._exit_all_processes();
@@ -107,7 +111,6 @@ class Slavery {
         const api = new API(this.master_process);
         //console.log('this.master_process', this.master_process);
         this.master_process.on('message', (msg) => {
-            console.log('got message from master', msg)
             // if master is ready
             if(msg === 'ready') {
                 // run the callback
