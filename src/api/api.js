@@ -33,27 +33,51 @@ class Api {
         await this._query_master('awaitSlavesConnected', number);
     }
 
-    async spawnSlave() {
+    async spawnSlave(number=1) {
         // this function will make a new worker process in the cluster,
         // this worker will read the file and run the functions to become a salve
-        process.env.type = 'slave';
-        // make slave process
-        let worker = cluster.fork({ type: 'slave' });
-        // set listerner for master process exit
-        worker.on('message', msg => {
-            if(msg === 'exit') this._exit_all_processes();
-        });
-        // set type to primary again
-        process.env.type = 'primary';
-
-    } 
+        await Promise.all(
+            Array(number).fill().map(async () => {
+                process.env.type = 'slave';
+                // make slave process
+                let worker = cluster.fork({ type: 'slave' });
+                // set listerner for master process exit
+                worker.type = 'slave';
+                // set type to primary again
+                process.env.type = 'primary';
+                // wait until slave is connected
+                await new Promise((resolve, reject) => {
+                    setInterval(() => {
+                        if(worker.isConnected()) {
+                            resolve();
+                        }
+                    }, 10);
+                })
+            })
+        );
+    }
     
     async killWorker(id=null){
         // if id is null kill the first worker that is not a slave
         if( id == null ){
             let workers = await this.getWorkers();
-            console.log(workers);
-        }
+            // filter out worker type master
+            workers = workers.filter( worker => worker.type !== 'master');
+            //if there workers kill the first one
+            id = workers.length > 0 ? workers[0].id : null;
+        } 
+        // kill the worker
+        cluster.workers[id].kill();
+        // check until worker is killed
+        await new Promise((resolve, reject) => {
+            let interval = setInterval(() => {
+                if(cluster.workers[id] === undefined) {
+                    clearInterval(interval);
+                    resolve();
+                }
+            }, 10);
+        });
+        return;
     }
 
 
@@ -69,6 +93,9 @@ class Api {
         }
     }
 
+    async sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
     async pingMaster() {
         let result = await this._query_master('areYouMaster?');

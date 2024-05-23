@@ -113,6 +113,8 @@ class Slavery {
         this.master_process.on('message', (msg) => {
             // if master is ready
             if(msg === 'ready') {
+                // set listener off
+                this.master_process.removeAllListeners('message');
                 // run the callback
                 callback(api)
             }
