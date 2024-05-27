@@ -9,6 +9,12 @@ class Api {
         this.cluster = cluster;
     }
 
+    onSuccess(){
+    };
+
+    onError(){
+    };
+
     async getWorkers() {
         // return a list of workers in the cluster
         let workers  = cluster.workers;

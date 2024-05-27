@@ -317,6 +317,12 @@ class Master {
         }
     }
 
+    _setCallbacks(slave){
+        slave.setSuccessCallback()
+        slave.setErrorCallback(
+
+    }
+
     _updateLine(str){
         process.stdout.clearLine(0);
         process.stdout.cursorTo(0);

@@ -18,6 +18,8 @@ class Slave {
         this.id = slaveId;
         this.return = null;
         this.pool = null;
+        this.successCallback = null;
+        this.errorCallback = null;
         this.querySlave = false;
         this.lastUpdateAt = Date.now();
         this.init();
@@ -96,6 +98,9 @@ class Slave {
                 this.socket.off('_run_error', e => { });
                 // if there is a timeout clear it
                 clearTimeout(timeout);
+                // run success callback
+                if(this.successCallback)
+                    this.successCallback({ slave: this, result: res });
                 // resolve promise
                 resolve(res);
             });
@@ -111,11 +116,19 @@ class Slave {
                 let error = deserializeError(e);
                 // if there is a timeout clear it
                 clearTimeout(timeout);
+                // run the error callback
+                if(this.errorCallback)
+                    this.errorCallback({ slave: this, error });
                 // reject promise
                 reject(error);
             });
         });
     }
+
+    // set callbacks
+    setSuccessCallback(callback){ this.successCallback = callback }
+    setErrorCallback(callback){ this.errorCallback = callback }
+    
 
     async is_done(callback_name='default') {
         return new Promise((resolve, reject) => {
