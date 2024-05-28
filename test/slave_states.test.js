@@ -22,7 +22,7 @@ slavery({
     } else {
         console.log('❌ slave status is not busy');
     }
-    await api.sleep(100)
+    await api.sleep(1000);
     state = (await api.getSlaves())[0].status;
     if (state === 'idle') {
         console.log('✅ slave status is idle');

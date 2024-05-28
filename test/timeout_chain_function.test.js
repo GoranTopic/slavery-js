@@ -22,7 +22,7 @@ slavery(options)
                 console.log('❌ timeout failed' );
             }).catch( error => {
                 console.error(error);
-                console.log('✅ concurrent test passed' );
+                console.log('✅ timeout success');
             }).finally( () => {
                 master.exit();
             });

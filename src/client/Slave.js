@@ -158,8 +158,9 @@ class Slave {
             if(!this.runningMasterOnSameMachine)
                 console.error(err)
             // send error back to master
-            if(this.passErrorToMaster)
+            if(this.passErrorToMaster){
                 this.socket.emit("_run_error", serializeError(err));
+            }
             // if it should crash on error
             if(this.crashOnError)
                 throw err

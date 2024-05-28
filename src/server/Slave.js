@@ -81,13 +81,13 @@ class Slave {
                 // set state as idle
                 this._setIdle();
                 // remove result listener
-                this.socket.off('_run_result', res => {});
-                this.socket.off('_run_error', e => {});
+                this.socket.removeAllListeners('_run_result');
+                this.socket.removeAllListeners('_run_error');
                 // reject promise
                 reject(new Error('Slave run callback has timed out'));
             }, this.timeout_ms ) : null;
             // if result is returned
-            this.socket.once("_run_result", res => {
+            this.socket.on("_run_result", res => {
                 this.lastUpdateAt = Date.now();
                 log('[slave] got _run_result from slave ', this.id);
                 // set state as idle
@@ -95,7 +95,8 @@ class Slave {
                 // set return value
                 this.return = res;
                 // remove error listener
-                this.socket.off('_run_error', e => { });
+                this.socket.removeAllListeners('_run_result');
+                this.socket.removeAllListeners('_run_error');
                 // if there is a timeout clear it
                 clearTimeout(timeout);
                 // run success callback
@@ -111,7 +112,8 @@ class Slave {
                 // set state as idle
                 this._setIdle()
                 // remove result listener
-                this.socket.off('_run_result', res => { });
+                this.socket.removeAllListeners('_run_result');
+                this.socket.removeAllListeners('_run_error');
                 // deserialize error
                 let error = deserializeError(e);
                 // if there is a timeout clear it
@@ -140,14 +142,15 @@ class Slave {
                 // set state as idle
                 this._setIdle();
                 // remove result listener
-                this.socket.off('_run_result', res => {});
-                this.socket.off('_run_error', e => {});
+                this.socket.removeAllListeners('_run_result');
+                this.socket.removeAllListeners('_run_error');
                 // reject promise
                 reject(new Error('Slave run callback has timed out'));
             }, this.timeout_ms ) : null;
             // if result is returned
             this.socket.once("_is_done_result", res => {
                 this.lastUpdateAt = Date.now();
+                this.socket.removeAllListeners('_is_done_result');
                 resolve(res);
             });
         });
@@ -184,6 +187,7 @@ class Slave {
             this.socket.emit('_set_parameters', work);
             this.socket.once('_set_parameters_result', res => {
                 this.lastUpdateAt = Date.now();
+                this.socket.removeAllListeners('_set_parameters_result');
                 resolve(res);
             });
         });
@@ -197,6 +201,7 @@ class Slave {
                 this.socket.emit('_is_idle');
                 this.socket.once('_is_idle_result', result => {
                     this.lastUpdateAt = Date.now();
+                    this.socket.removeAllListeners('_is_idle_result');
                     resolve(result);
                 });
             });
@@ -212,6 +217,7 @@ class Slave {
                 this.socket.emit('_is_error' );
                 this.socket.once('_is_error_result', result => {
                     this.lastUpdateAt = Date.now();
+                    this.socket.removeAllListeners('_is_error_result');
                     resolve(result);
                 });
             });

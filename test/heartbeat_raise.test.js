@@ -34,17 +34,15 @@ let master_function = async master => { // initialize the master
             slave.run(10)
             .then( result => {
                 let { heartBeat, idleRate } = master.status();
-                console.log(
-                    'heartBeat', heartBeat,
-                    'idleRate', idleRate
-                );
+                //console.log( 'heartBeat', heartBeat, 'idleRate', idleRate);
             })
         );
     }
     // wait for all promises to be resolved
     await Promise.all(promises);
 // split the heart beats by half
-    let heartBeats1 = heartBeats.slice(0, heartBeats.length/2);
+    let heartBeats1 = heartBeats.slice(0, heartBeats.length/2)
+        .map( v => parseFloat(v) );
     // check if all values are in decending order
     let isAscending = 
         heartBeats1.every( (v,i,a) => !i || a[i-1] <= v );

@@ -11,7 +11,7 @@ let master_function = async master => { // initialize the master
     console.log(`[${process.argv[1].split('/').pop()}] testing how we get the status of the master`) 
     // get a slave that is not currely working
     let slave = await master.getIdle();
-    console.log('new slave: ', slave.id);
+    //console.log('new slave: ', slave.id);
     // print status
     let status = master.status();
     console.log('status: ', status);

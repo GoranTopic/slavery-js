@@ -38,6 +38,9 @@ class Master {
         this.ioOptions = { 
             maxHttpBufferSize: this.maxTransferSize,
         }
+        // callback for success and error
+        this.onSuccessCallback = null;
+        this.onErrorCallback = null;
         // create a new socket.io server instance
         if(io) {
             this.io = io;
@@ -279,6 +282,8 @@ class Master {
                 let newSlave = new Slave(slaveId, socket, this.options);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
+                // set callbacks
+                this._setCallbacks(newSlave);
                 // pass status value
                 newSlave.status = slave.status;
                 // add to pool
@@ -293,6 +298,8 @@ class Master {
                 log('[master] slaveId not in pool');
                 // if it is not in the pool, make new slave
                 let newSlave = new Slave(slaveId, socket, this.options);
+                // set callbacks
+                this._setCallbacks(newSlave);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
@@ -309,6 +316,8 @@ class Master {
                 log('[master] got slaveId back form client: ', slaveId);
                 // make new slave and add tot he pool
                 let newSlave = new Slave(slaveId, socket, this.options);
+                // set callbacks
+                this._setCallbacks(newSlave);
                 // set the pool to the slave
                 newSlave.setPool(this.slaves);
                 // add to pool
@@ -317,10 +326,25 @@ class Master {
         }
     }
 
-    _setCallbacks(slave){
-        slave.setSuccessCallback()
-        slave.setErrorCallback(
+    _updateCallbacks() {
+        this.slaves.toArray().forEach( slave => 
+            this._setCallbacks(slave)
+        );
+    }
 
+    _setCallbacks(slave){
+        slave.setSuccessCallback(this.onSuccessCallback);
+        slave.setErrorCallback(this.onErrorCallback);
+    }
+
+    onSuccess(callback) {
+        this.onSuccessCallback = callback;
+        this._updateCallbacks();
+    }
+
+    onError(callback) {
+        this.onErrorCallback = callback;
+        this._updateCallbacks();
     }
 
     _updateLine(str){

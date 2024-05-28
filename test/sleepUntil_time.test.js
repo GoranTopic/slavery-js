@@ -1,7 +1,6 @@
 import slavery from '../index.js'
 import { performance } from 'perf_hooks'
 
-console.log(`[${process.argv[1].split('/').pop() }] testing if Pool sleep until is working correctly`);
 /* if we have some task that take seconds to be completed by an slave. If Sleep until is working correcly then it will take longer for the task to be completed */
 
 // a task which takes s seconds to be completed
@@ -15,7 +14,7 @@ let task = () =>
 
 let master_function = async master => { // initialize the master
     /* this is the functions that will run in the master */
-
+console.log(`[${process.argv[1].split('/').pop() }] testing if Pool sleep until is working correctly`);
     // start timer
     let start = performance.now();
     let end = null; 
@@ -34,8 +33,8 @@ let master_function = async master => { // initialize the master
                 let slave = await master.getIdle(); 
                 slave.run(task)
                     .then( result => {
-                        console.log( '[' + slave.id + ']' + ' result: ',
-                            result, 'sleeping for: 3 seconds' );
+                        //console.log( '[' + slave.id + ']' + ' result: ',
+                        //    result, 'sleeping for: 3 seconds' );
                         // sleepUntil for 3 seconds
                         slave.sleepUntil(3 * 1000)
                         // save result 

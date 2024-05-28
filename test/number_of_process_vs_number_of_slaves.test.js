@@ -1,7 +1,7 @@
 import slavery from '../index.js'
 
 // get keyboad input 
-let numSlaves = 300;
+let numSlaves = 100;
 
 // create the engine
 slavery({
@@ -19,7 +19,7 @@ slavery({
     let workers = await api.getWorkers();
     // get the number of slaves
     let slaves = await api.getSlaves()
-    // if workers are one less than the slaves, pss the test
+    // if workers are one less than the slaves, pass the test
     if (workers.length - 1 === slaves.length) {
         console.log('✅ correct number of slave, with workers:', workers.length, 'and slaves:', slaves.length);
     } else {

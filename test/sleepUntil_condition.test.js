@@ -1,7 +1,6 @@
 import slavery from '../index.js'
 import { performance } from 'perf_hooks'
 
-console.log(`[${process.argv[1].split('/').pop() }] testing if Pool sleep until is working correctly`);
 /* if we have some taks that will take 5 seconds to complete but will only be compeleted once a condition is met. In this case a counter reaching a certain value. then the tasks will take longer to be completed */
 // a task which takes s seconds to be completed
 let task = () => 
@@ -15,6 +14,7 @@ let task = () =>
 
 let master_function = async master => { // initialize the master
     /* this is the functions that will run in the master */
+    console.log(`[${process.argv[1].split('/').pop() }] testing if Pool sleep until is working correctly`);
 
     // start timer
     let start = performance.now();
@@ -25,7 +25,6 @@ let master_function = async master => { // initialize the master
         counter : 0,
         start : setInterval(() =>{ 
             timer.counter++
-            console.log('counter: ', timer.counter)
         }, 1000)
     } 
 
@@ -42,10 +41,10 @@ let master_function = async master => { // initialize the master
                 let slave = await master.getIdle(); 
                 slave.run(task)
                     .then( result => {
-                        console.log( '[' + slave.id + ']' +
-                            'starting again when counter is greater than 5',
-                            'result: ', result
-                        );
+                        //console.log( '[' + slave.id + ']' +
+                        //    'starting again when counter is greater than 5',
+                        //    'result: ', result
+                        //);
                         // sleepUntil is greater than 3
                         slave.sleepUntil( () => timer.counter > 5 )
                         // save result 

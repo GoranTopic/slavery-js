@@ -34,8 +34,8 @@ let master_function = async master => { // initialize the master
                 let slave = await master.getIdle(); 
                 slave.run(counter)
                     .then( result => {
-                        console.log( '[' + slave.id + ']' + ' counter: ',
-                            counter, 'result: ', result);
+                        //console.log( '[' + slave.id + ']' + ' counter: ',
+                        //    counter, 'result: ', result);
                         // save result 
                         resolve(result);
                     });

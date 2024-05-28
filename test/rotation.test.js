@@ -32,6 +32,7 @@ slavery(options)
         console.log(`[${process.argv[1].split('/').pop()}] testing the slaves are being rotated correcly`);
         let rotation = false;
         let num_of_slaves = numberOfSlaves;
+        await master.connected(numberOfSlaves);
         let first_slave = await master.getIdle();
         let rotation_counter = 0;
         let ms = 1000;

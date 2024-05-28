@@ -1,6 +1,5 @@
 import slavery from '../index.js'
-/* slavery should atuomatically detect th emost optimal 'heartBeat' for given slaves,
- * */
+/* slavery should atuomatically detect th emost optimal 'heartBeat' for given slaves */
 
 // function to count sum of numbers, purely for the porpuse of processing
 let make_timeout = s =>
@@ -23,7 +22,6 @@ let master_function = async master => { // initialize the master
     console.log(`[${process.argv[1].split('/').pop() }] testing to check if heart beat is lowered when the idle rate of slave is too high`)
     let heartBeats = [];
     let promises = [];
-    /* this is the functions that will run in the master */
     // random array of big numbers
     // for every number in the array
     let array = Array(30).fill(1);
@@ -35,10 +33,7 @@ let master_function = async master => { // initialize the master
             slave.run(10)
             .then( result => {
                 let { heartBeat, idleRate } = master.status();
-                console.log(
-                    'heartBeat:', heartBeat,
-                    'idleRate:', idleRate
-                );
+                //console.log( 'heartBeat:', heartBeat, 'idleRate:', idleRate);
                 heartBeats.push(heartBeat);
             })
         )
@@ -46,7 +41,9 @@ let master_function = async master => { // initialize the master
     // wait for all promises to be resolved
     await Promise.all(promises);
     // split the heart beats by half
-    let heartBeats1 = heartBeats.slice(0, heartBeats.length/2);
+    let heartBeats1 = heartBeats
+        .slice(0, heartBeats.length/2)
+        .map( v => parseFloat(v) );
     // check if all values are in decending order or each value is greater than the previous value
     let isDecending = 
         heartBeats1.every( (v,i,a) => !i || a[i-1] >= v );
