@@ -1,4 +1,5 @@
 import cluster from 'node:cluster';
+import { deserializeError } from 'serialize-error';
 
 class Api {
     /* this class provice an interface for sending and reciving messages 
@@ -9,10 +10,21 @@ class Api {
         this.cluster = cluster;
     }
 
-    onSuccess(){
+    onSuccess(callback){
+        this.masterProcess.on('message', response => {
+            if(response.msg === 'success') {
+                callback(response.payload);
+            }
+        })
     };
 
-    onError(){
+    onError(callback){
+        this.masterProcess.on('message', response => {
+            if(response.msg === 'error') {
+                response.payload.error = deserializeError(response.payload.error);
+                callback(response.payload);
+            }
+        })
     };
 
     async getWorkers() {

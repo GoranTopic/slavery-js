@@ -1,4 +1,8 @@
+import { serializeError } from 'serialize-error';
+import getObjectSizeInBytes from '../utils/objectSize.js';
+
 const apiListener = (process, master) => {
+    // set up listener for messages from the primary process
     process.on('message', async ({ msg, payload }) => {
         // make case statement for each
         switch (msg) {
@@ -27,6 +31,42 @@ const apiListener = (process, master) => {
                 throw new Error('Invalid message from primary process, message: ' + msg)
         }
     });
+    // send callback to primary process
+    master.onSuccess( ({ slave, result }) => {
+        slave = {
+            id: slave.id,
+            name: slave.name,
+            timeout: slave.timeout,
+            status: slave.status,
+            lastUpdateAt: slave.lastUpdateAt,
+        }
+        let timestamp = new Date()
+        let size = getObjectSizeInBytes(result)
+        // truncate result if it is larger than 1MB
+        if (size > 1000000) 
+            result = 'Result truncated due to size'
+        process.send( { 
+            msg: 'success', 
+            payload: { slave, result, timestamp, size }
+        })
+    });
+    // send error to primary process
+    master.onError( ({ slave, error }) => {
+        slave = {
+            id: slave.id,
+            name: slave.name,
+            timeout: slave.timeout,
+            status: slave.status,
+            lastUpdateAt: slave.lastUpdateAt,
+        }
+        error = serializeError(error)
+        let timestamp = new Date()
+        process.send({ 
+            msg: 'error', 
+            payload: { slave, error, timestamp } 
+        })
+    });
 }
+
 
 export default apiListener;

@@ -14,11 +14,11 @@ slavery(
     options
 ).master( async master => { // initialize the master
     console.log(`[${process.argv[1].split('/').pop()}] test if the callbacks for the slave are working`);
-    master.onSuccess( (data) => {
-        console.log('✅ success callback');
+    master.onSuccess( data => {
+        console.log('✅ success callback', data);
     });
-    master.onError( (data) => {
-        console.log('✅ error callback');
+    master.onError( data => {
+        console.log('✅ error callback', data);
     });
     // catching errors from slaves
     await master.connected(1);
