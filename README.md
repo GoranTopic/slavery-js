@@ -5,13 +5,15 @@ slavery-js
 ```javascript
 
 slavery()
-        .master( () => {
+.master( () => {
 
             // master code
 
-        }).slave( () => {
- d
+})
+.slave( () => {
+ 
             // slave code
+
 })
 ```
 
