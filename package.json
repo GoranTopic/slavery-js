@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "start": "ts-node main.ts",
     "test": "for i in test/*.test.*; do echo testing $i; node $i; done"
   },
   "repository": {
