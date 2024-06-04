@@ -11,7 +11,7 @@ slavery()
 
         }).slave( () => {
  d
-            // slave codo
+            // slave code
 })
 ```
 
