@@ -5,16 +5,16 @@ slavery-js
 ```javascript
 
 slavery()
-.master( () => {
+   .master( () => {
 
             // master code
 
-})
-.slave( () => {
+   })
+   .slave( () => {
  
             // slave code
 
-})
+   })
 ```
 
 ## Installation
