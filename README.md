@@ -10,10 +10,9 @@ slavery()
             // master code
 
         }).slave( () => {
- 
-    // salve code
-
-});
+ d
+            // slave codo
+})
 ```
 
 ## Installation
