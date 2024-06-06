@@ -1,5 +1,8 @@
+import Cluster from './cluster';
+import Network from './network';
+
 /*
-import cluster_manager from './process_cluster';
+import 
 import { master, logger, proxy, storage, primary } from './services';
 import { slave, pipes } from './nodes';
 import { service_manager } from './services';
@@ -14,9 +17,10 @@ class Slavery {
     private primary: Function | undefined;
     private slaves: Function | undefined;
     private pipes: Function | undefined;
+    private cluster: Cluster; 
+    private network: Network; 
     // options
     private options: any;
-
 
     constructor(options: any) {
         // handle options
@@ -39,9 +43,9 @@ class Slavery {
     private initialize_services(service_name: string, options: any) {
         return async (service_callback: Function) => {
             // make a single new process on the cluster
-            cluster.spawn(service_name);
+            this.cluster.spawn(service_name);
             // if we are in the correct process
-            if(cluster.is(service_name)) {
+            if(this.cluster.is(service_name)) {
                 // initilize service connected it into the network
                 await this.network.connect()
                 // get the list of services from the primary network 
@@ -55,14 +59,14 @@ class Slavery {
     }
 
 
-    private initialize_nodes(nodes_name, options: any) {
+    private initialize_nodes(nodes_name: string, options: any) {
         // make a new process from the callback
         return async (node_callback: Function) => {
             // make mnay new processes as the number of nodes
-            cluster.spawn(service_name);
-            if(cluster.is(service_name)) {
+            this.cluster.spawn(nodes_name, this.options[nodes_name]?.number)
+            if(this.cluster.is(nodes_name)) {
                 // initilize service connected it into the network
-                await this.network.connect()
+                await this.network.connect();
                 // get the list of services from the primary network 
                 //  connect to each one of them
                 let services = await this.network.get_services();
