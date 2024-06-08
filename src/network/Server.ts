@@ -22,6 +22,8 @@ class Server {
     this.isOverLand = isOverLand;
     this.id = id;
     this.connectionCallback = null;
+    // initiate the server
+    if(
   }
 
   init() {
