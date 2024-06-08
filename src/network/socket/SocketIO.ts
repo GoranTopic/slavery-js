@@ -1,12 +1,22 @@
 import { io } from "socket.io-client";
 import { Server } from "socket.io";
+import 
 
 
 class Socket {
 
     private socket: any;
 
-    constructor() {
+
+    constructor({ 
+        isOverLan = false,
+        host = 'localhost',
+        port = 3000,
+        name = 'default'
+    }: { 
+            isOverLan: boolean
+        }) {
+
         this.socket = io('http://localhost:3000');
     }
 
