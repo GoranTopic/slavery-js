@@ -1,12 +1,13 @@
 import Cluster from './cluster';
-import Network from './network';
+import { 
+    Master, 
+    Logger, 
+    Proxies, 
+    Storage, 
+    Primary
+} from './services';
 
-/*
-import 
-import { master, logger, proxy, storage, primary } from './services';
-import { slave, pipes } from './nodes';
-import { service_manager } from './services';
-*/
+import { Slave, Pipes } from './nodes';
 
 
 class Slavery {
