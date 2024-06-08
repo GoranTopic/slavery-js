@@ -107,7 +107,6 @@ class Master {
         process.exit();
     }
 
-
     async newConnection(callback) {
         /* 
          * this function does not work! the problem is that we need to return a slave 

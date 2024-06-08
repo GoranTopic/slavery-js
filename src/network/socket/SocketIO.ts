@@ -1,19 +1,17 @@
-import { io } from "socket.io-client";
-import { Server } from "socket.io";
-import 
+import io from 'socket.io-client';
 
 
 class Socket {
+    /* keep tack of the
+     * how this connection is to
+    * conenction, the listeners and the available emitters */
 
-    private socket: any;
+
+    private socket: io.Socket;
 
 
-    constructor({ 
-        isOverLan = false,
-        host = 'localhost',
-        port = 3000,
-        name = 'default'
-    }: { 
+    constructor(
+    : { 
             isOverLan: boolean
         }) {
 
