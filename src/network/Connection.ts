@@ -22,6 +22,7 @@ class Connection {
         } else {
             this.to = 'server';
             this.socket = io.connect(`ws://${socket.host}:${socket.port}`);
+                let slaveId = socket.handshake.auth.slaveId;
         }
         this.isConnected = false;
     }
