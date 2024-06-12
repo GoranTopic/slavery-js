@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import { createServer } from "http";
 import { Socket } from "socket.io";
 import Connection from "./Connection";
-
+import 
 
 
 class ServerSocketIO {
@@ -47,21 +47,16 @@ class ServerSocketIO {
   _handleConnection(socket: Socket) {
       // make a new connectection instance
       let connection = new Connection(socket, this);
+      // add connection to pool
+        this.connectionPool.add(connection);
+
       // run callback
-      this.connectionCallback(connection);
-  }
-
-
-  async exit() {
-      // broadcast exit to all slaves
-      this.io.emit('_exit');
-      // close all sockets
-      this.io.close();
-      // exit process
-      process.exit();
+      if(this.connectionCallback)
+          this.connectionCallback(connection);
   }
 
   async connected(number=1) {
+      /* await for a certain number of connections */
       return new Promise((resolve, reject) => {
           let interval : any;
           let timeout : number;
@@ -82,4 +77,17 @@ class ServerSocketIO {
       });
   }
 
-}
+  getConnectionPool() { 
+      return this.connectionPool;
+  }
+
+  async exit() {
+      // broadcast exit to all slaves
+      this.io.emit('_exit');
+      // close all sockets
+      this.io.close();
+      // exit process
+      process.exit();
+  }
+
+  }
