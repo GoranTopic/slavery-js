@@ -2,19 +2,17 @@ import { Server } from "socket.io";
 import { createServer } from "http";
 import { Socket } from "socket.io";
 import Connection from "./Connection";
-import 
 
 
 class ServerSocketIO {
-    /* 
-     * this class will handle the logic managing the server conenctions with clilent, 
+    /* this class will handle the logic managing the server conenctions with clilent, 
      * it will keep track of the node id and it will handle connection and dicoections
      */
   private io: Server;
   private host: string;
   private port: number;
   private maxTransferSize: number;
-  private connectionPool 
+  private connections: Connection[];
   public name: string;
   public id: string;
   
@@ -30,6 +28,7 @@ class ServerSocketIO {
       this.isOverLan = this.host !== 'localhost'
       this.id = id;
       this.connectionCallback = null;
+      this.connections = [];
       this.ioOptions = {
           maxHttpBufferSize: this.maxTransferSize,
       };
@@ -46,39 +45,16 @@ class ServerSocketIO {
 
   _handleConnection(socket: Socket) {
       // make a new connectection instance
-      let connection = new Connection(socket, this);
+      let connection = new Connection(socket);
       // add connection to pool
-        this.connectionPool.add(connection);
-
+      this.connections.push(connection);
       // run callback
       if(this.connectionCallback)
           this.connectionCallback(connection);
   }
 
-  async connected(number=1) {
-      /* await for a certain number of connections */
-      return new Promise((resolve, reject) => {
-          let interval : any;
-          let timeout : number;
-          // set interval to check for connection
-          interval = setInterval(() => {
-              if(this.pool.size() >= number) {
-                  clearInterval(interval);
-                  clearTimeout(timeout);
-                  resolve();
-              }
-          }, this.heartBeat);
-          // set timeout to reject if no connection
-          timeout = setTimeout(() => {
-              clearInterval(interval);
-              reject('timeout');
-          }
-            , 1000 * 60 ); // 1 minute
-      });
-  }
-
-  getConnectionPool() { 
-      return this.connectionPool;
+  getConnections() { 
+      return this.connections;
   }
 
   async exit() {

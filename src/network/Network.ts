@@ -1,28 +1,27 @@
 import Server from './Server';
-import Client from './Client';
-import P
+import Connection from './Connections';
 
 class Network {
     private server: Server | null;
-    private clients: Client[];
+    private connections: Connection[];
 
     constructor() {
         this.server = null;
-        this.clients = [];
+        this.connections = [];
     }
     
-    public createServer(host: string, port: number, type): void {
+    public createServer(host: string, port: number): void {
         this.server = new Server(host, port);
     }
 
-    public getServices(): clients[] {
+    public getServices(): Connection[] {
         // get all the clients that are services types
-        return this.clients.filter((client) => client.type === 'service');
+        return this.connections.filter( conn => conn.to === 'service');
     }
 
-    public getNodes(): clients[] {
+    public getNodes(): connections[] {
         // get all the clients that are nodes types
-        return this.clients.filter((client) => client.type === 'node');
+        return this.connections.filter((client) => client.type === 'node');
     }
 
     public onConnection(callback: (client: Client) => void): void {
