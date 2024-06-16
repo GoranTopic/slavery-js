@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { Socket } from "socket.io";
-import { log } from '../utils';
+import { log, Pool } from '../utils';
 import Connection from "./Connection";
 
 interface Listener {
@@ -9,29 +9,31 @@ interface Listener {
     callback: Function;
 }
 
-class Server {
+class NetworkServer {
     /* this class will handle the logic managing the server conenctions with clilent, 
      * it will keep track of the node id and it will handle connection and dicoections */
     private io: Server;
     private host: string;
     private port: number;
     private maxTransferSize: number;
-    private Clients: Pool;
+    private clients: Pool;
     public name: string;
     public isOverLan: boolean;
     public connectionCallback: any;
     public listeners: Listener[];
     private ioOptions: any;
 
-    constructor({ name, host, port } = {}, { maxTransferSize, listeners }? = {}) {
+    constructor({ name, host, port } : {
+        name: string, host: string, port: number
+    }, options?: { maxTransferSize: number, listeners: Listener[] }) {
         this.host = host || "localhost";
         this.port = port || 3000;
-        this.maxTransferSize = maxTransferSize || 1e9;
+        this.maxTransferSize = options?.maxTransferSize || 1e9;
         this.name = name? name : "server";
         this.isOverLan = this.host !== 'localhost'
         this.connectionCallback = null;
-        this.clients = Pool;
-        this.listeners = listeners || [];
+        this.clients = new Pool();
+        this.listeners = options?.listeners || [];
         this.ioOptions = {
             maxHttpBufferSize: this.maxTransferSize,
         };
@@ -49,23 +51,46 @@ class Server {
     private _handleConnection(socket: Socket) {
         // make a new connectection instance
         let connection = new Connection(socket);
+        let id = connection.id;
+        if(null == id) throw new Error("Connection id is null");
+        if(this.clients.has(id)) {
+            log(`[master] connection with id ${id} already exists`);
+            this.clients.remove(id).close();
+        }
         // add connection to pool
-        this.clients.add(conection);
+        this.clients.add(id, connection);
+        // set up listerners
         // run callback
         if(this.connectionCallback)
             this.connectionCallback(connection);
     }
 
-    getClients() {
-        return this.io.sockets.sockets
+    private setupListeners(socket: Socket) {
+        socket.on("listeners", () => {
+            this
+        this.listeners.forEach(({ event, callback }) => {
+            this.io.on(event, callback);
+        });
     }
 
-    onConnection(callback) {
+    private _handleDisconnection(socket: Socket) {
+        let connection = this.clients.get(socket.id);
+        if(connection) {
+            connection.close();
+            this.clients.remove(socket.id);
+        }
+    }
+
+    public getClients() {
+        return this.clients.toArray();
+    }
+
+    onConnection(callback: any) {
         this.connectionCallback = callback;
     }
 
-    getConnections() { 
-        return this.connections;
+    onDisconnect(callback: any) {
+        this.io.on("disconnect", callback);
     }
 
     async exit() {
