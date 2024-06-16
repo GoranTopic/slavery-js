@@ -7,8 +7,7 @@ import {
     Primary
 } from './services';
 
-import { Slave, Pipes } from './nodes';
-
+import { Slave } from './nodes';
 
 class Slavery {
     private master: Function | undefined;

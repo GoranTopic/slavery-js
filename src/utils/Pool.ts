@@ -48,7 +48,7 @@ class Pool {
         if( !this.has(id) ) return null;
         // check if timeOrCondition is a number or a function
         let time = null;
-        let condition = null;
+        let condition : any = null;
         if(typeof timeOrCondition === 'number')
             time = timeOrCondition;
         else if(typeof timeOrCondition === 'function')
@@ -121,7 +121,7 @@ class Pool {
     }
 
     // remove value while maintaining order
-    remove( id: string ) {
+    remove( id: string ) : any {
         // look in the queue for the id
         let result = this._lookUp(id);
         if(result){
