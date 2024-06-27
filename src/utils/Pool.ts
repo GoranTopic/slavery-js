@@ -1,25 +1,25 @@
 import Queue from './Queue'
 import log from './log'
 
-class Pool {
+class Pool<T> {
     /* this class handle the socket connectd
      * queue of sockets and manages connection with the workers
      * */
 
-    private enabled: Queue;
-    private disabled: any[];
-    private items: any;
+    private enabled: Queue<string>;
+    private disabled: string[];
+    private items: { [key: string]: T };
     constructor() {
         this.enabled = new Queue();
         this.disabled = [];
         this.items = {}
     }
 
-    has( id: string ) {
+    has( id: string ): boolean {
         return this.items[id] ? true : false;
     }
 
-    add( id: string, item: any ) {
+    add( id: string, item: T ): boolean {
         // if the item is already in the pool
         if (this.has(id)) this.remove(id);
         // add to the queue
@@ -30,8 +30,8 @@ class Pool {
         return false;
     }
 
-    disable(id: string) {
-        if( !this.has(id) ) return null;
+    disable(id: string): boolean {
+        if( !this.has(id) ) return false;
         // if it is in the disable list, job done
         if( this.disabled.indexOf(id) !== -1 ) return true;
         // if it is in the enabled list, remove it
@@ -41,11 +41,12 @@ class Pool {
             this.disabled.push(id);
             return true;
         }
+        return false;
     }
 
-    disableUntil(id: string, timeOrCondition: number | Function) {
+    disableUntil(id: string, timeOrCondition: number | Function): undefined {
         // if it is not in the pool, return false
-        if( !this.has(id) ) return null;
+        if( !this.has(id) ) return;
         // check if timeOrCondition is a number or a function
         let time = null;
         let condition : any = null;
@@ -73,9 +74,9 @@ class Pool {
     }
         
 
-    enable(id: string) {
+    enable(id: string) : boolean {
         // if it is not in the pool, return false
-        if( !this.has(id) ) return null;
+        if( !this.has(id) ) return false;
         // if it is already enabled, job done
         if( this.enabled.indexOf(id) !== -1 ) return true;
         // if it is in the disabled list, remove it
@@ -89,7 +90,7 @@ class Pool {
         }
     }
 
-    nextAndEnable(){
+    nextAndEnable() : string | boolean {
         // if the diabled list is empty, return false
         if( this.disabled.length === 0 ) return false;
         // get the first element of the disabled list
@@ -100,7 +101,7 @@ class Pool {
         return id;
     }
 
-    rotate() { // dequeue and enqueue
+    rotate() : T { // dequeue and enqueue
         if(this.size() === 0) return null
         const id = this.enabled.dequeue()
         if(!id) return null
@@ -108,20 +109,20 @@ class Pool {
         return this.items[id]
     }
 
-    next(){
+    next() : T {
         return this.rotate();
     }
 
-    nextAndDisable() { // dequeue and disable
-        if(this.size() === 0) return null
+    nextAndDisable() : T | false { // dequeue and disable
+        if(this.size() === 0) return false
         const id = this.enabled.dequeue();
-        if(!id) return null
+        if(!id) return false
         this.disabled.push(id);
         return this.items[id];
     }
 
     // remove value while maintaining order
-    remove( id: string ) : any {
+    remove( id: string ) : T | false {
         // look in the queue for the id
         let result = this._lookUp(id);
         if(result){
@@ -141,26 +142,26 @@ class Pool {
         return false;
     }
 
-    get( id: string ) {
+    get( id: string ) : T | undefined {
         return this.items[id];
     }
 
     // get the size of the pool
-    size() {
+    size() : number {
         return Object.keys(this.items).length;
     }
 
     // lenght of the pool
-    length() {
+    length() : number {
         return this.size();
     }
 
     // check if queue is empty
-    isEmpty() {
+    isEmpty() : boolean {
         return this.size() === 0;
     }
 
-    _lookUp( id : string ) {
+    _lookUp( id : string ) : { index: number, list: string } | false {
         // look in the queue for the id
         let index = this.enabled.indexOf(id);
         if(!(index === -1))
@@ -173,27 +174,27 @@ class Pool {
         return false;
     }
 
-    toArray() {
+    toArray() : T[] {
         return Object.values(this.items);
     }
 
-    print() {
+    print() : void {
         console.log(this.toArray());
     }
 
-    getEnabled() {
+    getEnabled() : string[] {
         return this.enabled.toArray();
     }
 
-    getDisabled() {
+    getDisabled() : string[] {
         return this.disabled;
     }
 
-    getConnections() {
+    getConnections() : string[] {
         return Object.keys(this.items);
     }
 
-    healthCheck() {
+    healthCheck() : boolean {
         let totalConnections = this.size();
         let enabledConnections = this.getEnabled().length;
         let disabledConnections = this.getDisabled().length;

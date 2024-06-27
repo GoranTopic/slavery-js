@@ -23,7 +23,7 @@ class Connection {
     public listeners: Listener[] = [];
     public type: 'client' | 'server';
     // is connected or not
-    public connected: boolean;
+    public isConnected: boolean;
     // ot target of the socket
     public socketId: string;
     public targetType: 'client' | 'server';
@@ -33,7 +33,6 @@ class Connection {
     // callbacks
     private onConnectCallback: Function;
     public onDisconnectCallback: Function;
-
 
     /*
      * @param Node: Node
@@ -60,7 +59,7 @@ class Connection {
             // ask for the listeners
             this.targetListeners = socket.handshake.auth.listeners;
             // since we are already getting the socket
-            this.connected = true;
+            this.isConnected = true;
             // if get a host and port to connect to the server
         } else if (host && port && id) {
             this.type = 'client';
@@ -71,7 +70,7 @@ class Connection {
                 auth: { id } 
             });
             // since we are not connected yet
-            this.connected = false;
+            this.isConnected = false;
         } else 
             throw new Error('Connection must have either a socket or a host and port');
         // set the socket id
@@ -83,6 +82,12 @@ class Connection {
         // if target is aking for connections
         this.socket.on("_listeners", () => {
             this.socket.emit("_listeners", this.listeners.map(listener => listener.event));
+        });
+        // if the target is sending a their listeners
+        this.socket.on("_setListeners", (listeners: string[]) => {
+            this.targetListeners = 
+                listeners.map(event => ({ event, callback: () => {} }));
+            this.socket.emit("_setListeners", 'ok');
         });
         // if target is asking for name
         this.socket.on("_name", () => {
@@ -98,7 +103,7 @@ class Connection {
             // ask for listeners
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
-            this.connected = true;
+            this.isConnected = true;
             this.onConnectCallback(this);
         });
         // if it disconnects
@@ -106,24 +111,24 @@ class Connection {
             log(`[connection][${this.socket.id}] is reconnected, attempt: ${attempt}`)
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
-            this.connected = true;
+            this.isConnected = true;
             this.onConnectCallback(this);
         });
         // if it disconnects
         this.socket.io.on("diconnect", () => {
             log(`[connection][${this.socket.id}] is disconnected`)
-            this.connected = false;
+            this.isConnected = false;
             this.onDisconnectCallback(this);
         });
     }
 
-    public async connect(): Promise<boolean> {
+    public async connected(): Promise<boolean> {
         return new Promise((resolve, reject) => {
             let interval: NodeJS.Timeout;
             let timeout: NodeJS.Timeout
             // set interval to check for connection
             interval = setInterval(() => {
-                if(this.connected) {
+                if(this.isConnected) {
                     clearInterval(interval);
                     clearTimeout(timeout);
                     resolve(true);
@@ -137,6 +142,7 @@ class Connection {
         })
     }
 
+
     public getType(){
         return this.type;
     }
@@ -149,15 +155,34 @@ class Connection {
         this.socket.emit(event, data);
     }
 
-    public addListener(event: string, callback: Function): void {
+    public getName(): string | undefined {
+        return this.name;
+    }
+
+    public getId(): string | undefined {
+        return this.id;
+    }
+
+    public getTargetName(): string | undefined {
+        return this.targetName;
+    }
+
+    public getTargetId(): string | undefined {
+        return this.targetId;
+    }
+
+    private setListener(event: string, callback: Function): void {
         // add the listener
         this.listeners.push({ event, callback });
         this.socket.on(event, callback);
     }
 
-    public addTargetListener(event: string, callback: Function): void {
-        // add the listener of the target
-        this.targetListeners.push({ event, callback });
+    public async setListeners(listeners: Listener[]): Promise<void> {
+        listeners.forEach(
+            l => this.setListener(l.event, l.callback)
+        );
+        // update the listeners on the target
+        await this.query('_setListeners', listeners.map(listener => listener.event));
     }
 
     public onConnect(callback: Function): void {
