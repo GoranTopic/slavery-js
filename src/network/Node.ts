@@ -1,4 +1,4 @@
-import Connection from './Connections';
+import Connection from './Connection';
 import { uuid, log, Pool } from '../utils';
 import Server from './Server';
 

@@ -67,13 +67,13 @@ class NetworkServer {
 
     private setupListeners(socket: Socket) {
         socket.on("listeners", () => {
-            this
-        this.listeners.forEach(({ event, callback }) => {
-            this.io.on(event, callback);
-        });
+            this.listeners.forEach(({ event, callback }) => {
+                this.io.on(event, callback);
+            });
+        })
     }
 
-    private _handleDisconnection(socket: Socket) {
+    private handleDisconnection(socket: Socket) {
         let connection = this.clients.get(socket.id);
         if(connection) {
             connection.close();
