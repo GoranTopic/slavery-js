@@ -10,16 +10,19 @@ class NetworkNode {
     public connections: Pool<Connection>;
     // callback for when a new service connection is made
     public serviceConnectionCallback: ((connection: Connection) => {}) | null;
+    // callback for when a service disconnects
+    public serviceDisconnectCallback: ((connection: Connection) => {}) | null;
 
     constructor() {
         this.id = uuid();
         this.server = null;
         this.connections = new Pool();
         this.serviceConnectionCallback = null;
+        this.serviceDisconnectCallback = null;
     }
 
     async connectToServer(host: string, port: number) {
-        const connection = new Connection( { host, port, id: this.id }); 
+        const connection = new Connection({ host, port, id: this.id }); 
         // await connection and handshake
         await connection.connected();
         let server_name = connection.getTargetName();
@@ -38,13 +41,13 @@ class NetworkNode {
 
     
     public createService(
-        name: string, host: string,
-        port: number, functions: { [key: string]: Function }
+        name: string, host: string, port: number,
+        functions: { [key: string]: Function }
     ) {
         // this function just creates a server,
         // convert the function to listeners
-        let listeners = Object.keys(functions)
-            .map(name => ({ event: name, callback: functions[name] }));
+        let listeners = Object.keys(functions).
+            map(name => ({ event: name, callback: functions[name] }));
         // the server keeps track of it client connections
         this.server = new Server({ name, host, port, listeners });
     }
@@ -56,7 +59,8 @@ class NetworkNode {
 
     public getNodes(): Connection[] {
         // get all the clients that are nodes types
-        let nodes = this.server?.getClients().filter((conn: Connection) => conn.targetType === 'client');
+        let nodes = this.server?.getClients().
+            filter((conn: Connection) => conn.targetType === 'client');
         return nodes || [];
     }
 
@@ -65,8 +69,17 @@ class NetworkNode {
         this.server.onConnection(callback);
     }
 
+    public onNodeDisconnect(callback: (connection: Connection) => {}): void {
+        if(this.server === null) throw new Error('Server is not created');
+        this.server.onDisconnect(callback);
+    }
+
     public onServiceConnection(callback: (connection: Connection) => {}): void {
         this.serviceConnectionCallback = callback;
+    }
+
+    public onServiceDisconnect(callback: (connection: Connection) => {}): void {
+        this.serviceDisconnectCallback = callback;
     }
 
 }

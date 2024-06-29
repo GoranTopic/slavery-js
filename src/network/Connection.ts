@@ -40,8 +40,11 @@ class Connection {
      * @param host: string
      * @param port: number
      * */
-    constructor({ socket, host, port, id, name, onConnect, onDisconnect, } :
-                { id?: string, socket?: Socket, host?: string, port?: number, name?: string, onConnect?: Function, onDisconnect?: Function }) {
+    constructor({ socket, host, port, id, name, onConnect, onDisconnect, } : {
+        id?: string, socket?: Socket, host?: string,
+        port?: number, name?: string,
+        onConnect?: Function, onDisconnect?: Function 
+    }) {
         // set the socket id
         this.socketId = this.socket.id;
         // callbacks 

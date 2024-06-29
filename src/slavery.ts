@@ -18,7 +18,6 @@ class Slavery {
     private slaves: Function | undefined;
     private pipes: Function | undefined;
     private cluster: Cluster; 
-    private network: Network; 
     // options
     private options: any;
 
@@ -27,7 +26,7 @@ class Slavery {
         this.options = options;
         // make network_handler
         // this will try to find the primary service
-        //if it is not found it will create it 
+        // if it is not found it will create it 
         this.network = new Network(this.options);
         // make cluster_handler
         this.cluster = new Cluster(this.options);
