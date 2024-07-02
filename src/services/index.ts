@@ -1,7 +1,9 @@
-import Service from './Service
+import Service from './types/Service';
+import Primary from './Primary';
+//import Master from './Master';
 // intefrace
-import Interface from './interface';
+//import Interface from './interface';
 
-export { Service, Interface }
+export { Service, Primary }
 
 
