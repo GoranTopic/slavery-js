@@ -1,9 +1,10 @@
 import Network, { Listener, Connection } from '../../network';
-
+import checkPrimaryServiceSocket from './utils/checkServiceSocket';
+import findAvailablePort from './utils/findAvailablePorts';
 
 type Parameters = {
     name: string,
-    type?: 'service' | 'client',
+    type: 'service' | 'client' | undefined,
     host?: string,
     port?: number
     heartBeat?: number,
@@ -11,6 +12,9 @@ type Parameters = {
 };
 
 class Service {
+    /* this class is both the server and the client at the same time.
+     * this means that it will create listeners from it's methods
+     * and methods from a list of listeners */
     protected name: string;
     protected type: 'service' | 'client' | undefined;
     protected heartBeat: number = 100;
@@ -20,9 +24,6 @@ class Service {
     protected exceptedMethods: string[];
 
     constructor(options: Parameters) {
-        /* this class is both the server and the client at the same time.
-         * this means that it will create listeners from it's methods
-         * and methods from a list of listeners */
         this.type = options.type;
         this.name = options.name;
         this.host = options.host ?? 'localhost';
@@ -33,6 +34,19 @@ class Service {
         ];
         this.heartBeat = options.heartBeat ?? 100; // 100ms
         this.network = new Network();
+    }
+
+    public async connect(): Promise<Connection> {
+        this.type = 'client';
+        // check if there is a service already running on the port and host
+        await this.network.connect(this.name, this.host, this.port);
+        // get listners from Connection
+        
+        // crete method from listners which run the query on the connection
+
+        // return this
+        return this
+
     }
 
     public createService() {
@@ -59,26 +73,33 @@ class Service {
     }
 
     private getAllMethods(): string[] {
+        // this function return all the methods of the class
         const methods : string[] = [];
         let obj = Object.getPrototypeOf(this);
         while (obj && obj !== Object.prototype) {
             const propertyNames = Object.getOwnPropertyNames(obj);
             for (const name of propertyNames) {
                 // @ts-ignore
-                if (typeof this[name] === 'function' && name !== 'constructor') {
+                if (typeof this[name] === 'function' && name !== 'constructor')
                     methods.push(name);
-                }
             }
             obj = Object.getPrototypeOf(obj);
         }
         return methods;
     }
 
-    public async checkService(): Promise<boolean> {
-        // check if there is already a pimary network service running
-        return await checkSocket(this.host, this.port);
+
+    public async checkServiceSocket(): Promise<boolean> {
+        // check if there is already a service running on the port
+        return await checkServiceSocket(this.port);
     }
 
+
+    // this function will be converted to a listener
+    // and called when a client connects to the service
+    is_service(): string {
+        return this.name;
+    }
 
 
 

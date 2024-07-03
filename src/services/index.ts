@@ -1,4 +1,4 @@
-import Service from './types/Service';
+import Service from './Service';
 import Primary from './Primary';
 //import Master from './Master';
 // intefrace

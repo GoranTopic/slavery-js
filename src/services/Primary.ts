@@ -1,10 +1,9 @@
-import Service from './types/Service';
-import findAvailablePort from '../utils/findAvailablePorts';
-import checkPrimaryServiceSocket from '../utils/checkPrimaryServiceSocket.ts'
+import Service from './Service';
 
-type ServiceParams = {
+type Parameters = {
     host: string,
     port: number,
+    type: string,
     listOfServices: string[],
     options: any,
 }
@@ -17,7 +16,7 @@ class Primary extends Service {
     private services: string[];
     private availablePorts: number[] | undefined;
 
-    constructor({host, port, listOfServices, options}: ServiceParams) {
+    constructor({host, port, listOfServices, type}: Parameters) {
         const name = 'Primary';
         super({name, host, port});
         this.services = listOfServices;
@@ -26,10 +25,6 @@ class Primary extends Service {
     }
     
     
-    public async checkService(): Promise<boolean> {
-        // check if there is already a pimary network service running
-        return await checkPrimaryServiceSocket(this.host, this.port);
-    }
 
     public connectService(): void {
         // this will create a socket to connecte to it

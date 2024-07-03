@@ -22,7 +22,8 @@ class NetworkNode {
         this.serviceDisconnectCallback = null;
     }
 
-    async connectToServer(host: string, port: number) {
+    async connect(host: string, port: number) {
+        /* this function connects to a server instance */
         const connection = new Connection({ host, port, id: this.id }); 
         // await connection and handshake
         await connection.connected();
@@ -39,7 +40,6 @@ class NetworkNode {
         // new connection callback
         this.serviceConnectionCallback && this.serviceConnectionCallback(connection);   
     }
-
     
     public createServer(
         name: string, host: string, port: number,
@@ -47,6 +47,10 @@ class NetworkNode {
     ) {
         // the server keeps track of it client connections
         this.server = new Server({ name, host, port, listeners });
+    }
+
+    public closeServer() {
+        this.server?.exit();
     }
 
     public getServices(): Connection[] {
@@ -61,6 +65,7 @@ class NetworkNode {
         return nodes || [];
     }
 
+    /* callbacks */
     public onNodeConnection(callback: (connection: Connection) => {}): void {
         if(this.server === null) throw new Error('Server is not created');
         this.server.onConnection(callback);

@@ -2,7 +2,7 @@ import io from 'socket.io-client';
 
 let timeout = 3000;
 
-function checkSocketIO(host: string, port: number): Promise<boolean> {
+function checkSocketIO(serviceName: string, host: string, port: number): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const url = `http://${host}:${port}`;
     const socket = io(url, {
@@ -17,13 +17,13 @@ function checkSocketIO(host: string, port: number): Promise<boolean> {
             resolve(false);
         }, 3000);
         // get the response from the primary service
-        socket.on('is_primary_sevice', isPrimary => {
+        socket.on('is_service', serviceType => {
             clearTimeout(timeout);
             socket.disconnect();
-            resolve(isPrimary);
+            resolve(serviceType === serviceName);
         });
         // send message to the primary service
-        socket.emit('is_primary_sevice');
+        socket.emit('is_sevice');
     });
     // if the connection is not established
     socket.on('connect_error', (err) => {
