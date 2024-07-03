@@ -1,11 +1,11 @@
 import Cluster from './cluster';
 import { 
     Service,
-    //Master, 
+    Primary,
+    Master, 
     //Logger, 
     //Proxies, 
     //Storage, 
-    Primary
 } from './services';
 import { Slave } from './nodes';
 
@@ -18,6 +18,8 @@ class Slavery {
     private slaves: Function | undefined;
     private pipes: Function | undefined;
     private cluster: Cluster; 
+    // list of services
+    private services: string[];
     // options
     private options: any;
     private host: string;
@@ -28,19 +30,29 @@ class Slavery {
     constructor(options: any) {
         // handle options
         this.options = options;
-        this.primary = options.primary;
         this.host = options.host;
         this.port = options.port;
+        // list of services
+        this.services = [ 
+            'master', 
+            //'logger', 
+            //'proxies', 
+            //'storage', 
+        ] 
         // make cluster_handler
         this.cluster = new Cluster(this.options);
-        // this will try to find the primary service
-        //check if there is a primary network on the passed host and port
-        // if we can't find it then we will create a new primary network
-        this.primaryNetwork = Primary(this.host, this.port);
+        // create a primary network
+        this.primaryNetwork = new Primary({
+            host: this.host,
+            port: this.port,
+            listOfServices: this.services,
+            options: this.options.primary
+        });
+        // check if there is a primary network on the passed host and port
         this.primaryNetwork.checkService().then((ps: Boolean) => {
             if(ps === false) 
                 this.primaryNetwork.createService();
-            else 
+            else // if we can't find it then we will create a new primary network
                 this.primaryNetwork.connectService();
         });
         // register possible services and nodes into this object

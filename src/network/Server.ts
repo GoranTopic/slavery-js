@@ -2,12 +2,10 @@ import { Server } from "socket.io";
 import { createServer } from "http";
 import { Socket } from "socket.io";
 import { log, Pool } from '../utils';
+import Listener from './types/Listener';
 import Connection from "./Connection";
 
-interface Listener {
-    event: string;
-    callback: Function;
-}
+
 
 class NetworkServer {
     /* this class will handle the logic managing the server conenctions with clilent, 
@@ -47,6 +45,17 @@ class NetworkServer {
         this.io.on("connection", this.handleConnection.bind(this));
         this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
         this.io.on("disconnect", this.handleDisconnection.bind(this));
+        // add listeners to the server
+        this.listeners.forEach((listener: Listener) => {
+            // run the listener callback and emit the result to the client
+            let callback = async ( ...args: any[] ) => {
+                // run the listener callback
+                let result = await listener.callback(...args);
+                // emit the result to the client
+                this.io.emit(listener.event, result);
+            }
+            this.io.on(listener.event, callback);
+        });
     }
 
     private async handleConnection(socket: Socket) {
@@ -89,7 +98,7 @@ class NetworkServer {
         }
     }
 
-    public getClients() {
+    public getClients() : Connection[] {
         return this.clients.toArray();
     }
 

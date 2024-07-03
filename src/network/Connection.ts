@@ -1,12 +1,7 @@
 import { io } from "socket.io-client";
 import { Socket } from 'socket.io';
 import log from '../utils/log'
-
-
-interface Listener {
-    event: string;
-    callback: Function;
-}
+import Listener from './types/Listener';
 
 class Connection {
     /* 
@@ -207,7 +202,7 @@ class Connection {
     }
 
                       
-    private query(event: string, data?: any): Promise<any> {
+    public query(event: string, data?: any): Promise<any> {
         return new Promise((resolve, reject) => {
             // set a time out
             let timeout = setTimeout( () => { reject('timeout') }, 1000 * 60); // 1 minute

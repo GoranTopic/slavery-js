@@ -35,7 +35,7 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
  * @returns A promise that resolves to an array of available ports
  */
 async function findAvailablePorts(
-    startPort: number, endPort: number, host: string
+    startPort: number, endPort: number, host?: string
 ): Promise<number[]> {
     const availablePorts: number[] = [];
 

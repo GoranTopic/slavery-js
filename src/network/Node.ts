@@ -1,5 +1,6 @@
 import Connection from './Connection';
 import { uuid, log, Pool } from '../utils';
+import Listener from './types/Listener';
 import Server from './Server';
 
 class NetworkNode {
@@ -40,14 +41,10 @@ class NetworkNode {
     }
 
     
-    public createService(
+    public createServer(
         name: string, host: string, port: number,
-        functions: { [key: string]: Function }
+        listeners: Listener[]
     ) {
-        // this function just creates a server,
-        // convert the function to listeners
-        let listeners = Object.keys(functions).
-            map(name => ({ event: name, callback: functions[name] }));
         // the server keeps track of it client connections
         this.server = new Server({ name, host, port, listeners });
     }
