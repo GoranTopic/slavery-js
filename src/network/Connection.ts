@@ -222,9 +222,37 @@ class Connection {
         });
     }
 
+    public static async checkPort(host: string, port: number): Promise<boolean> {
+        return new Promise((resolve, reject) => {
+            let timeout = 3000;
+            const url = `http://${host}:${port}`;
+                const socket = io(url, {
+                timeout,
+                reconnection: false
+            });
+            // connect to the socket
+            socket.on('connect', async () => {
+                // set timeout to for 3 seconds
+                socket.disconnect();
+                resolve(true);
+            });
+            // if the connection is not established
+            socket.on('connect_error', (err) => {
+                socket.disconnect();
+                resolve(false);
+            });
+            // if the connection is not established
+            socket.on('error', (err) => {
+                socket.disconnect();
+                resolve(false);
+            });
+        });
+    }
+
     public close(): void {
         this.socket.disconnect();
     }
+
 
 }
 

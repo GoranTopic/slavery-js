@@ -24,8 +24,6 @@ class Primary extends Service {
         this.addExceptedMethods([]);
     }
     
-    
-
     public connectService(): void {
         // this will create a socket to connecte to it
     }

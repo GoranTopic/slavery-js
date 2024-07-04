@@ -88,7 +88,6 @@ class Service {
         return methods;
     }
 
-
     public async checkServiceSocket(): Promise<boolean> {
         // check if there is already a service running on the port
         return await checkServiceSocket(this.port);

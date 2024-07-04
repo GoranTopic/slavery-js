@@ -2,7 +2,7 @@ import io from 'socket.io-client';
 
 let timeout = 3000;
 
-function checkSocketIO(serviceName: string, host: string, port: number): Promise<boolean> {
+function checkSocketIO(host: string, port: number): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const url = `http://${host}:${port}`;
     const socket = io(url, {
