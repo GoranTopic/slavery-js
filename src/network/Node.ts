@@ -22,14 +22,19 @@ class NetworkNode {
         this.serviceDisconnectCallback = null;
     }
 
-    async connect(host: string, port: number) {
-        /* this function connects to a server instance */
+    async connect(name: string, host: string, port: number): Promise<Connection> {
+        /* this function connects to a server instance 
+         * and add it to the pool of connections with the server name
+         * then run the callback */
         const connection = new Connection({ host, port, id: this.id }); 
         // await connection and handshake
         await connection.connected();
+        // get the name of the target service
         let server_name = connection.getTargetName();
         if(server_name === undefined) 
             throw new Error('Server name is undefined');
+        if(server_name !== name) 
+            throw new Error('Server name mismatch');
         // if we already have a connection with the same id, remove it
         if(this.connections.has(server_name)) {
             let conn = this.connections.remove(server_name);
@@ -39,6 +44,8 @@ class NetworkNode {
         this.connections.add(server_name, connection);
         // new connection callback
         this.serviceConnectionCallback && this.serviceConnectionCallback(connection);   
+        // return the connection
+        return connection;
     }
     
     public createServer(
@@ -53,9 +60,27 @@ class NetworkNode {
         this.server?.exit();
     }
 
+    public getService(name: string): Connection {
+        // get the service connection
+        let service = this.connections.get(name);
+        // throw an error if the service is not found
+        if(service === undefined) throw new Error('Service not found');
+        // return the service
+        return service;
+    }
+
     public getServices(): Connection[] {
         // get all the clients that are services types
         return this.connections.toArray();
+    }
+
+    public getNode(id: string): Connection {
+        // get the client that is a node type
+        let client = this.server?.getClient(id);
+        // throw an error if the client is not found
+        if(client === undefined) throw new Error('Client not found');
+        // return the client
+        return client;
     }
 
     public getNodes(): Connection[] {

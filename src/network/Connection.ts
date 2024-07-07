@@ -17,6 +17,8 @@ class Connection {
     public id?: string;
     public listeners: Listener[] = [];
     public type: 'client' | 'server';
+    public host?: string;
+    public port?: number;
     // is connected or not
     public isConnected: boolean;
     // ot target of the socket
@@ -25,6 +27,8 @@ class Connection {
     public targetName?: string;
     public targetId?: string;
     public targetListeners: Listener[] = [];
+    public targetHost?: string;
+    public targetPort?: number;
     // callbacks
     private onConnectCallback: Function;
     public onDisconnectCallback: Function;
@@ -77,6 +81,7 @@ class Connection {
     }
 
     private initilaizeListeners(): void {
+        /* this function inizializes the default listeners for the socket */
         // if target is aking for connections
         this.socket.on("_listeners", () => {
             this.socket.emit("_listeners", this.listeners.map(listener => listener.event));
@@ -222,7 +227,9 @@ class Connection {
         });
     }
 
-    public static async checkPort(host: string, port: number): Promise<boolean> {
+    public send = this.query;
+
+    public static async isPortAvailable(host: string, port: number): Promise<boolean> {
         return new Promise((resolve, reject) => {
             let timeout = 3000;
             const url = `http://${host}:${port}`;
@@ -246,6 +253,34 @@ class Connection {
                 socket.disconnect();
                 resolve(false);
             });
+        });
+    }
+
+    public static nextAvailablePort(host: string, port: number): Promise<{host: string, port: number}> {
+        // from the especified port, check the next available port sequentially
+        return new Promise(async (resolve, reject) => {
+            let available = false;
+            let nextPort = port;
+            while (!available) {
+                if( await Connection.isPortAvailable(host, nextPort)) {
+                    resolve({ host, port: nextPort });
+                } else {
+                    nextPort += 1;
+                }
+            }
+        });
+    }
+
+    public static async findAvailablePorts(host: string, port: number, n: number): Promise<{host: string, port: number}[]> {
+        // find the next n available ports
+        return new Promise(async (resolve, reject) => {
+            let availablePorts: {host: string, port: number}[] = [];
+            for (let i = 0; i < n; i++) {
+                const availablePort = await Connection.nextAvailablePort(host, port);
+                availablePorts.push(availablePort);
+                port = availablePort.port + 1;
+            }
+            resolve(availablePorts);
         });
     }
 

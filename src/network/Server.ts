@@ -1,10 +1,10 @@
 import { Server } from "socket.io";
+import http from "http";
 import { createServer } from "http";
 import { Socket } from "socket.io";
 import { log, Pool } from '../utils';
 import Listener from './types/Listener';
 import Connection from "./Connection";
-
 
 
 class NetworkServer {
@@ -19,6 +19,8 @@ class NetworkServer {
     public isOverLan: boolean;
     public connectionCallback: any;
     public listeners: Listener[];
+    public server: http.Server;
+    public isReady: boolean;
     private ioOptions: any;
 
     constructor({ name, host, port, listeners } : {
@@ -26,18 +28,24 @@ class NetworkServer {
     }, options?: { maxTransferSize: number }) {
         this.host = host || "localhost";
         this.port = port || 3000;
+        this.isReady = false;
         this.maxTransferSize = options?.maxTransferSize || 1e9;
         this.name = name? name : "server";
         this.isOverLan = this.host !== 'localhost'
         this.connectionCallback = null;
-        this.clients = new Pool();
+        this.clients = new Pool<Connection>();
         this.listeners = listeners || [];
         this.ioOptions = {
             maxHttpBufferSize: this.maxTransferSize,
         };
-        // initiate the server
+        // initiate with the server
         if(this.isOverLan){
-            this.io = new Server(createServer(), this.ioOptions);
+            this.server = createServer();
+            this.io = new Server(this.server, this.ioOptions);
+            this.server.listen(this.port, this.host, () => {
+                this.isReady = true;
+                log(`server ${name} is running on ${host}:${port}`);
+            });
         }else{
             this.io = new Server(this.port, this.ioOptions);
         }
@@ -98,15 +106,19 @@ class NetworkServer {
         }
     }
 
+    public getClient(id: string) : Connection | undefined {
+        return this.clients.get(id);
+    }
+
     public getClients() : Connection[] {
         return this.clients.toArray();
     }
 
-    onConnection(callback: any) {
+    public onConnection(callback: any) {
         this.connectionCallback = callback;
     }
 
-    onDisconnect(callback: any) {
+    public onDisconnect(callback: any) {
         this.io.on("disconnect", callback);
     }
 

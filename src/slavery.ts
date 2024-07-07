@@ -50,10 +50,10 @@ class Slavery {
         });
         // check if there is a primary network on the passed host and port
         this.primaryNetwork.checkService().then((ps: Boolean) => {
-            if(ps === false) 
-                this.primaryNetwork.createService();
+            if(ps) // if we can find it then we will connect to it
+                this.primaryNetwork.connect();
             else // if we can't find it then we will create a new primary network
-                this.primaryNetwork.connectService();
+                this.primaryNetwork.createService();
         });
         // register possible services and nodes into this object
         this.master = this.initialize_service('master', Master, this.options.master);
@@ -73,22 +73,42 @@ class Slavery {
             if(this.cluster.is(service_name)) {
                 // await until this.primaryNetwork is ready
                 await this.primaryNetwork.isReady();
+                // get the list of services from the primary network
+                /***** get port an host fomr option for now *****/
+                let { host, port } = options;
+                //await this.primaryNetwork.getAvilablePort();
                 // create service
-                let s = new service(options);
-                // initilize service async
-                await s.init();
+                let s = new service({ host, port, options });
+                // initilize service 
+                await s.createService();
                 // register sevice to primary network
-                await this.primaryNetwork.registerService(s);
-                // syncronize the service with all other conencted services and nodes
-                await this.primaryNetwork.syncronizeService(s);
+                await this.primaryNetwork.register_service(s);
+                // get all of the sevices, 
+                let services_info = await this.primaryNetwork.get_services();
+                // for each create a service client and wait for it to connect
+                let services = await Promise.all(services_info.map(async (service:any) => {
+                    return await this.connectService(service)
+                }));
                 // initilize service connected it into the network
-                let services = s.get_services();
                 let nodes = s.get_nodes();
                 // run the process callback
-                await service_callback({ ...services, ...nodes }).bind(s);
+                await service_callback({ ...services, nodes }).bind(s);
             }
         }
     }
+
+
+    /* initliaze the connection to the service */
+    private async connectService({ name, host, port }: {
+        name: string, host: string, port: number 
+    }){
+        // create a new service client
+        let s = new Service({ name, host, port });
+        // connect to the service
+        await s.connect();
+        // return the service client
+        return s;
+    };
 
 
     private initialize_nodes(nodes_name: string, node: Node, options: any) {

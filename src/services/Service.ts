@@ -1,14 +1,12 @@
-import Network, { Listener, Connection } from '../../network';
-import checkPrimaryServiceSocket from './utils/checkServiceSocket';
-import findAvailablePort from './utils/findAvailablePorts';
+import Network, { Listener, Connection } from '../network';
+import { ServiceInfo } from './types';
 
 type Parameters = {
     name: string,
-    type: 'service' | 'client' | undefined,
+    type?: 'service' | 'client',
     host?: string,
     port?: number
     heartBeat?: number,
-
 };
 
 class Service {
@@ -16,7 +14,9 @@ class Service {
      * this means that it will create listeners from it's methods
      * and methods from a list of listeners */
     protected name: string;
-    protected type: 'service' | 'client' | undefined;
+    protected type?: 'service' | 'client';
+    protected isConnected: boolean = false;
+    protected isServiceCreated: boolean = false;
     protected heartBeat: number = 100;
     protected host: string;
     protected port: number;
@@ -29,6 +29,7 @@ class Service {
         this.host = options.host ?? 'localhost';
         this.port = options.port ?? 3000;
         this.exceptedMethods = [
+            'connect', 'isReady', 'checkService',
             'constructor', 'createServer',
             'getAllMethods', 'addExceptedMethods'
         ];
@@ -36,20 +37,28 @@ class Service {
         this.network = new Network();
     }
 
-    public async connect(): Promise<Connection> {
+    public async connect(): Promise<Service> {
         this.type = 'client';
         // check if there is a service already running on the port and host
-        await this.network.connect(this.name, this.host, this.port);
+        let conn = await this.network.connect(this.name, this.host, this.port);
         // get listners from Connection
-        
-        // crete method from listners which run the query on the connection
-
+        let listeners = conn.targetListeners;
+        // create method from listners which run the query on the connection
+        listeners.forEach((listener: Listener) => {
+            (this as any)[listener.event] = async (data: any) => {
+                // pool the lstest connection form network
+                let conn = this.network.getService(this.name);
+                // and send the data
+                return await conn.send(listener.event, data);
+            }
+        });
+        // set the connection to be true
+        this.isConnected = true;
         // return this
         return this
-
     }
 
-    public createService() {
+    public async createService() {
         this.type = 'service';
         // make the listeners to be the methods of the class
         let methods = this.getAllMethods();
@@ -60,11 +69,36 @@ class Service {
         // create the listeners
         let listeners = methods.map((method:string) => ({
             event: method,
-            // @ts-ignore
-            callback: this[method].bind(this)
+            callback: (this as any)[method].bind(this)
         }));
         // create the server
         this.network.createServer(this.name, this.host, this.port, listeners);
+        // set the service created to true
+        this.isServiceCreated = true;
+    }
+
+    public async isReady(): Promise<boolean> {
+        // await until the priary service has either
+        // created the service or it has connected to the service
+        return new Promise((resolve, reject) => {
+            let interval: any, timeout: any;
+            // set timeout to 30 seconds
+            timeout = setTimeout(() => { 
+                clearInterval(interval);
+                reject('Timeout for service to be ready'); }, 30000);
+            interval = setInterval(() => {
+                if(this.type === 'service' && this.isServiceCreated) {
+                    timeout && clearTimeout(timeout);
+                    clearInterval(interval);
+                    resolve(true);
+                }
+                if(this.type === 'client' && this.isConnected) {
+                    timeout && clearTimeout(timeout);
+                    clearInterval(interval);
+                    resolve(true);
+                }
+            }, 100);
+        });
     }
 
     protected addExceptedMethods(methods: string[]) {
@@ -79,8 +113,7 @@ class Service {
         while (obj && obj !== Object.prototype) {
             const propertyNames = Object.getOwnPropertyNames(obj);
             for (const name of propertyNames) {
-                // @ts-ignore
-                if (typeof this[name] === 'function' && name !== 'constructor')
+                if (typeof (this as any)[name] === 'function' && name !== 'constructor')
                     methods.push(name);
             }
             obj = Object.getPrototypeOf(obj);
@@ -88,18 +121,37 @@ class Service {
         return methods;
     }
 
-    public async checkServiceSocket(): Promise<boolean> {
+    public async checkService(): Promise<boolean> {
         // check if there is already a service running on the port
-        return await checkServiceSocket(this.port);
+        return await Connection.isPortAvailable(this.host, this.port);
     }
 
+
+    public async newService(name: string, host: string, port: number): Promise<Service> {
+        // create a new service
+        let service = new Service({ name, host, port });
+        await service.createService();
+        return service;
+    }
+
+    /* function that can be called by a client */
+
+    public async add_service(service: ServiceInfo): Promise<boolean> {
+        // get the service infomation
+        // make a connection to the service
+        if(!service.host || !service.port)
+            throw new Error('The service information is not complete');
+        // the newtorks keeps track of the connections
+        await this.network.connect(service.name, service.host, service.port);
+        return true
+    }
+        
 
     // this function will be converted to a listener
     // and called when a client connects to the service
-    is_service(): string {
+    public is_service(): string {
         return this.name;
     }
-
 
 
 }
