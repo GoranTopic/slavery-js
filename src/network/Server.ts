@@ -16,10 +16,10 @@ class NetworkServer {
     private maxTransferSize: number;
     private clients: Pool<Connection>;
     public name: string;
-    public isOverLan: boolean;
+    public isLan: boolean;
     public connectionCallback: any;
     public listeners: Listener[];
-    public server: http.Server;
+    public httpServer?: http.Server;
     public isReady: boolean;
     private ioOptions: any;
 
@@ -27,11 +27,11 @@ class NetworkServer {
         name: string, host: string, port: number, listeners: Listener[]
     }, options?: { maxTransferSize: number }) {
         this.host = host || "localhost";
-        this.port = port || 3000;
+        this.isLan = this.host !== 'localhost'
+        this.port = port || 0; // zero means random port
         this.isReady = false;
         this.maxTransferSize = options?.maxTransferSize || 1e9;
         this.name = name? name : "server";
-        this.isOverLan = this.host !== 'localhost'
         this.connectionCallback = null;
         this.clients = new Pool<Connection>();
         this.listeners = listeners || [];
@@ -39,14 +39,14 @@ class NetworkServer {
             maxHttpBufferSize: this.maxTransferSize,
         };
         // initiate with the server
-        if(this.isOverLan){
-            this.server = createServer();
-            this.io = new Server(this.server, this.ioOptions);
-            this.server.listen(this.port, this.host, () => {
+        if(this.isLan){ // if we are in a over lan
+            this.httpServer = createServer();
+            this.io = new Server(this.httpServer, this.ioOptions);
+            this.httpServer.listen(this.port, this.host, () => {
                 this.isReady = true;
                 log(`server ${name} is running on ${host}:${port}`);
             });
-        }else{
+        }else{ // if we are in localhost
             this.io = new Server(this.port, this.ioOptions);
         }
         // create a new socket.io client instance

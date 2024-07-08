@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Connect to the Socket.IO server
-const socket = io("ws://localhost:3000");
+const socket = io("ws://localhost:46349");
 
 // Listen for the connection event
 socket.on("connect", () => {
