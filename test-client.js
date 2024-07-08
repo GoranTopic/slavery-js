@@ -4,8 +4,8 @@ import ip from 'ip';
 
 
 // localhost address
-let serverIp = "127.0.0.1";
-let serverPort = 37325;
+let serverIp = "10.0.10.101";
+let serverPort = 39791
 
 // Connect to the Socket.IO server
 const socket = io(`ws://${serverIp}:${serverPort}`, {
@@ -81,7 +81,8 @@ function isSameNetwork(localIp, localSubnet, targetIp) {
 
 function findLocalIpOnSameNetwork(targetIp) {
     // if targetIp is in the local network, return the local IP
-    if (ip.isPrivate(targetIp)) return targetIp;
+    if (ip.isLoopback(targetIp) && ip.isPrivate(targetIp))
+        return targetIp;
     // Otherwise, find the local IP on the same network
     const localNetworks = getLocalIpAndSubnet();
     // for each local network, check if the target IP is in the same network
