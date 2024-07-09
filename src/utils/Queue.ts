@@ -1,8 +1,11 @@
 class Queue<T> {
     private items: T[];
 
-    constructor() {
-        this.items = []
+    constructor( items: T[] = [] ) {
+        if(items.length > 0)    
+            this.items = items
+        else
+            this.items = []
     }
     
     enqueue(item: T) {

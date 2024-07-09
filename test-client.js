@@ -2,9 +2,8 @@ import { io } from "socket.io-client";
 import os from 'os';
 import ip from 'ip';
 
-
 // localhost address
-let serverIp = "10.0.10.101";
+let serverIp = "localhost" //"10.0.10.101";
 let serverPort = 39791
 
 // Connect to the Socket.IO server
@@ -59,6 +58,7 @@ const getTargetPort = socket => {
     return port;
 }
 
+
 function getLocalIpAndSubnet() {
     const interfaces = os.networkInterfaces();
     const result = [];
@@ -80,6 +80,8 @@ function isSameNetwork(localIp, localSubnet, targetIp) {
 }
 
 function findLocalIpOnSameNetwork(targetIp) {
+    // if targetIp is localhost, use
+    if(targetIp === 'localhost') targetIp = '127.0.0.1';
     // if targetIp is in the local network, return the local IP
     if (ip.isLoopback(targetIp) && ip.isPrivate(targetIp))
         return targetIp;

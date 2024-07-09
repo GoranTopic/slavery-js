@@ -27,7 +27,6 @@
   },
   "homepage": "https://github.com/GoranTopic/slavery-js#readme",
   "dependencies": {
-    "express": "^4.19.2",
     "ip": "^2.0.1",
     "json-stringify-safe": "^5.0.1",
     "serialize-error": "^11.0.0",
@@ -35,6 +34,7 @@
     "socket.io-client": "^4.7.1"
   },
   "devDependencies": {
+    "@types/ip": "^1.1.3",
     "axios": "^1.4.0",
     "chai": "^4.3.7",
     "mocha": "^10.2.0",

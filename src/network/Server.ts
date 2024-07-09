@@ -40,14 +40,24 @@ class NetworkServer {
         };
         // initiate with the server
         if(this.isLan){ // if we are in a over lan
+            // create a http server
             this.httpServer = createServer();
             this.io = new Server(this.httpServer, this.ioOptions);
             this.httpServer.listen(this.port, this.host, () => {
+                let address = this.httpServer?.address();
+                if(!address || typeof address === "string") {
+                    console.log("Server is not running");
+                    return;
+                }
                 this.isReady = true;
+                this.port = address.port
                 log(`server ${name} is running on ${host}:${port}`);
             });
         }else{ // if we are in localhost
             this.io = new Server(this.port, this.ioOptions);
+            // get the port number
+            this.port = (this.io as any).httpServer.address().port;
+            log(`server ${name} is running on ${host}:${this.port}`);
         }
         // create a new socket.io client instance
         this.io.on("connection", this.handleConnection.bind(this));
