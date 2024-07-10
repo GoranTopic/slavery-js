@@ -128,12 +128,6 @@ class Service {
         return methods;
     }
 
-    public async checkService(): Promise<boolean> {
-        // check if there is already a service running on the port
-        return await Connection.isPortAvailable(this.host, this.port);
-    }
-
-
     public async newService(name: string, host: string, port: number): Promise<Service> {
         // create a new service
         let service = new Service({ name, host, port });

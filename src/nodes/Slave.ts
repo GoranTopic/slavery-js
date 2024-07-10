@@ -1,24 +1,30 @@
 import Network, { Listener, Connection } from '../network';
 import { ServiceInfo } from './types';
+import { serializeError } from 'serialize-error';
+
+/* this calss will make a slave type which will be an a child of the Node class
+ * this is the class that will be used to run the the client of a node
+ * like other classes it will work as both 
+ * the server connection to the client and the client conenction to the server.
+ * this class will have a list of methods that will be converted to listeners
+ * and a list of listeners that will be converted to methods
+ */
 
 type Parameters = {
     name: string,
-    type?: 'service' | 'client',
+    type?: 'node' | 'client',
     host?: string,
     port?: number
     heartBeat?: number,
 };
 
-class Service {
+class Slave {
     /* this class is both the server and the client at the same time.
      * this means that it will create listeners from it's methods
      * and methods from a list of listeners */
     public name: string;
-    public type?: 'service' | 'client';
+    public type?: 'node' | 'client';
     public isConnected: boolean = false;
-    public isServiceCreated: boolean = false;
-    public host: string;
-    public port: number;
     public network: Network;
     protected heartBeat: number = 100;
     protected exceptedMethods: string[];
@@ -26,10 +32,8 @@ class Service {
     constructor(options: Parameters) {
         this.type = options.type;
         this.name = options.name;
-        this.host = options.host ?? 'localhost';
-        this.port = options.port ?? 3000;
         this.exceptedMethods = [
-            'connect', 'isReady', 'checkService',
+            'connect', 'isReady',
             'constructor', 'createServer',
             'getAllMethods', 'addExceptedMethods'
         ];
@@ -37,13 +41,14 @@ class Service {
         this.network = new Network();
     }
 
-    public async connect(): Promise<Service> {
+    public async connect({ name, host, port }: ServiceInfo): Promise<this> {
         /*this is the client inplementation.
          * it will connect to the service and create methods
          * for every listener that the service has */
         this.type = 'client';
+        if(!host || !port) throw new Error('The service information is not complete');
         // check if there is a service already running on the port and host
-        let conn = await this.network.connect(this.name, this.host, this.port);
+        let conn = await this.network.connect(name, host, port);
         // get listners from Connection
         let listeners = conn.targetListeners;
         // create method from listners which run the query on the connection
@@ -61,16 +66,17 @@ class Service {
         return this
     }
 
-    public async createService() {
-        this.type = 'service';
-        // make the listeners to be the methods of the class
+    public async RegisterListener(): Promise<void> {
+        /* this takes the method and registers them as listners */
+        this.type = 'node';
+        // create the service
         let methods = this.getAllMethods();
-        // remove the constructor, createServer and getAllMethods
+        // filter the excepted methods
         methods = methods.filter(
             (method:string) => !this.exceptedMethods.includes(method)
         );
         // create the listeners
-        let listeners = methods.map((method:string) => ({
+        let listeners : Listener[] = methods.map((method:string) => ({
             event: method,
             // this is a function will call the mothod form this class
             // in theory this will allow the function to be changed
@@ -78,10 +84,13 @@ class Service {
                 return await (this as any)[method](data).bind(this)
             }
         }));
-        // create the server
-        this.network.createServer(this.name, this.host, this.port, listeners);
-        // set the service created to true
-        this.isServiceCreated = true;
+        // add the listners on every socket for every server.
+        let services = this.network.getServices();
+        services.forEach((service: Connection) => {
+            service.setListeners(listeners);
+        });
+        // set is connected to true
+        this.isConnected = true;
     }
 
     public async isReady(): Promise<boolean> {
@@ -94,11 +103,6 @@ class Service {
                 clearInterval(interval);
                 reject('Timeout for service to be ready'); }, 30000);
             interval = setInterval(() => {
-                if(this.type === 'service' && this.isServiceCreated) {
-                    timeout && clearTimeout(timeout);
-                    clearInterval(interval);
-                    resolve(true);
-                }
                 if(this.type === 'client' && this.isConnected) {
                     timeout && clearTimeout(timeout);
                     clearInterval(interval);
@@ -128,40 +132,34 @@ class Service {
         return methods;
     }
 
-    public async checkService(): Promise<boolean> {
-        // check if there is already a service running on the port
-        return await Connection.isPortAvailable(this.host, this.port);
-    }
-
-
-    public async newService(name: string, host: string, port: number): Promise<Service> {
-        // create a new service
-        let service = new Service({ name, host, port });
-        await service.createService();
-        return service;
-    }
-
     /* function that can be called by a client */
 
     public async add_service(service: ServiceInfo): Promise<boolean> {
-        // get the service infomation
-        // make a connection to the service
+        // get the service infomation and add it to the network
+        // this function will be called by tye primary service to add a new service
         if(!service.host || !service.port)
             throw new Error('The service information is not complete');
         // the newtorks keeps track of the connections
         await this.network.connect(service.name, service.host, service.port);
         return true
     }
-        
 
-    // this function will be converted to a listener
-    // and called when a client connects to the service
-    public is_service(): string {
-        return this.name;
+    public async run(method: string, data: any): Promise<any> {
+        // this function will be called by the a service or another node to run a function
+        try {
+            return await (this as any)[method](data);
+        } catch(err) {
+            // serilize the error
+            return serializeError(err);
+        }
+        
     }
+
+    public async 
+
 
 
 }
 
 
-export default Service;
+export default Slave;

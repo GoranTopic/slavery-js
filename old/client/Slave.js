@@ -215,8 +215,7 @@ class Slave {
             timeout = setTimeout(() => {
                 clearInterval(interval);
                 reject('timeout');
-            }
-            , 1000 * 60 ); // 1 minute
+            }, 1000 * 60 ); // 1 minute
         }).catch( err => {
             console.error(err);
         });

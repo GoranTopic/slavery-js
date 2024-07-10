@@ -5,7 +5,8 @@ import Server from './Server';
 
 class NetworkNode {
     public id: string;
-    // this is where a node store its server, which in turn stores its connections to clients
+    // this is where a node store its server, 
+    // which in turn stores its connections to clients
     public server: Server | null;
     // this is where we store our connections to servers
     public connections: Pool<Connection>;
