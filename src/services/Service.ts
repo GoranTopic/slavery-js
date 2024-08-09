@@ -38,7 +38,7 @@ class Service {
     }
 
     public async connect(): Promise<Service> {
-        /*this is the client inplementation.
+        /* this is the client inplementation.
          * it will connect to the service and create methods
          * for every listener that the service has */
         this.type = 'client';

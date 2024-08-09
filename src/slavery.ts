@@ -90,9 +90,11 @@ class Slavery {
                 // get all of the sevices, 
                 let service_addresses = await this.primaryNetwork.get_services();
                 // for each create a service info create a client that connects to it
-                let services = await Promise.all(service_addresses.map(async (service:any) => {
-                    return await this.connectService(service)
-                }));
+                let services = await Promise.all(
+                    service_addresses.map(async (service:any) => {
+                        return await this.connectService(service)
+                    })
+                );
                 // initilize service connected it into the network
                 let nodes = nodesHandler(s.network);
                 // run the process callback
@@ -102,7 +104,7 @@ class Slavery {
     }
 
 
-    /* initliaze the connection to the service */
+    /* initliaze the connection to the service node */
     private async connectService({ name, host, port }: any){
         // create a new service client
         let s = new Service({ name, host, port });
