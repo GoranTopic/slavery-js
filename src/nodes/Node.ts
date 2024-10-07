@@ -18,7 +18,7 @@ type Parameters = {
     heartBeat?: number,
 };
 
-class Slave {
+class Node {
     /* this class is both the server and the client at the same time.
      * this means that it will create listeners from it's methods
      * and methods from a list of listeners */
@@ -26,17 +26,10 @@ class Slave {
     public type?: 'node' | 'client';
     public isConnected: boolean = false;
     public network: Network;
-    protected heartBeat: number = 100;
-    protected exceptedMethods: string[];
 
     constructor(options: Parameters) {
         this.type = options.type;
         this.name = options.name;
-        this.exceptedMethods = [
-            'connect', 'isReady',
-            'constructor', 'createServer',
-            'getAllMethods', 'addExceptedMethods'
-        ];
         this.heartBeat = options.heartBeat ?? 100; // 100ms
         this.network = new Network();
     }
