@@ -1,3 +1,8 @@
+/* this class is the entry point for slavery program
+ * it handle both the low lever process cluster and the high lever socket client
+ * the low level cluster is handled with many process in the same computer, or diffrent computer
+ * while the high lever service client is handled with socket.io server client aquitecture.
+ */
 import Cluster from './cluster';
 import { 
     Service,
@@ -14,8 +19,9 @@ import { findLocalIpOnSameNetwork } from './utils';
 type ServiceInheritor<T extends Service> = new (...args: any[]) => T;
 type NodeConstructor<T extends Node> = new (...args: any[]) => T;
 
-
+// This is the class that will be called when intiated
 class Slavery {
+    // this are the services used
     private master: Function | undefined;
     private logger: Function | undefined;
     private proxies: Function | undefined;
@@ -32,7 +38,7 @@ class Slavery {
     private port: number;
     // primary network
     private primaryNetwork: Primary;
-
+    
     constructor(options: any) {
         // handle options
         this.options = options;
@@ -47,7 +53,7 @@ class Slavery {
         ] 
         // make cluster_handler
         this.cluster = new Cluster(this.options);
-        // create a primary network
+        // create a primary network service
         this.primaryNetwork = new Primary({
             host: this.host,
             port: this.port,
@@ -125,10 +131,10 @@ class Slavery {
                 await this.primaryNetwork.isReady();
                 // get the list of services from the primary network 
                 let n = new node(this.options);
-                // initilize the node
-                await n.init();
                 // syncronize the node with all other services
                 await this.primaryNetwork.syncronizeNode(n);
+                // initilize the node
+                await n.initialize()
                 //  connect to each one of them
                 let services = await n.get_services();
                 // run the node callback
@@ -139,4 +145,4 @@ class Slavery {
 
 }
 
-export default 
+export default Slavery

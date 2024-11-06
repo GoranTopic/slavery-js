@@ -1,4 +1,4 @@
-/* this class is creted to manage the nodes socket conenctions on a service,
+/* this class is created to manage the nodes socket conenctions on a service,
  * it will handle new conenction fron node, and will remove them when they are disconnected
  * this class provide an interface for other classes to interact with all the nodes
  * if a class wants to run a function on each difrent node,

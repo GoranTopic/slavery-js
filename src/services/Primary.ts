@@ -13,10 +13,10 @@ type Parameters = {
 
 class Primary extends Service {
     /* this is the class that will create primary service,
-     * the primary is the default network,
+     * the primary is the default network informer,
      * other services will try to conenct to it to get the infomation about the network
      * and find other srvice, it will also give out ports and hosts to other services. */
-    private services: Pool<ServiceInfo>;
+    private services: Pool<ServiceInfo>
     private serviceNames: string[];
 
     constructor({host, port, listOfServices, type}: Parameters) {

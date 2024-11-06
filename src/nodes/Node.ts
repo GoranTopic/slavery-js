@@ -1,6 +1,5 @@
 import Network, { Listener, Connection } from '../network';
 import { ServiceInfo } from './types';
-import { serializeError } from 'serialize-error';
 
 /* this calss will make a slave type which will be an a child of the Node class
  * this is the class that will be used to run the the client of a node
@@ -10,31 +9,26 @@ import { serializeError } from 'serialize-error';
  * and a list of listeners that will be converted to methods
  */
 
-type Parameters = {
-    name: string,
-    type?: 'node' | 'client',
-    host?: string,
-    port?: number
-    heartBeat?: number,
-};
 
 class Node {
-    /* this class is both the server and the client at the same time.
-     * this means that it will create listeners from it's methods
-     * and methods from a list of listeners */
-    public name: string;
-    public type?: 'node' | 'client';
+    public id: string;
+    public type: 'node';
     public isConnected: boolean = false;
     public network: Network;
 
-    constructor(options: Parameters) {
+    constructor(options: Parameters) {:webkitURL
         this.type = options.type;
         this.name = options.name;
-        this.heartBeat = options.heartBeat ?? 100; // 100ms
         this.network = new Network();
     }
 
-    public async connect({ name, host, port }: ServiceInfo): Promise<this> {
+    public async initialize() {
+        // we will wait until all the conenction made to the difrent severes are made
+    }
+
+
+
+    public async connect_service({ name, host, port }: ServiceInfo): Promise<this> {
         /*this is the client inplementation.
          * it will connect to the service and create methods
          * for every listener that the service has */
