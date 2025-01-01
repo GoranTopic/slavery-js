@@ -28,10 +28,14 @@ class Primary extends Service {
         this.services = new Pool<ServiceInfo>();
         // add the list of services
         for (let service of this.serviceNames)
-            this.services.add(service, {name: service, host: undefined, port: undefined});
-        // set the methods what will not be exposed in the service
-        this.addExceptedMethods([
-        ]);
+            this.services.add(service, { 
+                name: service,
+                host: undefined,
+                port: undefined
+            });
+            // set the methods what will not be exposed in the service
+            this.addExceptedMethods([
+            ]);
     }
 
     public async broadcastNewService(data: any): Promise<Boolean> {

@@ -6,6 +6,7 @@ type Parameters = {
     type?: 'service' | 'client',
     host?: string,
     port?: number
+    tag?: string,
     heartBeat?: number,
 };
 
@@ -23,6 +24,7 @@ class Service {
     public isServiceCreated: boolean = false;
     public host: string;
     public port: number;
+    public tag?: string;
     public network: Network;
     protected heartBeat: number = 100;
     protected exceptedMethods: string[];
@@ -31,6 +33,7 @@ class Service {
         this.type = options.type;
         this.name = options.name;
         this.host = options.host ?? 'localhost';
+        this.tag = options.tag;
         this.port = options.port ?? 3000;
         this.exceptedMethods = [
             'connect', 'isReady', 'checkService',
@@ -47,7 +50,7 @@ class Service {
          * for every listener that the service has */
         this.type = 'client';
         // check if there is a service already running on the port and host
-        let conn = await this.network.connect(this.name, this.host, this.port);
+        let conn = await this.network.connect(this.name, this.host, this.port, this.tag);
         // get listners from Connection
         let listeners = conn.targetListeners;
         // create method from listners which run the query on the connection
@@ -62,7 +65,7 @@ class Service {
         // set the connection to be true
         this.isConnected = true;
         // return this
-        return this
+        return this;
     }
 
     public async createService() {
@@ -140,7 +143,6 @@ class Service {
     }
 
     /* function that can be called by a client */
-
     public async add_service(service: ServiceInfo): Promise<boolean> {
         // get the service infomation
         // make a connection to the service

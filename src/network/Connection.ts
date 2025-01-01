@@ -15,6 +15,7 @@ class Connection {
     // this node information
     public name?: string;
     public id?: string;
+    public tag?: string;
     public listeners: Listener[] = [];
     public type: 'client' | 'server';
     public host?: string;
@@ -38,14 +39,19 @@ class Connection {
      * @param socket: Socket
      * @param host: string
      * @param port: number
+     * @param id: string
+     * @param name: string
+     * @param tag: string
      * */
-    constructor({ socket, host, port, id, name, onConnect, onDisconnect, } : {
+    constructor({ socket, host, port, id, name, onConnect, onDisconnect, tag } : {
         id?: string, socket?: Socket, host?: string,
-        port?: number, name?: string,
+        port?: number, name?: string, tag?: string,
         onConnect?: Function, onDisconnect?: Function 
     }) {
         // set the socket id
         this.socketId = this.socket.id;
+        // set the tag
+        this.tag = tag || '';
         // callbacks 
         this.onConnectCallback = onConnect || (() => {});
         this.onDisconnectCallback = onDisconnect || (() => {});
@@ -174,6 +180,10 @@ class Connection {
         return this.targetId;
     }
 
+    public getTag(): string | undefined {
+        return this.tag;
+    }
+
     private setListener(event: string, callback: Function): void {
         // add the listener
         this.listeners.push({ event, callback });
@@ -208,6 +218,7 @@ class Connection {
 
                       
     public query(event: string, data?: any): Promise<any> {
+        /* this function makes the query to the socket and waits for the response */
         return new Promise((resolve, reject) => {
             // set a time out
             let timeout = setTimeout( () => { reject('timeout') }, 1000 * 60); // 1 minute
@@ -244,12 +255,12 @@ class Connection {
                 resolve(true);
             });
             // if the connection is not established
-            socket.on('connect_error', (err) => {
+            socket.on('connect_error', (err: any) => {
                 socket.disconnect();
                 resolve(false);
             });
             // if the connection is not established
-            socket.on('error', (err) => {
+            socket.on('error', (err: any) => {
                 socket.disconnect();
                 resolve(false);
             });
@@ -287,7 +298,6 @@ class Connection {
     public close(): void {
         this.socket.disconnect();
     }
-
 
 }
 

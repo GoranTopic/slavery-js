@@ -4,6 +4,10 @@ import Listener from './types/Listener';
 import Server from './Server';
 
 class NetworkNode {
+    /* this class will handle the connections of a node in the network. 
+     * this node can ither be a server or a client.
+     * Each c
+     */
     public id: string;
     // this is where a node store its server, 
     // which in turn stores its connections to clients
@@ -23,7 +27,7 @@ class NetworkNode {
         this.serviceDisconnectCallback = null;
     }
 
-    async connect(name: string, host: string, port: number): Promise<Connection> {
+    async connect(name: string, host: string, port: number, tag?: string): Promise<Connection> {
         /* this function connects to a server instance 
          * and add it to the pool of connections with the server name
          * then run the callback */
@@ -89,6 +93,35 @@ class NetworkNode {
         let nodes = this.server?.getClients().
             filter((conn: Connection) => conn.targetType === 'client');
         return nodes || [];
+    }
+
+    public getConnections(): Connection[] {
+        // get all the connections
+        return this.connections.toArray().concat(this.server?.getClients() || []);
+    }
+
+    public getConnectionsByTag(tag: string): Connection[] {
+        // get the connections by tag
+        let nodes = this.getNodes().filter((conn: Connection) => conn.tag === tag);
+        let connections = this.getConnections().filter((conn: Connection) => conn.tag === tag);
+        // return both nodes and connections
+        return nodes.concat(connections);
+    }
+
+
+    public closeService(name: string) {
+        // close the connection
+        let connection = this.connections.remove(name);
+        if(connection) connection.close();
+        // callback
+        this.serviceDisconnectCallback &&
+            this.serviceDisconnectCallback(connection);
+    }
+
+    public closeConnection(id: string) {
+        // close the connection
+        let connection = this.connections.remove(id);
+        if(connection) connection.close();
     }
 
     /* callbacks */

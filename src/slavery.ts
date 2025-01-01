@@ -88,7 +88,7 @@ class Slavery {
                 // get the port form the same network as the primary network
                 let host = findLocalIpOnSameNetwork(this.primaryNetwork.host);
                 // create service, 0 means a random port
-                let s = new service({ host, type:'service', port: 0, options });
+                let s = new service({ host, port: 0, options });
                 // initilize service 
                 await s.createService();
                 // register sevice to primary network
@@ -97,9 +97,9 @@ class Slavery {
                 let service_addresses = await this.primaryNetwork.get_services();
                 // for each create a service info create a client that connects to it
                 let services = await Promise.all(
-                    service_addresses.map(async (service:any) => {
-                        return await this.connectService(service)
-                    })
+                    service_addresses.map(async (service:any) => 
+                        await this.connectService({ ...service, process: 'service' })
+                    )
                 );
                 // initilize service connected it into the network
                 let nodes = nodesHandler(s.network);
@@ -110,17 +110,6 @@ class Slavery {
     }
 
 
-    /* initliaze the connection to the service node */
-    private async connectService({ name, host, port }: any){
-        // create a new service client
-        let s = new Service({ name, host, port });
-        // connect to the service
-        await s.connect();
-        // return the service client
-        return s;
-    };
-
-
     private initialize_nodes(nodes_name: string, node: NodeConstructor<Node>, options: any) {
         // make a new process from the callback
         return async (node_callback: Function) => {
@@ -129,19 +118,33 @@ class Slavery {
             if(this.cluster.is(nodes_name)) {
                 // await until this.primaryNetwork is ready
                 await this.primaryNetwork.isReady();
+                // get all of the sevices, 
+                let service_addresses = await this.primaryNetwork.get_services();
+                // for each create a service info create a client that connects to it
+                let services = await Promise.all(
+                    service_addresses.map( async (service: any) => 
+                        await this.connectService({ ...service, process: 'node' }
+                    )
+                )
                 // get the list of services from the primary network 
-                let n = new node(this.options);
-                // syncronize the node with all other services
-                await this.primaryNetwork.syncronizeNode(n);
-                // initilize the node
-                await n.initialize()
-                //  connect to each one of them
-                let services = await n.get_services();
+                let n = new node(options);
                 // run the node callback
                 await node_callback({ ...services }).bind(n);
             }
         }
     }
+
+    
+    /* initliaze the connection to the service node */
+    private async connectService({ name, type, host, port }: any){
+        // create a new service client
+        let s = new Service({ name, type, host, port });
+        // connect to the service
+        await s.connect();
+        // return the service client
+        return s;
+    };
+
 
 }
 
