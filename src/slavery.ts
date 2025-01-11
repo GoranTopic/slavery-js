@@ -7,28 +7,13 @@ import Cluster from './cluster';
 import { 
     Service,
     Primary,
-    Master, 
-    //Logger, 
-    //Proxies, 
-    //Storage, 
 } from './services';
-import { Slaves, nodesHandler } from './nodes';
+// this is used to fin the primary network service
 import { findLocalIpOnSameNetwork } from './utils';
-
-// this type solely exits to make an annotation for the Sevices and nodes
-type ServiceInheritor<T extends Service> = new (...args: any[]) => T;
-type NodeConstructor<T extends Node> = new (...args: any[]) => T;
 
 // This is the class that will be called when intiated
 class Slavery {
-    // this are the services used
-    private master: Function | undefined;
-    private logger: Function | undefined;
-    private proxies: Function | undefined;
-    private storage: Function | undefined;
-    private primary: Function | undefined;
-    private slaves: Function | undefined;
-    private pipes: Function | undefined;
+    // Cluster handler
     private cluster: Cluster; 
     // list of services
     private services: string[];
