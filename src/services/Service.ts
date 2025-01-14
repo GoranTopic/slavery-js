@@ -1,5 +1,5 @@
 import Network, { Listener, Connection } from '../network';
-import { ServiceInfo } from './types';
+import { ServiceAddress } from './types';
 
 type Parameters = {
     name: string,
@@ -143,7 +143,7 @@ class Service {
     }
 
     /* function that can be called by a client */
-    public async add_service(service: ServiceInfo): Promise<boolean> {
+    public async add_service(service: ServiceAddress): Promise<boolean> {
         // get the service infomation
         // make a connection to the service
         if(!service.host || !service.port)

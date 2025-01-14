@@ -1,10 +1,15 @@
 const proxyObjecHandler = {
     get(target, prop) {
-        console.log('target',target)
+        //console.log('target',target)
         // this will take
-        return (...args) => {
-            console.log(`method: ${prop}`)
-            console.log(`arguments: ${args}`)
+        return (args) => {
+            console.log(`method: ${prop} called`)
+            // type of args
+            console.log(typeof args)
+            //to string
+            //let strs = args.map( arg => arg.toString())
+            //console.log(`arguments:`)
+            //console.log(strs)
             return proxy;
         };
     }
@@ -21,5 +26,6 @@ proxy
     })
     .slave( slave => {
         console.log('something else', slave)
-    })
+    }, 9090, 'someArgString')
     .yetAnotherMethod();
+

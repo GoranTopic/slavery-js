@@ -1,5 +1,5 @@
-import ServiceInfo from './ServiceInfo';
+import ServiceAddress from './ServiceAddress';
 import Address from './Address';
 
 
-export { ServiceInfo, Address };
+export { ServiceAddress, Address };
