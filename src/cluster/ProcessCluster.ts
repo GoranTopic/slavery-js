@@ -24,7 +24,8 @@ class Cluster {
         process_type: string, 
         numberOfSpawns: number = 1
     ){
-        if (!cluster.isPrimary) return;
+        if (!cluster.isPrimary) 
+            throw new Error('Cluster: Only the primary process can spawn new processes');
         let curProcess;
         process.env.type = process_type;
         for (let i = 0; i < numberOfSpawns; i++){

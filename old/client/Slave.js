@@ -22,7 +22,7 @@ class Slave {
         this.endpoint = `ws://${this.host}:${this.port}`;
         // has it connected to server?
         this.connected = false;
-        // id ot be used by the server
+        // id to be used by the server
         this.id = null
         // function to run on demand
         this.work = null;

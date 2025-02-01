@@ -72,7 +72,7 @@ class Pool<T> {
             }, 100);
         }
     }
-        
+
 
     enable(id: string) : boolean {
         // if it is not in the pool, return false
@@ -88,6 +88,7 @@ class Pool<T> {
             this.enabled.enqueue(id);
             return true
         }
+        return false;
     }
 
     nextAndEnable() : string | boolean {
@@ -101,7 +102,7 @@ class Pool<T> {
         return id;
     }
 
-    rotate() : T { // dequeue and enqueue
+    rotate() : T | null { // dequeue and enqueue
         if(this.size() === 0) return null
         const id = this.enabled.dequeue()
         if(!id) return null
@@ -109,7 +110,7 @@ class Pool<T> {
         return this.items[id]
     }
 
-    next() : T {
+    next() : T | null {
         return this.rotate();
     }
 
@@ -166,7 +167,6 @@ class Pool<T> {
         let index = this.enabled.indexOf(id);
         if(!(index === -1))
             return { index, list: 'enabled' };
-        
         // look in the disable list for the id
         index = this.disabled.indexOf(id);
         if(!(index === -1))

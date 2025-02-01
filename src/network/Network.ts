@@ -5,8 +5,8 @@ import Server from './Server';
 
 class NetworkNode {
     /* this class will handle the connections of a node in the network. 
-     * this node can ither be a server or a client.
-     * Each c
+     * this node can be in eighter a server or a client.
+     * Each Node will have a NetworkNode 
      */
     public id: string;
     // this is where a node store its server, 
@@ -15,9 +15,9 @@ class NetworkNode {
     // this is where we store our connections to servers
     public connections: Pool<Connection>;
     // callback for when a new service connection is made
-    public serviceConnectionCallback: ((connection: Connection) => {}) | null;
+    public serviceConnectionCallback: Function | null;
     // callback for when a service disconnects
-    public serviceDisconnectCallback: ((connection: Connection) => {}) | null;
+    public serviceDisconnectCallback: Function | null;
 
     constructor() {
         this.id = uuid();
@@ -27,9 +27,10 @@ class NetworkNode {
         this.serviceDisconnectCallback = null;
     }
 
-    async connect(name: string, host: string, port: number, tag?: string): Promise<Connection> {
+    async connect(name: string, host: string, port: number): Promise<Connection> {
         /* this function connects to a server instance 
-         * and add it to the pool of connections with the server name
+         * and it keeps track of the conenction by adding it to a pool of server connection 
+         * it uses the name as the key in the pool
          * then run the callback */
         const connection = new Connection({ host, port, id: this.id }); 
         // await connection and handshake
@@ -48,7 +49,7 @@ class NetworkNode {
         // add the new connection
         this.connections.add(server_name, connection);
         // new connection callback
-        this.serviceConnectionCallback && this.serviceConnectionCallback(connection);   
+        this.serviceConnectionCallback && this.serviceConnectionCallback(connection);
         // return the connection
         return connection;
     }
@@ -124,22 +125,34 @@ class NetworkNode {
         if(connection) connection.close();
     }
 
+    public registerListeners(listeners: Listener[]) {
+        // if we have a server created we pass the listeners to it
+        if(this.server) {
+            this.server.addListeners(listeners);
+        }
+        // for every conenction in out pool we register the listeners
+        this.connections.toArray().forEach((connection: Connection) => {
+            connection.setListeners(listeners);
+        });
+    }
+
+
     /* callbacks */
-    public onNodeConnection(callback: (connection: Connection) => {}): void {
+    public onNodeConnection(callback: (connection: Connection) => void) {
         if(this.server === null) throw new Error('Server is not created');
         this.server.onConnection(callback);
     }
 
-    public onNodeDisconnect(callback: (connection: Connection) => {}): void {
+    public onNodeDisconnect(callback: (connection: Connection) => void) {
         if(this.server === null) throw new Error('Server is not created');
         this.server.onDisconnect(callback);
     }
 
-    public onServiceConnection(callback: (connection: Connection) => {}): void {
+    public onServiceConnection(callback: (connection: Connection) => void) {
         this.serviceConnectionCallback = callback;
     }
 
-    public onServiceDisconnect(callback: (connection: Connection) => {}): void {
+    public onServiceDisconnect(callback: (connection: Connection) => void) {
         this.serviceDisconnectCallback = callback;
     }
 

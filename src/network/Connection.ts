@@ -88,7 +88,7 @@ class Connection {
 
     private initilaizeListeners(): void {
         /* this function inizializes the default listeners for the socket */
-        // if target is aking for connections
+        // if target is asking for connections
         this.socket.on("_listeners", () => {
             this.socket.emit("_listeners", this.listeners.map(listener => listener.event));
         });
@@ -184,18 +184,23 @@ class Connection {
         return this.tag;
     }
 
-    private setListener(event: string, callback: Function): void {
+    private setListener(l: Listener): void {
         // add the listener
-        this.listeners.push({ event, callback });
-        this.socket.on(event, callback);
+        this.listeners.push(l);
+        this.socket.on(l.event, l.callback);
     }
 
     public async setListeners(listeners: Listener[]): Promise<void> {
-        listeners.forEach(
-            l => this.setListener(l.event, l.callback)
-        );
+        // make suer we are not adding the same listener
+        const eventMap = new Map(this.listeners.map(l => [l.event, l]));
+        // add the listeners
+        listeners.forEach( l => eventMap.set(l.event, l) );
+        // set the listeners in the connection
+        this.listeners = Array.from(eventMap.values());
+        // set the listeners on the socket
+        listeners.forEach( l => this.setListener(l) );
         // update the listeners on the target
-        await this.query('_setListeners', listeners.map(listener => listener.event));
+        await this.query('_set_listeners', listeners.map(listener => listener.event));
     }
 
     public onConnect(callback: Function): void {

@@ -18,6 +18,7 @@ class NetworkServer {
     public name: string;
     public isLan: boolean;
     public connectionCallback: any;
+    public disconnectCallback: any;
     public listeners: Listener[];
     public httpServer?: http.Server;
     public isReady: boolean;
@@ -30,9 +31,10 @@ class NetworkServer {
         this.isLan = this.host !== 'localhost'
         this.port = port || 0; // zero means random port
         this.isReady = false;
-        this.maxTransferSize = options?.maxTransferSize || 1e9;
+        this.maxTransferSize = options?.maxTransferSize || 1e9; // default 1GB
         this.name = name? name : "server";
         this.connectionCallback = null;
+        this.disconnectCallback = null;
         this.clients = new Pool<Connection>();
         this.listeners = listeners || [];
         this.ioOptions = {
@@ -63,17 +65,8 @@ class NetworkServer {
         this.io.on("connection", this.handleConnection.bind(this));
         this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
         this.io.on("disconnect", this.handleDisconnection.bind(this));
-        // add listeners to the server
-        this.listeners.forEach((listener: Listener) => {
-            // run the listener callback and emit the result to the client
-            let callback = async ( ...args: any[] ) => {
-                // run the listener callback
-                let result = await listener.callback(...args);
-                // emit the result to the client
-                this.io.emit(listener.event, result);
-            }
-            this.io.on(listener.event, callback);
-        });
+        // set the listener on the server socket
+        this.setListeners(this.listeners);
     }
 
     private async handleConnection(socket: Socket) {
@@ -113,7 +106,36 @@ class NetworkServer {
             if(id === undefined) 
                 throw new Error("Connection id is undefined");
             this.clients.remove(conn.getTargetId() as string);
+            // run the disconnect callback
+            if(this.disconnectCallback) 
+                this.disconnectCallback(conn);
         }
+    }
+
+    private setListeners(listeners: Listener[]) {
+        // set the listeners on the server socket
+        listeners.forEach((listener: Listener) => {
+            // run the listener callback and emit the result to the client
+            let callback = async ( ...args: any[] ) => {
+                // run the listener callback
+                let result = await listener.callback(...args);
+                // emit the result to the client
+                this.io.emit(listener.event, result);
+            }
+            this.io.on(listener.event, callback);
+        });
+    }
+
+    public addListeners(listeners: Listener[]) {
+        // add a new listener to the server
+        // if we have the same event name, we will overwrite it
+        const eventMap = new Map(this.listeners.map(l => [l.event, l]));
+        listeners.forEach(l => eventMap.set(l.event, l));
+        this.listeners = Array.from(eventMap.values());
+        // set the listener on the server socket
+        this.setListeners(this.listeners);
+        // broadcast the new listeners to all clients
+        this.io.emit('_set_listeners', this.listeners);
     }
 
     public getClient(id: string) : Connection | undefined {
@@ -129,7 +151,7 @@ class NetworkServer {
     }
 
     public onDisconnect(callback: any) {
-        this.io.on("disconnect", callback);
+        this.disconnectCallback = callback;
     }
 
     async exit() {

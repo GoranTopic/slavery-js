@@ -41,7 +41,8 @@ class Slavery {
 
     master( callback ) {
         // if it is primary and this function is called
-        if(cluster.isPrimary) { //this code will only run in the primary process
+        if(cluster.isPrimary) { 
+            //this code will only run in the primary process
             // calculate number of slaves
             this._calc_available_cores();
             // make master node

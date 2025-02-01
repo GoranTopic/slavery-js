@@ -1,7 +1,7 @@
 import { Connection } from '../network';
 import Service from './Service';
 import { Pool } from '../utils';
-import { ServiceInfo, Address } from './types';
+import { ServiceAddress, Address } from './types';
 
 type Parameters = {
     host: string,
@@ -16,7 +16,7 @@ class Primary extends Service {
      * the primary is the default network informer,
      * other services will try to conenct to it to get the infomation about the network
      * and find other srvice, it will also give out ports and hosts to other services. */
-    private services: Pool<ServiceInfo>
+    private services: Pool<ServiceAddress>;
     private serviceNames: string[];
 
     constructor({host, port, listOfServices, type}: Parameters) {
@@ -25,7 +25,7 @@ class Primary extends Service {
         // set serviceNames
         this.serviceNames = listOfServices
         // create a pool of services
-        this.services = new Pool<ServiceInfo>();
+        this.services = new Pool<ServiceAddress>();
         // add the list of services
         for (let service of this.serviceNames)
             this.services.add(service, { 
@@ -49,8 +49,7 @@ class Primary extends Service {
 
 
     /* function that can be called by a client */
-
-    public async get_services(): Promise<ServiceInfo[]> {
+    public async get_services(): Promise<ServiceAddress[]> {
         // get the list of services
         return this.services.toArray();
     }

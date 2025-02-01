@@ -1,7 +1,6 @@
 import { Connection } from '../network';
 import Service from './Service';
 import { Queue } from '../utils';
-import { ServiceInfo, Address } from './types';
 
 type Parameters = {
     host: string,

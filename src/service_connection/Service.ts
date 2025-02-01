@@ -1,4 +1,4 @@
-import Network, { Listener, Connection } from '../network';
+import Network, { Listener } from '../network';
 import { ServiceAddress } from './types';
 
 type Parameters = {

@@ -1,4 +1,4 @@
-import Network from './Node';
+import Network from './Network';
 import Connection from './Connection';
 import Listener from './types/Listener';
 

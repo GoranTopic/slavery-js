@@ -6,16 +6,6 @@ import Slave from "./Slave.js";
 import Pool from "./Pool.js";
 import log from '../utils/log.js';
 
-let checkSlaveIdMiddleware = (socket, next) => {
-    // check if slaveId is valid
-    const slaveId = socket.handshake.auth.slaveId;
-    if (slaveId) {
-        socket.salveId = slaveId;
-        return next();
-    } else {
-        return next(new Error("invalid slaveId"));
-    }
-}
 
 class Master {
     /* Master class that will communicate with the slaves */
@@ -259,6 +249,7 @@ class Master {
         // return id
         return id;
     }
+
 
     _handleSocketConnection(socket) {
         // send session id to client
