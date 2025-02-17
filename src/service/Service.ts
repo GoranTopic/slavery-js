@@ -61,15 +61,12 @@ class Service {
         // let initlize the cluster so that we can start the service
         this.cluster = new Cluster(this.options);
         // create a new process for the master process
-        this.cluster.spawn('master_' + this.name, { allowedToSpawn: true });
-        // NOTE: the node manager should spawn the nodes,
-        // but before I can make that happend the primary process
-        // will spawn the nodes
-        //console.log('this.number_of_processes', this.number_of_processes -1);
-        //this.cluster.spawn('slave_' + this.name, this.number_of_processes - 1);
+        this.cluster.spawn('master_' + this.name, { 
+            allowedToSpawn: true, // give the ability to spawn new processes
+            spawnOnlyFromPrimary: true // make sure that only one master process is created
+        });
         // run the code for the master process
         if(this.cluster.is('master_' + this.name)) {
-            console.log('Master Process created');
             // initialize the master process
             await this.initialize_master();
         }
@@ -82,17 +79,16 @@ class Service {
 
     private async initialize_master() {
         // initialize the node manager
-        await this.initlize_nodeManager();
+        console.log('Initializing node manager');
+        await this.initlize_node_manager();
+        console.log('Node Manager Initialized');
         // initialize the request queue
         this.initialize_request_queue();
-        // TODO: Write the code for getting a request from the server with the defined lieteners
-        //  pass the request with the paramter which was send by the other service to the node for processing
-        //  get the result or error and send it back
         // initlieze the network and create a service
         this.network = new Network();
         // get the port for the service
-        if(this.port === 0)
-            this.port = await getPort({host: this.host});
+        if(this.port === 0) this.port = await getPort({host: this.host});
+        // create the server
         this.network.createServer(this.name, this.host, this.port, []);
         // register the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
@@ -110,29 +106,38 @@ class Service {
 
     private async initialize_slaves() {
         let node = new Node();
+        // TODO: need to find a better way to pass the host and port
+        // to the slave process, so far i am only able to pass it through
+        // the metadata in the cluster
+        // get the nm_host and nm_port from the metadata
+        let metadata = process.env.metadata;
+        if(metadata === undefined)
+            throw new Error('could not get post and host of the node manager, metadata is undefined');
+        let { host, port } = JSON.parse(metadata)['metadata'];
         // connect with the master process
-        await node.connectToMaster(this.nm_host, this.nm_port);
+        await node.connectToMaster(host, port);
         // read the methods to be used
         node.addMethods(this.slaveMethods)
     }
 
-    private async initlize_nodeManager() {
+    private async initlize_node_manager() {
         /* the node manage will be used to conenct to and manage the nodes */
         if(this.nm_port === 0)
             this.nm_port = await getPort({host: this.nm_host});
         // make a node manager
         this.nodes = new NodeManager({
+            name: this.name,
             host: this.nm_host,
             port: this.nm_port,
             number_of_nodes: this.number_of_processes - 1
         })
-        // TODO: spawn the nodes from the node Manager
-        // await nodes.spawnNodes('slave_' + this.name, this.number_of_processes - 1);
-        // <---- need to find a way to spawn the nodes from nodemanager
-        // this will give me the ability to manage the node dynamicaly
-        // for now the primary process will spawn the nodes
+        // spawn the nodes from the node Manager
+        await this.nodes.spawnNodes('slave_' + this.name, this.number_of_processes - 1, {
+            metadata: { host: this.nm_host, port: this.nm_port }
+        });
         // register the services in the nodes
         await this.nodes.registerServices(this.peerAddresses);
+        // get the nodes
         return this.nodes;
     }
 

@@ -1,4 +1,4 @@
-
+import Cluster from '../cluster';
 import Network, { Connection } from '../network';
 import Node from './Node';
 import { ServiceAddress } from '../service';
@@ -16,6 +16,9 @@ import { Pool, await_interval } from '../utils';
  */
 
 type Options = {
+    // name of the service
+    name: string,
+    // the host and port of the service
     host: string,
     port: number,
     // the number of processes that will be started on each node
@@ -29,19 +32,28 @@ type Options = {
 }
 
 class NodeManager {
-  private network: Network;
-  //private heartBeat: number = 1000;
-  private nodes: Pool<Node> = new Pool();
-  private options: Options;
+    private name: string;
+    private network: Network;
+    //private heartBeat: number = 1000;
+    private nodes: Pool<Node> = new Pool();
+    private options: Options;
+    private cluster = new Cluster({});
 
 
-  constructor(options: Options) {
-    this.options = options;
-    this.network = new Network();
-    // handle when new node is connected
-    this.network.onNodeConnection(this.handleNewNode.bind(this));
-    // handle when a node is disconnected
-    this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
+    constructor(options: Options) {
+        this.name = options.name;
+        this.options = options;
+        this.network = new Network();
+        // create server
+        this.network.createServer(
+            this.name + '_node_manager',
+            this.options.host,
+            this.options.port
+        );
+        // handle when new node is connected
+        this.network.onNodeConnection(this.handleNewNode.bind(this));
+        // handle when a node is disconnected
+        this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
 
   }
 
@@ -88,10 +100,11 @@ class NodeManager {
       /* this function return a node that is idle */
       console.log('[node manager] gettting idle node');
       // check if there are nodes in the pool
-      if(this.nodes.isEmpty())
-          throw new Error('no nodes in the pool');
+      if(this.nodes.isEmpty()) console.warn('no nodes in the pool');
       // await until we get a node which is idle
-      await await_interval(() => this.nodes.hasEnabled(), 10000);
+      // 0 so we dont timeout
+      await await_interval(() => this.nodes.hasEnabled(), 0)
+      .catch(() => { throw new Error('timeout of 10 seconds, no idle node found') });
       // get the next node
       let node = this.nodes.next();
       if(node === null) throw new Error('node is null');
@@ -122,7 +135,20 @@ class NodeManager {
       );
   }
 
-  public getIdleCount(){
+  public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {
+      /* spawn new nodes */
+      if(name === '') name = 'node_' + this.name;
+      this.cluster.spawn(name, { 
+          numberOfSpawns: count,
+          metadata: metadata
+      });
+  }
+
+  public async killNodes({count}: {count: number}) {
+      /* kill the nodes */
+  }
+
+  public getIdleCountruet(){
       // return the number of idle nodes
     return this.nodes.getEnabledCount();
   }

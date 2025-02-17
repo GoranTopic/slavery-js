@@ -27,7 +27,7 @@ class NetworkNode {
         this.serviceDisconnectCallback = null;
     }
 
-    async connect(name: string, host: string, port: number): Promise<Connection> {
+    async connect({ name, host, port } : { name?: string, host: string, port: number }): Promise<Connection> {
         /* this function connects to a server instance 
          * and it keeps track of the conenction by adding it to a pool of server connection 
          * it uses the name as the key in the pool
@@ -39,8 +39,9 @@ class NetworkNode {
         let server_name = connection.getTargetName();
         if(server_name === undefined) 
             throw new Error('Server name is undefined');
-        if(server_name !== name) 
-            throw new Error('Server name mismatch');
+        if(name !== undefined) // check if the name is the same
+            if(server_name !== name) 
+                throw new Error(`Server name mismatch: ${server_name} !== ${name}`);
         // if we already have a connection with the same id, remove it
         if(this.connections.has(server_name)) {
             let conn = this.connections.remove(server_name);
@@ -57,15 +58,18 @@ class NetworkNode {
     public async connectAll(services: { name: string, host: string, port: number }[]) {
         // connect to all the services
         let connections = await Promise.all(services.map(
-            async (service) => await this.connect(service.name, service.host, service.port)
+            async (service) => await this.connect({ 
+                name: service.name,
+                host: service.host,
+                port: service.port
+            })
         ));
         return connections;
     }
-
     
     public createServer(
         name: string, host: string, port: number,
-        listeners: Listener[]
+        listeners: Listener[] = []
     ) {
         // the server keeps track of it client connections
         this.server = new Server({ name, host, port, listeners });

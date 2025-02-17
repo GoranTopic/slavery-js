@@ -8,7 +8,6 @@ import { serializeError } from 'serialize-error';
  * 1.- attempt to make a conenction the primary service passed by the server
  * 2.- it will take a list of services
 
-
 /* this calss will make a slave type which will be an a child of the Node class
  * this is the class that will be used to run the the client of a node
  * like other classes it will work as both
@@ -35,8 +34,7 @@ class Node {
     public doneMethods: { [key: string]: boolean } = {};
     public methods: { [key: string]: (parameter: any) => any } = {};
 
-    constructor(){
-    }
+    constructor(){ }
 
     /* this function will work on any mode the class is on */
 
@@ -174,7 +172,7 @@ class Node {
     public async connectToMaster(host: string, port: number){
         // conenct the master process which will tell us what to do
         this.network = new Network();
-        this.network.connect('master', host, port);
+        this.network.connect({ host, port });
         // set the mode as a client
         this.mode = 'client';
         // set the listeners which we will us
@@ -244,7 +242,7 @@ class Node {
         if(!host || !port) throw new Error('The service information is not complete');
         // check if there is a service already running on the port and host
         if(this.network === undefined) throw new Error('The network has not been set');
-        return await this.network.connect(name, host, port);
+        return await this.network.connect({name, host, port});
     }
     
     private async ping_client(){

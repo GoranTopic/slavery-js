@@ -2,7 +2,7 @@ import Service from '../src/service'
 import { performance } from 'perf_hooks'
 
 
-let master_callback = async (master: any) => { // initialize the master
+let master_callback = async ({nodes}: any) => {
     console.log(`[${process.argv[1].split('/').pop()}] testing to check if slavery runs processes concurrently: `);
     let start = performance.now();
     let end = null; 
@@ -11,8 +11,10 @@ let master_callback = async (master: any) => { // initialize the master
         .map( async counter => 
             new Promise( async resolve => {
                 // get a slave that is not currely working
-                let slave = await master.getIdle(); 
-                slave.run(counter)
+                let slave = await nodes.getIdle(); 
+                await slave.run('setup')
+                .then( () => { console.log(`slave ${slave.id} is ready`) });
+                await slave.run('run', counter)
                     .then( (result: any) => { resolve(result) });
             })
         )
@@ -25,7 +27,7 @@ let master_callback = async (master: any) => { // initialize the master
         console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
     else 
         console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
-    master.exit();
+    nodes.exit();
 }
 
 

@@ -4,14 +4,16 @@
 async function interval_await(condition: () => any, 
                               timeout: number = 10000,
                               interval: number = 100) : Promise<any> {
-    return await new Promise( async resolve => {
+    return await new Promise( async (resolve, reject) => {
         let timeout_obj : NodeJS.Timeout 
         let interval_obj : NodeJS.Timeout 
         // set a timeout to reject the promise
-        timeout_obj = setTimeout(() => {
-            clearInterval(interval_obj);
-            resolve(false);
-        }, timeout);
+        if(timeout > 0){
+            timeout_obj = setTimeout(() => {
+                clearInterval(interval_obj);
+                reject('timeout');
+            }, timeout);
+        }
         // set an interval to check the condition
         interval_obj = setInterval( async  () => {
             // check if the condition is met
@@ -23,8 +25,7 @@ async function interval_await(condition: () => any,
             }
         }, interval);
     }).catch( error => {
-        console.error('Got error: ', error);
-        return false;
+        throw error;
     });
 }
 

@@ -71,7 +71,7 @@ class NetworkServer {
 
     private async handleConnection(socket: Socket) {
         // make a new connectection instance
-        let connection = new Connection(socket);
+        let connection = new Connection({ socket, name: this.name });
         // await fo connection to be established
         await connection.connected();
         // get the id of the connection

@@ -6,6 +6,7 @@ type SpawnOptions = {
     numberOfSpawns?: number;
     allowedToSpawn?: boolean;
     spawnOnlyFromPrimary?: boolean;
+    metadata?: any;
 }
 
 class Cluster {
@@ -32,7 +33,7 @@ class Cluster {
     }
 
 
-    public spawn( process_type: string , { numberOfSpawns, allowedToSpawn, spawnOnlyFromPrimary }: SpawnOptions = {}){
+    public spawn( process_type: string , { numberOfSpawns, allowedToSpawn, spawnOnlyFromPrimary, metadata }: SpawnOptions = {}){
         this.log('Spawning new process ' + process_type);
         this.log(`allowedToSpawn: ${allowedToSpawn}`);
         this.log('this.amIThePrimaryProcess(): ' + this.amIThePrimaryProcess());
@@ -52,7 +53,8 @@ class Cluster {
                     env: {
                         is_child: 'true',
                         type: process_type,
-                        allowedToSpawn: `${allowedToSpawn}`
+                        allowedToSpawn: `${allowedToSpawn}`,
+                        metadata: JSON.stringify(metadata)
                     }
                 }
             )
@@ -111,6 +113,10 @@ class Cluster {
 
     private log(message: string) {
         this.debugging && console.log(`[${process.pid}][${this.type}] ${message}`);
+    }
+
+    public getMetadata() {
+        return process.env.metadata;
     }
 
 }

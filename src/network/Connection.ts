@@ -48,8 +48,6 @@ class Connection {
         port?: number, name?: string, tag?: string,
         onConnect?: Function, onDisconnect?: Function 
     }) {
-        // set the socket id
-        this.socketId = this.socket.id;
         // set the tag
         this.tag = tag || '';
         // callbacks 
@@ -80,8 +78,9 @@ class Connection {
             // since we are not connected yet
             this.isConnected = false;
         } else 
-            throw new Error('Connection must have either a socket or a host and port');
+            throw new Error('Connection must have either a socket and a name or a host and port');
         // set the socket id
+        this.socketId = this.socket.id;
         // initialize the listeners
         this.initilaizeListeners()
     }
@@ -116,7 +115,7 @@ class Connection {
             this.onConnectCallback(this);
         });
         // if it disconnects
-        this.socket.io.on("reconnect", async (attempt: number) => {
+        this.socket.on("reconnect", async (attempt: number) => {
             log(`[connection][${this.socket.id}] is reconnected, attempt: ${attempt}`)
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
@@ -124,7 +123,7 @@ class Connection {
             this.onConnectCallback(this);
         });
         // if it disconnects
-        this.socket.io.on("diconnect", () => {
+        this.socket.on("diconnect", () => {
             log(`[connection][${this.socket.id}] is disconnected`)
             this.isConnected = false;
             this.onDisconnectCallback(this);
