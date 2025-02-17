@@ -1,8 +1,8 @@
-import Service from '../src/Service/index.js'
+import Service from '../src/service'
 import { performance } from 'perf_hooks'
 
 
-let master_callback = async master => { // initialize the master
+let master_callback = async (master: any) => { // initialize the master
     console.log(`[${process.argv[1].split('/').pop()}] testing to check if slavery runs processes concurrently: `);
     let start = performance.now();
     let end = null; 
@@ -13,14 +13,13 @@ let master_callback = async master => { // initialize the master
                 // get a slave that is not currely working
                 let slave = await master.getIdle(); 
                 slave.run(counter)
-                    .then( result => { resolve(result) }
-                    );
+                    .then( (result: any) => { resolve(result) });
             })
         )
     )
     // end the timer
     end = performance.now();
-    let seconds = ((end - start)/1000).toFixed(2);
+    let seconds = parseFloat( ((end - start)/1000).toFixed(2) );
     if( seconds > 15 )
         // if it takes more than 15 seconds, then it is not working
         console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
@@ -31,14 +30,15 @@ let master_callback = async master => { // initialize the master
 
 
 let slave_callbacks = {
-    'setup': async (params, slave) => {
+    'setup': async (params: any , slave: any) => {
         // function to count sum of numbers, purely for the porpuse of processing
-        let wait_function = s => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+        let wait_function = 
+            (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
         slave.set('wait_function', wait_function);
         console.log(`slave ${slave.id} was setup`);
         return true;
     }, 
-    'run': async (wating_time, slave) => {
+    'run': async (wating_time: number, slave: any) => {
         // count sum of numbers
         let make_timeout = slave.get('wait_function');
         let timeout = make_timeout(wating_time);
@@ -53,10 +53,10 @@ let slave_callbacks = {
         else
             return { result: `waited for ${s} seconds, 😄` }
     }, 
-    'clean up': async (param, salve) => {
+    'clean up': async (params: any, salve: any) => {
         salve.set('wait_function', null);
     },
-    'check clean up': async (param, salve) => {
+    'check clean up': async (params: any, salve: any) => {
         let test_classic = salve.get('wait_function');
         return test_classic === null;
     }
@@ -64,18 +64,24 @@ let slave_callbacks = {
 
 
 let new_service = new Service({
-    service_name: 'concurrency_service_test',
-    servicesAddress: [], // no other service will be ableable
-    Mastercallback: master_callback, // the slave callbacks that will be called by the slaves
-    SlaveCallbacks: slave_callbacks, // the options that will be passed to the service
+    service_name: 'service_test',
+    peerServicesAddresses: [], // no other service will be ableable
+    mastercallback: master_callback, // the slave callbacks that will be called by the slaves
+    slaveMethods: slave_callbacks, // the options that will be passed to the service
     options: {
         host: 'localhost',
         port: 3003,
-        numberOfSlaves: 10
+        number_of_processes: 4,
     }
 });
 
 
 // shuld not need a function to start, it might
-await new_service.start();
+
+new_service.start().then( () => {
+    console.log('service done');
+}).catch( (error: any) => {
+    console.log('service failed to start', error);
+});
+
 

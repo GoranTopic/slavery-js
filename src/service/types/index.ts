@@ -1,6 +1,7 @@
 import ServiceAddress from './ServiceAddress';
-import SlaveCallbacks from './SlaveCallbacks';
+import SlaveMethods from './SlaveMethods';
+import Request from './Request';
 import Options from './Options';
 
 
-export { SlaveCallbacks, ServiceAddress, Options };
+export { SlaveMethods, ServiceAddress, Request, Options };

@@ -1,7 +1,7 @@
-type ServiceInfo = {
+type ServiceAddress = {
     name: string,
     host?: string,
     port?: number,
 }
 
-export default ServiceInfo;
+export default ServiceAddress;

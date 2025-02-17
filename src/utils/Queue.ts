@@ -1,13 +1,13 @@
 class Queue<T> {
-    private items: T[];
+    private items: T[] = [];
 
     constructor( items: T[] = [] ) {
-        if(items.length > 0)    
+        if(items.length > 0)
             this.items = items
         else
             this.items = []
     }
-    
+
     enqueue(item: T) {
         // push item to the end of the queue
         this.items.push(item)
@@ -33,7 +33,7 @@ class Queue<T> {
         }
         return false;
     }
-    
+
     // remove value while maintaining order
     removeAt( index: number) : T | false {
         if (index > -1 && index < this.items.length) {
@@ -71,7 +71,7 @@ class Queue<T> {
 
     // return object of items in the order they were added
     toObject() : object {
-        let obj: { [key: string]: T } = {}; 
+        let obj: { [key: string]: T } = {};
         this.items.forEach( (item, index) => {
             obj[index] = item;
         });
@@ -92,6 +92,15 @@ class Queue<T> {
     isEmpty() : boolean {
         return this.items.length === 0;
     }
+
+    // synonyms
+    pop =  this.dequeue;
+    push = this.enqueue;
+    shift = this.dequeue;
+    unshift = this.enqueue;
+    front = this.peek;
+    end = this.next;
+    clear = this.items = [];
 }
 
 export default Queue;

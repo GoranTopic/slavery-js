@@ -221,7 +221,7 @@ class Connection {
         return this.query('_name');
     }
 
-                      
+    // this function need to be awaited
     public query(event: string, data?: any): Promise<any> {
         /* this function makes the query to the socket and waits for the response */
         return new Promise((resolve, reject) => {

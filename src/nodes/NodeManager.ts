@@ -1,3 +1,9 @@
+
+import Network, { Connection } from '../network';
+import Node from './Node';
+import { ServiceAddress } from '../service';
+import { Pool, await_interval } from '../utils';
+
 /* this class is created to manage the nodes socket conenctions on a service,
  * it will handle new conenction fron node, and will remove them when they are disconnected
  * this class provide an interface for other classes to interact with all the nodes
@@ -8,18 +14,29 @@
  * or the number of node that have been disconnected
  * or which are currently busy, or idle, etc
  */
-import Network, { Connection } from '../network';
-import Node from './Node';
-import { log, Pool } from '../utils';
 
+type Options = {
+    host: string,
+    port: number,
+    // the number of processes that will be started on each node
+    number_of_nodes?: number,
+    max_number_of_nodes?: number,
+    min_number_of_node?: number,
+    // the number of request that have to be in queue before increasing the number of processes
+    increase_node_at_requests?: number,
+    // the number of node that have to be idle before decreasing the number of processes
+    decrease_node_at_idles?: number,
+}
 
 class NodeManager {
   private network: Network;
-  private heartBeat: number = 1000;
+  //private heartBeat: number = 1000;
   private nodes: Pool<Node> = new Pool();
+  private options: Options;
 
 
-  constructor() {
+  constructor(options: Options) {
+    this.options = options;
     this.network = new Network();
     // handle when new node is connected
     this.network.onNodeConnection(this.handleNewNode.bind(this));
@@ -42,7 +59,7 @@ class NodeManager {
       // add to the pool
       this.nodes.add(id, node);
       // add to the enabled pool
-      this.nodes.enable(id);
+      this.setIdle(id);
   }
 
   private handleNodeDisconnect(connection: Connection) {
@@ -60,77 +77,104 @@ class NodeManager {
       let id = node.getId();
       if(id === undefined) throw new Error('node id is undefined');
       if(node.isIdle() || node.isError())
-          this.nodes.enable(id);
+          this.setIdle(id);
       else if(node.isBusy())
-          this.nodes.disable(id);
-      else 
+          this.setBusy(id);
+      else
           throw new Error('invalid node status');
   }
 
-  public async getIdle(){
+  public async getIdle() : Promise<Node> {
       /* this function return a node that is idle */
       console.log('[node manager] gettting idle node');
-      // search all sockets
-      return await new Promise( async (resolve) => {
-          // which check all the sockets
-          let interval = setInterval(() => {
-              // get the slave
-              let node = this.nodes.next();
-              // check if slave is idle
-              if(node.isIdle() || node.isError()){
-                  clearInterval(interval);
-                  //clearTimeout(timeout);
-                  log('[node manager] idle node found');
-                  //log('[master] pool queue: ', this.slaves.enabled.toArray());
-                  resolve(node);
-                  // adjust heart beat
-                  //this._adjustHeartBeat();
-              }
-          }, this.heartBeat);
-      }).catch( error => {
-          console.error('[master] getIdle error: ', error)
-      })
-  }
-
-  public async forEach(callback: (node: Node) => void) {
-    let 
-    // for every idle node, run the callback
-    //let nodes = this.network.getClients();
-    //nodes = nodes.filter((node: any) => node.isIdle());
+      // check if there are nodes in the pool
+      if(this.nodes.isEmpty())
+          throw new Error('no nodes in the pool');
+      // await until we get a node which is idle
+      await await_interval(() => this.nodes.hasEnabled(), 10000);
+      // get the next node
+      let node = this.nodes.next();
+      if(node === null) throw new Error('node is null');
+      // return the node
+      return node
   }
 
   public getBusy(){
+      // returned the diabled nodes
+      return this.nodes.getDisabled();
+  }
+
+  public async forEach(callback: (node: Node) => void) {
+      let nodes = this.nodes.toArray();
+      // for each node, make a promise
+      let promises = nodes.map(async (node: Node) => {
+          if(node.isBusy()) await node.toFinish();
+          return callback(node);
+      });
+      // wait for all the promises to resolve
+      return Promise.all(promises);
+  }
+
+  public async registerServices(services: ServiceAddress[]) {
+      // register the services to all the nodes
+      return this.broadcast(
+          async (node: Node) => await node.registerServices(services)
+      );
   }
 
   public getIdleCount(){
+      // return the number of idle nodes
+    return this.nodes.getEnabledCount();
   }
 
   public getBusyCount(){
+      // return the number of busy nodes
+    return this.nodes.getDisabledCount();
   }
 
   public getNodes() {
-  }
-
-  public getNode(id: string) {
+      // get all nodes
+      return this.nodes.toArray();
   }
 
   public getNodeCount() {
+    return this.nodes.size();
   }
 
-  public setIdle(NodeId: string) {
 
+  public async increaseNodes() {
+      //TODO: implement this function
   }
 
-  public setBusy(NodeId: string) {
+  public async decreaseNodes() {
+      //TODO: implement this function
   }
 
-  // slave jargon
-  public getSlave = this.getNode;
-  public getSlaves = this.getNodes;
-  public getSlaveCount = this.getNodeCount;
-  
+  public async exit() {
+      // close all the nodes
+      return this.broadcast(
+          async (node: Node) =>
+          await node.exit()
+      );
+  }
 
-}   
+  private async broadcast(callback: (node: Node) => any) {
+      // get all the nodes
+      let nodes = this.nodes.toArray();
+      // for each node, make a promise
+      let promises = nodes.map(async (node: Node) =>
+            await callback(node)
+      );
+      // wait for all the promises to resolve
+      return Promise.all(promises);
+  }
+
+  private setIdle = (NodeId: string) => this.nodes.enable(NodeId);
+
+  private setBusy = (NodeId: string) => this.nodes.disable(NodeId);
+
+
+}
 
 export default NodeManager;
 

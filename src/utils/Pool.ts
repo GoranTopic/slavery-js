@@ -110,6 +110,10 @@ class Pool<T> {
         return this.items[id]
     }
 
+    hasEnabled() : boolean {
+        return this.enabled.size() > 0;
+    }
+
     next() : T | null {
         return this.rotate();
     }
@@ -157,6 +161,16 @@ class Pool<T> {
         return this.size();
     }
 
+    // count the enabled elements
+    getEnabledCount() : number {
+        return this.enabled.size();
+    }
+
+    // count the disabled elements
+    getDisabledCount() : number {
+        return this.disabled.length;
+    }
+
     // check if queue is empty
     isEmpty() : boolean {
         return this.size() === 0;
@@ -195,13 +209,23 @@ class Pool<T> {
     }
 
     healthCheck() : boolean {
-        let totalConnections = this.size();
-        let enabledConnections = this.getEnabled().length;
-        let disabledConnections = this.getDisabled().length;
-        if(totalConnections === (enabledConnections + disabledConnections))
+        let total = this.size();
+        let enabled = this.getEnabled().length;
+        let disabled = this.getDisabled().length;
+        if(total === (enabled + disabled))
             return true;
         else return false;
     }
+
+     // synonims
+    pop = this.nextAndDisable;
+    shift = this.nextAndEnable;
+    unshift = this.add;
+    push = this.add;
+    count = this.size;
+    removeAt = this.remove;
+    removeItem = this.remove;
+
 
 }
 

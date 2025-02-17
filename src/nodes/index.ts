@@ -1,4 +1,4 @@
 import Node from './Node';
-import NodeManger from './NodeManager';
+import NodeManager from './NodeManager';
 
-export { Node, NodeManger };
+export { Node, NodeManager };

@@ -1,6 +1,11 @@
 type Options = {
     host?: string,
     port?: number,
+    nm_host?: string,
+    nm_port?: number,
+    //  max number of request before making more nodes
+    max_queued_requests?: number,
+    // fixed number of processes
     number_of_processes?: number,
     max_number_of_processes?: number,
     min_number_of_processes?: number,

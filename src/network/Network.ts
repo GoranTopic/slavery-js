@@ -53,6 +53,15 @@ class NetworkNode {
         // return the connection
         return connection;
     }
+
+    public async connectAll(services: { name: string, host: string, port: number }[]) {
+        // connect to all the services
+        let connections = await Promise.all(services.map(
+            async (service) => await this.connect(service.name, service.host, service.port)
+        ));
+        return connections;
+    }
+
     
     public createServer(
         name: string, host: string, port: number,
