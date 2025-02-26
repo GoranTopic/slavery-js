@@ -6,16 +6,24 @@ let master_callback = async ({nodes}: any) => {
     console.log(`[${process.argv[1].split('/').pop()}] testing to check if slavery runs processes concurrently: `);
     let start = performance.now();
     let end = null; 
+    // wait for a least one slave before continuing
+    await nodes.numberOfNodes(1);
     await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
         .reverse()
-        .map( async counter => 
-            new Promise( async resolve => {
+        .map( 
+             async counter => new Promise( async resolve => {
                 // get a slave that is not currely working
                 let slave = await nodes.getIdle(); 
+                if( slave ) console.log('[test][master] got slave:', slave.id)
+                else console.log('[test][master] no slave available');
+                // print the listners from the slave
+                console.log('[test][master] slave listeners:', slave.getListeners());
                 await slave.run('setup')
-                .then( () => { console.log(`slave ${slave.id} is ready`) });
+                    .then( () => { console.log(`[test][master] slave ${slave.id} is ready`) })
+                    .catch( (error: any) => { console.log(`[test][master] slave ${slave.id} failed to setup`, error) });
                 await slave.run('run', counter)
-                    .then( (result: any) => { resolve(result) });
+                    .then( (result: any) => { console.log('[test][master] result from slave:', result) })
+                    .catch( (error: any) => { console.log('[test][master] slave failed to run', error) });
             })
         )
     )
@@ -37,10 +45,11 @@ let slave_callbacks = {
         let wait_function = 
             (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
         slave.set('wait_function', wait_function);
-        console.log(`slave ${slave.id} was setup`);
+        console.log(`[test][slave][slave ${slave.id}] was setup`);
         return true;
     }, 
     'run': async (wating_time: number, slave: any) => {
+        console.log(`[test][slave][slave ${slave.id}] running with ${wating_time} seconds`);
         // count sum of numbers
         let make_timeout = slave.get('wait_function');
         let timeout = make_timeout(wating_time);
@@ -73,7 +82,7 @@ let new_service = new Service({
     options: {
         host: 'localhost',
         port: 3003,
-        number_of_processes: 4,
+        number_of_processes: 1,
     }
 });
 

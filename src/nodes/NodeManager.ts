@@ -43,7 +43,7 @@ class NodeManager {
     constructor(options: Options) {
         this.name = options.name;
         this.options = options;
-        this.network = new Network();
+        this.network = new Network({});
         // create server
         this.network.createServer(
             this.name + '_node_manager',
@@ -59,6 +59,7 @@ class NodeManager {
 
   private handleNewNode(connection: Connection) {
       /* this function is called when a new node is connected to the master */
+      console.log('[Node manager] Got a new connectection from a node');
       // create a new node
       let node = new Node();
       // set the connection to the node
@@ -100,13 +101,14 @@ class NodeManager {
       /* this function return a node that is idle */
       console.log('[node manager] gettting idle node');
       // check if there are nodes in the pool
-      if(this.nodes.isEmpty()) console.warn('no nodes in the pool');
+      // if(this.nodes.isEmpty()) console.warn('no nodes in the pool');
       // await until we get a node which is idle
       // 0 so we dont timeout
       await await_interval(() => this.nodes.hasEnabled(), 0)
       .catch(() => { throw new Error('timeout of 10 seconds, no idle node found') });
+      console.log('[node manager] got idle node');
       // get the next node
-      let node = this.nodes.next();
+      let node = this.nodes.pop();
       if(node === null) throw new Error('node is null');
       // return the node
       return node
@@ -167,6 +169,11 @@ class NodeManager {
     return this.nodes.size();
   }
 
+  public getListeners() {
+      if(this.network === undefined) throw new Error('network is undefined');
+      return this.network.getRegisteredListeners();
+  }
+
 
   public async increaseNodes() {
       //TODO: implement this function
@@ -175,6 +182,12 @@ class NodeManager {
   public async decreaseNodes() {
       //TODO: implement this function
   }
+
+  public async numberOfNodes(count: number) {
+      await await_interval(() => this.nodes.size() >= count, 0)
+      return true;
+  }
+
 
   public async exit() {
       // close all the nodes

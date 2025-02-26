@@ -118,16 +118,16 @@ class Pool<T> {
         return this.rotate();
     }
 
-    nextAndDisable() : T | false { // dequeue and disable
-        if(this.size() === 0) return false
+    nextAndDisable() : T | null { // dequeue and disable
+        if(this.size() === 0) return null
         const id = this.enabled.dequeue();
-        if(!id) return false
+        if(!id) return null;
         this.disabled.push(id);
         return this.items[id];
     }
 
     // remove value while maintaining order
-    remove( id: string ) : T | false {
+    remove( id: string ) : T | null {
         // look in the queue for the id
         let result = this._lookUp(id);
         if(result){
@@ -144,10 +144,11 @@ class Pool<T> {
             // return true
             return item;
         }
-        return false;
+        return null;
     }
 
-    get( id: string ) : T | undefined {
+    get( id: string ) : T | null {
+        if(!this.has(id)) return null;
         return this.items[id];
     }
 

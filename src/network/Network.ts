@@ -3,7 +3,7 @@ import { uuid, log, Pool } from '../utils';
 import Listener from './types/Listener';
 import Server from './Server';
 
-class NetworkNode {
+class Network {
     /* this class will handle the connections of a node in the network. 
      * this node can be in eighter a server or a client.
      * Each Node will have a NetworkNode 
@@ -12,6 +12,7 @@ class NetworkNode {
     // this is where a node store its server, 
     // which in turn stores its connections to clients
     public server: Server | null;
+    public name: string;
     // this is where we store our connections to servers
     public connections: Pool<Connection>;
     // callback for when a new service connection is made
@@ -19,7 +20,9 @@ class NetworkNode {
     // callback for when a service disconnects
     public serviceDisconnectCallback: Function | null;
 
-    constructor() {
+    constructor({ name = 'some network' } : { name?: string }) {
+        console.log(`[Network][${name}] netowrk created`);
+        this.name = name;
         this.id = uuid();
         this.server = null;
         this.connections = new Pool();
@@ -48,9 +51,11 @@ class NetworkNode {
             conn && conn.close();
         }
         // add the new connection
+        console.log(`[Network][Connect][${this.name}] adding connection with name:`, server_name);
         this.connections.add(server_name, connection);
         // new connection callback
         this.serviceConnectionCallback && this.serviceConnectionCallback(connection);
+        console.log(`[Network][Connect][${this.name}] connections:`, this.connections);
         // return the connection
         return connection;
     }
@@ -82,6 +87,8 @@ class NetworkNode {
     public getService(name: string): Connection {
         // get the service connection
         let service = this.connections.get(name);
+        if(service === null)  // if the service is not found we throw an error
+            throw new Error('Service not found');
         // throw an error if the service is not found
         if(service === undefined) throw new Error('Service not found');
         // return the service
@@ -95,9 +102,10 @@ class NetworkNode {
 
     public getNode(id: string): Connection {
         // get the client that is a node type
-        let client = this.server?.getClient(id);
+        if(this.server === null) throw new Error('Server is not created');
+        let client = this.server.getClient(id);
         // throw an error if the client is not found
-        if(client === undefined) throw new Error('Client not found');
+        if(client === null) throw new Error('Client not found');
         // return the client
         return client;
     }
@@ -139,14 +147,27 @@ class NetworkNode {
     }
 
     public registerListeners(listeners: Listener[]) {
+        //console.log(`[Network][RegisterListners][${this.name}]`, listeners);
+        console.log(`[Network][RegisterListners][${this.name}] connections:`, this.connections);
         // if we have a server created we pass the listeners to it
-        if(this.server) {
+        if(this.server) 
             this.server.addListeners(listeners);
-        }
         // for every conenction in out pool we register the listeners
         this.connections.toArray().forEach((connection: Connection) => {
             connection.setListeners(listeners);
         });
+    }
+
+    // TODO: implement this
+    public getRegisteredListeners(): any {
+        // get the listeners from the server
+        let server_listeners = this.server?.getListeners() || [];
+        let connections_listeners = this.connections.toArray().map((connection: Connection) => {
+            console.log('inside loop conenction:', connection);
+            return { id: connection.id, listeners: connection.getListeners() }; 
+        });
+        // return the listeners
+        return { server: server_listeners, connections: connections_listeners };
     }
 
 
@@ -171,4 +192,4 @@ class NetworkNode {
 
 }
 
-export default NetworkNode;
+export default Network;

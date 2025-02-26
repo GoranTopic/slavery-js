@@ -62,6 +62,7 @@ class Connection {
             this.socket = socket;
             // get the id of client 
             this.targetId = socket.handshake.auth.id;
+            console.log('[Connection][server] targetId: ', this.targetId)
             // ask for the listeners
             this.targetListeners = socket.handshake.auth.listeners;
             // since we are already getting the socket
@@ -80,6 +81,7 @@ class Connection {
         } else 
             throw new Error('Connection must have either a socket and a name or a host and port');
         // set the socket id
+        console.log('[Connection] socket id: ', this.socket.id)
         this.socketId = this.socket.id;
         // initialize the listeners
         this.initilaizeListeners()
@@ -89,25 +91,26 @@ class Connection {
         /* this function inizializes the default listeners for the socket */
         // if target is asking for connections
         this.socket.on("_listeners", () => {
-            this.socket.emit("_listeners", this.listeners.map(listener => listener.event));
+            this.socket.emit("_listeners_response", this.listeners.map(listener => listener.event));
         });
         // if the target is sending a their listeners
-        this.socket.on("_setListeners", (listeners: string[]) => {
+        this.socket.on("_set_listeners", (listeners: string[]) => {
+            console.log('[Connection][Node] got _set_listeners. listeners: ', listeners)
             this.targetListeners = 
                 listeners.map(event => ({ event, callback: () => {} }));
-            this.socket.emit("_setListeners", 'ok');
+            this.socket.emit("_set_listeners_response", 'ok');
         });
         // if target is asking for name
         this.socket.on("_name", () => {
-            this.socket.emit("_name", this.name);
+            this.socket.emit("_name_response", this.name);
         });
         // if target is asking for id
         this.socket.on("_id", () => {
-            this.socket.emit("_id", this.id);
+            this.socket.emit("_id_response", this.id);
         });
         // on connected
         this.socket.on("connect", async () => {
-            log(`[connection][${this.socket.id}] is connected`)
+            //console.log(`[connection][${this.socket.id}] is connected`)
             // ask for listeners
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
@@ -167,6 +170,7 @@ class Connection {
         return this.name;
     }
 
+    // this is the id of the conenction?
     public getId(): string | undefined {
         return this.id;
     }
@@ -175,6 +179,7 @@ class Connection {
         return this.targetName;
     }
 
+    // this is the id of the target client
     public getTargetId(): string | undefined {
         return this.targetId;
     }
@@ -190,7 +195,7 @@ class Connection {
     }
 
     public async setListeners(listeners: Listener[]): Promise<void> {
-        // make suer we are not adding the same listener
+        // make sure we are not adding the same listener
         const eventMap = new Map(this.listeners.map(l => [l.event, l]));
         // add the listeners
         listeners.forEach( l => eventMap.set(l.event, l) );
@@ -199,7 +204,10 @@ class Connection {
         // set the listeners on the socket
         listeners.forEach( l => this.setListener(l) );
         // update the listeners on the target
-        await this.query('_set_listeners', listeners.map(listener => listener.event));
+        console.log('[Connection] setting listeners', listeners.map(listener => listener.event))
+        let response = await this.query('_set_listeners', listeners.map(listener => listener.event));
+        if(response === 'ok')
+            console.log('[Connection] listeners set')
     }
 
     public onConnect(callback: Function): void {
@@ -226,12 +234,15 @@ class Connection {
         return new Promise((resolve, reject) => {
             // set a time out
             let timeout = setTimeout( () => { reject('timeout') }, 1000 * 60); // 1 minute
+            // send the query
+            console.log('[Connection][Query] sending query from socket: ', this.type, ' to', this.targetType, 'event: ', event, 'data: ', data)
             this.socket.emit(event, data)
-            this.socket.on(event, (response: any) => {
+            this.socket.on(event + "_response", (response: any) => {
+                console.log('[Connection][Query] got response from ', this.targetType, 'event: ', event, 'response: ', response)
                 // clear the timeout
                 clearTimeout(timeout);
                 // clear the listener
-                this.socket.removeAllListeners(event);
+                this.socket.removeAllListeners(event + "_response");
                 // if there is an error
                 if (response.error) {
                     reject(response.error);
@@ -297,6 +308,10 @@ class Connection {
             }
             resolve(availablePorts);
         });
+    }
+
+    public getListeners(): any[] {
+        return this.socket.eventNames();
     }
 
     public close(): void {

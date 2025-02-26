@@ -56,7 +56,6 @@ class Service {
             this.number_of_processes = this.options.number_of_processes;
     }
 
-
     public async start() { // this will start the service
         // let initlize the cluster so that we can start the service
         this.cluster = new Cluster(this.options);
@@ -79,13 +78,13 @@ class Service {
 
     private async initialize_master() {
         // initialize the node manager
-        console.log('Initializing node manager');
+        console.log('[Service] Initializing node manager');
         await this.initlize_node_manager();
-        console.log('Node Manager Initialized');
+        console.log('[Service] Node Manager Initialized');
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network();
+        this.network = new Network({});
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
         // create the server
@@ -106,7 +105,7 @@ class Service {
 
     private async initialize_slaves() {
         let node = new Node();
-        // TODO: need to find a better way to pass the host and port
+        // TODO: Need to find a better way to pass the host and port
         // to the slave process, so far i am only able to pass it through
         // the metadata in the cluster
         // get the nm_host and nm_port from the metadata
@@ -114,6 +113,7 @@ class Service {
         if(metadata === undefined)
             throw new Error('could not get post and host of the node manager, metadata is undefined');
         let { host, port } = JSON.parse(metadata)['metadata'];
+        console.log('[Service][Slave] Connecting to master');
         // connect with the master process
         await node.connectToMaster(host, port);
         // read the methods to be used

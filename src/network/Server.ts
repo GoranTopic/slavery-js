@@ -70,27 +70,34 @@ class NetworkServer {
     }
 
     private async handleConnection(socket: Socket) {
+        console.log("[Server] got new connection");
         // make a new connectection instance
         let connection = new Connection({ socket, name: this.name });
+        console.log("[Server] awaiting connection to be established");
         // await fo connection to be established
         await connection.connected();
         // get the id of the connection
         let id = connection.getTargetId();
+        console.log("[Server] connection id: ", id);
         // check if id is null
         if(id == null) throw new Error("Connection id is null");
         // check if connection already exists
         if(this.clients.has(id)) {
-            log(`[master] connection with id ${id} already exists`);
             let client = this.clients.remove(id);
             client && client.close();
         }
+        console.log("[Server] setting listeners");
         // give server listeners to the connection
         await connection.setListeners(this.listeners);
+        console.log("[Server] listeners set");
         // add connection to pool
         this.clients.add(id, connection);
         // run callback
-        if(this.connectionCallback)
+        console.log("[Server] connection callback: ", this.connectionCallback);
+        if(this.connectionCallback){
+            console.log("[Server] running connection callback");
             this.connectionCallback(connection);
+        }
     }
 
     private handleDisconnection(socket: Socket) {
@@ -138,7 +145,7 @@ class NetworkServer {
         this.io.emit('_set_listeners', this.listeners);
     }
 
-    public getClient(id: string) : Connection | undefined {
+    public getClient(id: string) : Connection | null {
         return this.clients.get(id);
     }
 
@@ -152,6 +159,15 @@ class NetworkServer {
 
     public onDisconnect(callback: any) {
         this.disconnectCallback = callback;
+    }
+
+    public getListeners() {
+        // the the listneres from the first client
+        let client = this.clients.toArray()[0];
+        // if client is null return an empty array
+        if(!client) return [];
+        // return the listeners
+        return client.getListeners();
     }
 
     async exit() {
