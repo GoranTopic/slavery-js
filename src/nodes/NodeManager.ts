@@ -2,7 +2,7 @@ import Cluster from '../cluster';
 import Network, { Connection } from '../network';
 import Node from './Node';
 import { ServiceAddress } from '../service';
-import { Pool, await_interval } from '../utils';
+import { Pool, await_interval, log } from '../utils';
 
 /* this class is created to manage the nodes socket conenctions on a service,
  * it will handle new conenction fron node, and will remove them when they are disconnected
@@ -43,7 +43,7 @@ class NodeManager {
     constructor(options: Options) {
         this.name = options.name;
         this.options = options;
-        this.network = new Network({});
+        this.network = new Network({ name: 'node_manager network' });
         // create server
         this.network.createServer(
             this.name + '_node_manager',
@@ -59,7 +59,7 @@ class NodeManager {
 
   private handleNewNode(connection: Connection) {
       /* this function is called when a new node is connected to the master */
-      console.log('[Node manager] Got a new connectection from a node');
+      log('[Node manager] Got a new connectection from a node');
       // create a new node
       let node = new Node();
       // set the connection to the node
@@ -99,14 +99,14 @@ class NodeManager {
 
   public async getIdle() : Promise<Node> {
       /* this function return a node that is idle */
-      console.log('[node manager] gettting idle node');
+      //log('[node manager] gettting idle node');
       // check if there are nodes in the pool
       // if(this.nodes.isEmpty()) console.warn('no nodes in the pool');
       // await until we get a node which is idle
-      // 0 so we dont timeout
+      // 0 will make it wait for every for a idle node
       await await_interval(() => this.nodes.hasEnabled(), 0)
       .catch(() => { throw new Error('timeout of 10 seconds, no idle node found') });
-      console.log('[node manager] got idle node');
+      //log('[node manager] got idle node');
       // get the next node
       let node = this.nodes.pop();
       if(node === null) throw new Error('node is null');
@@ -140,6 +140,7 @@ class NodeManager {
   public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {
       /* spawn new nodes */
       if(name === '') name = 'node_' + this.name;
+      log('[nodeManager][spawnNodes] spawning nodes', name, count);
       this.cluster.spawn(name, { 
           numberOfSpawns: count,
           metadata: metadata
@@ -147,10 +148,10 @@ class NodeManager {
   }
 
   public async killNodes({count}: {count: number}) {
-      /* kill the nodes */
+      /* TODO: kill the nodes */
   }
 
-  public getIdleCountruet(){
+  public getIdleCount(){
       // return the number of idle nodes
     return this.nodes.getEnabledCount();
   }
@@ -192,8 +193,7 @@ class NodeManager {
   public async exit() {
       // close all the nodes
       return this.broadcast(
-          async (node: Node) =>
-          await node.exit()
+          async (node: Node) => await node.exit()
       );
   }
 

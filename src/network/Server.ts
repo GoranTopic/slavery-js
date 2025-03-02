@@ -48,7 +48,7 @@ class NetworkServer {
             this.httpServer.listen(this.port, this.host, () => {
                 let address = this.httpServer?.address();
                 if(!address || typeof address === "string") {
-                    console.log("Server is not running");
+                    console.error("Server is not running");
                     return;
                 }
                 this.isReady = true;
@@ -63,22 +63,22 @@ class NetworkServer {
         }
         // create a new socket.io client instance
         this.io.on("connection", this.handleConnection.bind(this));
-        this.io.on("reconnect", () => console.log("[master] on reconnect triggered"));
+        this.io.on("reconnect", () => log("[Server] on reconnect triggered"));
         this.io.on("disconnect", this.handleDisconnection.bind(this));
         // set the listener on the server socket
         this.setListeners(this.listeners);
     }
 
     private async handleConnection(socket: Socket) {
-        console.log("[Server] got new connection");
+       log("[Server] got new connection");
         // make a new connectection instance
         let connection = new Connection({ socket, name: this.name });
-        console.log("[Server] awaiting connection to be established");
+        log("[Server] awaiting connection to be established");
         // await fo connection to be established
         await connection.connected();
         // get the id of the connection
         let id = connection.getTargetId();
-        console.log("[Server] connection id: ", id);
+        log("[Server] connection id: ", id);
         // check if id is null
         if(id == null) throw new Error("Connection id is null");
         // check if connection already exists
@@ -86,16 +86,16 @@ class NetworkServer {
             let client = this.clients.remove(id);
             client && client.close();
         }
-        console.log("[Server] setting listeners");
+        log("[Server] setting listeners");
         // give server listeners to the connection
         await connection.setListeners(this.listeners);
-        console.log("[Server] listeners set");
+        log("[Server] listeners set");
         // add connection to pool
         this.clients.add(id, connection);
         // run callback
-        console.log("[Server] connection callback: ", this.connectionCallback);
+        log("[Server] connection callback: ", this.connectionCallback);
         if(this.connectionCallback){
-            console.log("[Server] running connection callback");
+            log("[Server] running connection callback");
             this.connectionCallback(connection);
         }
     }
@@ -119,7 +119,7 @@ class NetworkServer {
         }
     }
 
-    private setListeners(listeners: Listener[]) {
+    public setListeners(listeners: Listener[]) {
         // set the listeners on the server socket
         listeners.forEach((listener: Listener) => {
             // run the listener callback and emit the result to the client
@@ -129,8 +129,15 @@ class NetworkServer {
                 // emit the result to the client
                 this.io.emit(listener.event, result);
             }
+            // remove any previous listeners
+            this.io.removeAllListeners(listener.event);
+            // set the new listener
             this.io.on(listener.event, callback);
         });
+        // store the listeners
+        this.listeners = listeners;
+        // broadcast the new listeners to all clients
+        this.io.emit('_set_listeners', this.listeners);
     }
 
     public addListeners(listeners: Listener[]) {
@@ -138,11 +145,9 @@ class NetworkServer {
         // if we have the same event name, we will overwrite it
         const eventMap = new Map(this.listeners.map(l => [l.event, l]));
         listeners.forEach(l => eventMap.set(l.event, l));
-        this.listeners = Array.from(eventMap.values());
+        listeners = Array.from(eventMap.values());
         // set the listener on the server socket
         this.setListeners(this.listeners);
-        // broadcast the new listeners to all clients
-        this.io.emit('_set_listeners', this.listeners);
     }
 
     public getClient(id: string) : Connection | null {

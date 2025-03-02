@@ -1,7 +1,8 @@
 import Network, { Listener, Connection } from '../network';
 import { ServiceAddress } from './types';
-import { await_interval } from '../utils';
-//import { serializeError } from 'serialize-error';
+import { await_interval, log } from '../utils';
+import { serializeError, deserializeError } from 'serialize-error';
+
 
 /*
  * this class will basicaly connect to all of the services given to it by the primary service.
@@ -25,14 +26,13 @@ class Node {
     public listeners: Listener[] = [];
     public lastUpdateAt: number = Date.now();
     public network: Network | undefined = undefined;
-    // fields when the class is client handler on a service
     public servicesConnected: boolean = false;
+    // fields when the class is client handler on a service
     public statusChangeCallback: ((status: NodeStatus, node: Node) => void) | null = null;
     // fields when the class is a service handler on a node
     public services: ServiceAddress[] = [];
-    public areServicesConnected: boolean = false;
     public doneMethods: { [key: string]: boolean } = {};
-    public methods: { [key: string]: (parameter: any) => any } = {};
+    public methods: { [key: string]: (parameter?: any, self?: Node) => any } = {};
 
     constructor(){}
 
@@ -49,57 +49,46 @@ class Node {
     public untilFinish = async () => { // await until the function is idle
         await await_interval(() => this.isIdle(), 1000); return true;
     }
-
     public run = async (method: string, parameter: any) => {
-        if(this.mode === 'client') return await this.runClient({ method, parameter });
-        else if(this.mode === 'server') return await this.runServer({ method, parameter });
+        if(this.mode === 'client') return await this.run_client({ method, parameter });
+        else if(this.mode === 'server') return await this.run_server({ method, parameter });
         else throw new Error('The mode has not been set');
     }
-
+    public setServices = async (services: ServiceAddress[]) => {
+        if(this.mode === 'client') return await this.setServices_client(services);
+        else if(this.mode === 'server') return await this.setServices_server(services);
+        else throw new Error('The mode has not been set');
+    }
     public exit = async () => {
-        if(this.mode === 'client') return process.exit(0);
+        if(this.mode === 'client') return await this.exit_client();
         else if(this.mode === 'server') return await this.send('_exit', null);
         else throw new Error('The mode has not been set');
     }
-
     public ping = async () => {
-        if(this.mode === 'client') return await this.pingClient();
-        else if(this.mode === 'server') return await this.pingServer();
+        if(this.mode === 'client') return await this.ping_client();
+        else if(this.mode === 'server') return await this.ping_server();
         else throw new Error('The mode has not been set');
     }
 
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
-        console.log('[Node][Server] setting node connection. this.mode: ' + this.mode);
+        log('[Node][Server] setting node connection. this.mode: ' + this.mode);
         if(this.mode !== undefined && this.mode !== null ) 
             throw new Error('The node mode has already been set');
         // set the mode as a server client hander
         this.mode = 'server';
         // get the node id from the conenction
         this.id = connection.getTargetId();
+        log('[Node][Server] setting node id: ' + this.id);
         // set the network
         this.network = network;
         // define the listners which we will be using to talk witht the client node
         this.listeners = [//  this callbacks will run when we recive this event from the client node
             { event: '_set_status', parameters: ['status'], callback: this.handleStatusChange.bind(this) },
             { event: '_ping', parameters: [], callback: () => '_pong' },
-            { event: '_error', parameters: ['error'], callback: this.handleError },
-            { event: '_result', parameters: ['result'], callback: this.handleResult }
         ]
         // register the listeners on the connection
         this.network.registerListeners(this.listeners);
-    }
-
-    public handleResult(result: any){
-        // this function will be called when the client node tells us that it has a result
-        this.handleStatusChange('idle');
-        console.log('result from slave: ', result);
-    }
-
-    public handleError(error: any){
-        // this function will be called when the client node tells us that it has an error
-        this.handleStatusChange('error');
-        console.error('error from slave: ', error);
     }
 
     public setStatusChangeCallback(callback: (status: NodeStatus, node: Node) => void){
@@ -118,25 +107,39 @@ class Node {
         return this.lastHeardOfIn();
     }
 
-    private async runServer({method, parameter}: {method: string, parameter: any}){
+    private async run_server({method, parameter}: {method: string, parameter: any}){
         // this function will send the node a method to be run in the client
         // set the status to working
-        this.updateStatus('working');
+        this.handleStatusChange('working');
         let res = await this.send('_run', { method, parameter });
-        this.updateStatus('idle');
+        //log('[Node][run_server] got result from client node: ', res);
+        // set the status to idle
+        this.handleStatusChange('idle');
+        // if there is an error
+        if(res.isError === true)
+            res.error = deserializeError(res.error);
+        // return the result
+        return res
+    }
+
+    private async setServices_server(services: ServiceAddress[]){
+        // this function will send send a list of services to the client node
+        let res = await this.send('_set_services', services);
         return res;
     }
     
-    public async pingServer(){
+    public async ping_server(){
         // this function will ping the client node
         let res = await this.send('_ping');
         if(res === 'pong') this.updateLastHeardOf();
         return true;
     }
 
-    public async exitServer(){
+    public async exit_server(){
         // this function tell the node client to exti
-        return await this.send('_exit');
+        return await this.send('_exit')
+        // we catch the timeout erro scince the client node will exit
+        .catch((error) => { if(error === 'timeout') return true; else throw error; });
     }
 
     public async registerServices(service: ServiceAddress[]){
@@ -149,8 +152,8 @@ class Node {
         return await Promise.all(services);
     }
 
-    private async send(method: string, parameter: any = null){
-        console.log(`[Node] sending data to client node of ` + this.id + `: ${method}`);
+    public async send(method: string, parameter: any = null){
+        log(`[Node] sending data to client node of ` + this.id + `: ${method}`);
         // fucntion for sending a method to the client node
         if(this.network === undefined) throw new Error('The network has not been set');
         if(this.id === undefined) throw new Error('The id has not been set');
@@ -170,7 +173,7 @@ class Node {
 
     /* this function will be called when the client node tells us that it is working */
     public async connectToMaster(host: string, port: number){
-        console.log('[Node][client] connecting to master');
+        log('[Node][client] connecting to master');
         // conenct the master process which will tell us what to do
         this.network = new Network({name: 'Client Node Network'});
         // form the conenction with the master
@@ -179,8 +182,8 @@ class Node {
         this.mode = 'client';
         // set the listeners which we will us on the and the master can call on
         this.listeners = [
-            { event: '_run', parameters: ['method', 'parameter'], callback: this.runClient.bind(this) },
-            { event: '_set_services', parameters: ['primary', 'services'], callback: this.handleSetServices.bind(this) },
+            { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
+            { event: '_set_services', parameters: ['services'], callback: this.setServices_client.bind(this) },
             { event: '_is_idle', parameters: [], callback: this.isIdle },
             { event: '_is_busy', parameters: [], callback: this.isBusy },
             { event: '_is_error', parameters: [], callback: this.isError },
@@ -191,26 +194,25 @@ class Node {
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
         // check the listeners set in the network
-        //console.log('[Node][client] listeners set in the network: ', this.network.getRegisteredListeners());
+        //log('[Node][client] listeners set in the network: ', this.network.getRegisteredListeners());
     }
 
-    private async runClient({method, parameter}: {method: string, parameter: any}){
+    private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
-        console.log('[Node][run_client] running this.run_client, method: ', method, 'parameter: ', parameter);
+        log('[Node][run_client] {method, parameter}: ', {method, parameter});
         try {
             // set the status to working
             this.updateStatus('working');
             // run method
-            let result = await this.methods[method](parameter);
+            const result = await this.methods[method](parameter, this);
             // set has done method
             this.doneMethods[method] = true;
             // return the result
-            return result;
-        } catch(err) {
-            // serilize the error
+            return { result, isError: false };
+        } catch(error){ // serilize the error
             this.updateStatus('error');
             // return the error
-            return JSON.stringify(err);
+            return { error: serializeError(error), isError: true };
         } finally {
             // set the status to idle
             this.updateStatus('idle');
@@ -225,7 +227,7 @@ class Node {
             this.doneMethods[method] = false;
     }
 
-    public async handleSetServices(services: ServiceAddress[]){
+    private async setServices_client(services: ServiceAddress[]){
         // we get the list of services that we need to connect to
         this.services = services;
         // connect to the services
@@ -236,7 +238,7 @@ class Node {
                 console.error('Could not connect to the service, ', service.name);
             }
         }
-        this.areServicesConnected = true;
+        this.servicesConnected = true;
         return true
     }
 
@@ -250,11 +252,17 @@ class Node {
         return await this.network.connect({name, host, port});
     }
     
-    private async pingClient(){
+    private async ping_client(){
         // this function will ping the master node
         let res = await this.send('_ping');
         if(res === '_pong') this.updateLastHeardOf();
         return true;
+    }
+
+    private async exit_client(){
+        // this function will exit the client node
+        log('[Node][Client] exiting node ' + this.id);
+        return process.exit(0);
     }
 
     public getListeners(){

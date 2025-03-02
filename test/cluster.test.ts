@@ -14,6 +14,7 @@ if (cluster.is('master')) {
     cluster2.spawn('worker 1');
     cluster2.spawn('worker 2');
     cluster2.spawn('worker 3');
+    cluster2.spawn('swarm', { numberOfSpawns: 0 });
 }
 
 
@@ -25,3 +26,7 @@ if (cluster.is('worker 2'))
 
 if (cluster.is('worker 3'))
     console.log('Hello from worker 3');
+
+if(cluster.is('swarm'))
+   console.log('hello from the swarm');
+

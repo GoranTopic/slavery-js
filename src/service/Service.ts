@@ -2,7 +2,7 @@ import Network, { Listener, Connection } from '../network';
 import { NodeManager, Node } from '../nodes';
 import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
-import { toListeners } from '../utils';
+import { toListeners, log } from '../utils';
 import { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import getPort from 'get-port';
 
@@ -13,9 +13,9 @@ type Parameters = {
     // the address of the service will take
     peerServicesAddresses: ServiceAddress[],
     // the master callback that will be called by the master process
-    mastercallback: (...args: any[]) => any,
+    mastercallback?: (...args: any[]) => any,
     // the slave callbacks that will be called by the slaves
-    slaveMethods: SlaveMethods
+    slaveMethods?: SlaveMethods,
     // the options that will be passed to the service
     options: Options
 };
@@ -29,8 +29,8 @@ class Service {
     public nm_host: string = 'localhost';
     public nm_port: number  = 0;
     public requestQueue: RequestQueue | null = null;
-    public number_of_processes: number;
-    private masterCallback: (...args: any[]) => any;
+    public number_of_nodes: number;
+    private masterCallback?: (...args: any[]) => any;
     private slaveMethods: SlaveMethods;
     private peerAddresses: ServiceAddress[];
     private cluster?: Cluster;
@@ -41,19 +41,19 @@ class Service {
     constructor(params: Parameters) {
         this.name = params.service_name;
         // the call that will run the master process
-        this.masterCallback = params.mastercallback;
+        this.masterCallback = params.mastercallback || undefined;
         // the method that we will use ont he slave
-        this.slaveMethods = params.slaveMethods;
+        this.slaveMethods = params.slaveMethods || {};
         // other sevices that we conenct to
         this.peerAddresses = params.peerServicesAddresses;
         // the options that will be passed to the service
         this.options = params.options;
         // smallest number of processes need to run
         // the master and a slave
-        if(!this.options.number_of_processes)
-            this.number_of_processes = 2;
+        if(this.options.number_of_nodes === undefined)
+            this.number_of_nodes = 1;
         else
-            this.number_of_processes = this.options.number_of_processes;
+            this.number_of_nodes = this.options.number_of_nodes;
     }
 
     public async start() { // this will start the service
@@ -71,20 +71,19 @@ class Service {
         }
         // if the cluster is a slave we initialize the process
         if(this.cluster.is('slave_' + this.name)) {
-            console.log('Slave Process created');
+            log(`[Service][Slave] ${this.name} process created`);
             await this.initialize_slaves();
         }
     }
 
     private async initialize_master() {
         // initialize the node manager
-        console.log('[Service] Initializing node manager');
+        log(`[Service][${this.name}] Initializing node manager`);
         await this.initlize_node_manager();
-        console.log('[Service] Node Manager Initialized');
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({});
+        this.network = new Network({name: 'master_network'});
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
         // create the server
@@ -100,7 +99,8 @@ class Service {
         // get services address
         let services = this.network.getServices();
         // run the callback for the master process
-        this.masterCallback({ ...services, nodes: this.nodes });
+        if(this.masterCallback !== undefined)
+            this.masterCallback({ ...services, nodes: this.nodes });
     }
 
     private async initialize_slaves() {
@@ -113,7 +113,7 @@ class Service {
         if(metadata === undefined)
             throw new Error('could not get post and host of the node manager, metadata is undefined');
         let { host, port } = JSON.parse(metadata)['metadata'];
-        console.log('[Service][Slave] Connecting to master');
+        log(`[Service][Slave][${this.name}] connecting to node manager at ${host}:${port}`);
         // connect with the master process
         await node.connectToMaster(host, port);
         // read the methods to be used
@@ -129,10 +129,9 @@ class Service {
             name: this.name,
             host: this.nm_host,
             port: this.nm_port,
-            number_of_nodes: this.number_of_processes - 1
         })
         // spawn the nodes from the node Manager
-        await this.nodes.spawnNodes('slave_' + this.name, this.number_of_processes - 1, {
+        await this.nodes.spawnNodes('slave_' + this.name, this.number_of_nodes, {
             metadata: { host: this.nm_host, port: this.nm_port }
         });
         // register the services in the nodes
@@ -153,8 +152,7 @@ class Service {
             let node = await this.nodes.getIdle();
             // send the request to the node
             let result = await node.run(request.method, request.parameters);
-            // return the result
-            return result;
+            return result; 
         });
         // set when queue has exceeded the size range
         this.requestQueue.setQueueRange({ max: this.options.max_queued_requests || 3, min: 0 });

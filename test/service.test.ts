@@ -1,5 +1,8 @@
 import Service from '../src/service'
+import { log } from '../src/utils'
 import { performance } from 'perf_hooks'
+// add the debug flag to the environment variables to see the debug messages
+process.env.debug = 'false';
 
 
 let master_callback = async ({nodes}: any) => {
@@ -13,68 +16,68 @@ let master_callback = async ({nodes}: any) => {
         .map( 
              async counter => new Promise( async resolve => {
                 // get a slave that is not currely working
+                log(`[test][master][${counter}] waiting for idle slave`);
                 let slave = await nodes.getIdle(); 
-                if( slave ) console.log('[test][master] got slave:', slave.id)
-                else console.log('[test][master] no slave available');
-                // print the listners from the slave
-                console.log('[test][master] slave listeners:', slave.getListeners());
+                if( slave ) log(`[test][master][${counter}] got slave:`, slave.id)
+                else log(`[test][master][${counter}] no slave available`);
+                // run the set up on the slave
                 await slave.run('setup')
-                    .then( () => { console.log(`[test][master] slave ${slave.id} is ready`) })
-                    .catch( (error: any) => { console.log(`[test][master] slave ${slave.id} failed to setup`, error) });
+                    .then( () => { log(`[test][master] slave ${slave.id} is ready`) })
+                // run the wait function
                 await slave.run('run', counter)
-                    .then( (result: any) => { console.log('[test][master] result from slave:', result) })
-                    .catch( (error: any) => { console.log('[test][master] slave failed to run', error) });
+                    .then( (result: any) => { log(`[test][master] slave ${slave.id} returned:`, result) } ) 
+                // run clean up
+                await slave.run('clean up')
+                    .then( () => { log(`[test][master] slave ${slave.id} is cleaned up`) })
+                resolve(true);
             })
         )
     )
     // end the timer
     end = performance.now();
     let seconds = parseFloat( ((end - start)/1000).toFixed(2) );
-    if( seconds > 15 )
-        // if it takes more than 15 seconds, then it is not working
-        console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
-    else 
-        console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
+    // if it takes more than 15 seconds, then it is not working
+    if( seconds > 15 ) console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
+    else console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
+    console.log('[test][master] test ended, service exiting all the nodes');
     nodes.exit();
+    // to exit the master process you need to call process.exit(0) fromt his fuction
+    // at least that is what I think is happening...
+    process.exit(0);
 }
 
 
 let slave_callbacks = {
-    'setup': async (params: any , slave: any) => {
+    'setup': (params: any , slave: any) => {
         // function to count sum of numbers, purely for the porpuse of processing
         let wait_function = 
             (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
-        slave.set('wait_function', wait_function);
-        console.log(`[test][slave][slave ${slave.id}] was setup`);
+        slave['wait_function'] = wait_function 
+        log(`[test][slave][slave ${slave.id}] was setup`);
         return true;
     }, 
     'run': async (wating_time: number, slave: any) => {
-        console.log(`[test][slave][slave ${slave.id}] running with ${wating_time} seconds`);
         // count sum of numbers
-        let make_timeout = slave.get('wait_function');
+        let make_timeout = slave['wait_function']
         let timeout = make_timeout(wating_time);
         let s = await timeout;
         // run some code
         if( s > 7 )
-            return { result: `waited for ${s} seconds, 😡` }
+            return `waited for ${s} seconds, 😡`
         else if( s > 5 )
-            return { result: `waited for ${s} seconds, 😐` }
+            return `waited for ${s} seconds, 😐`
         else if( s > 2  )
-            return { result: `waited for ${s} seconds, 😃` }
+            return `waited for ${s} seconds, 😃` 
         else
-            return { result: `waited for ${s} seconds, 😄` }
+            return `waited for ${s} seconds, 😄`
     }, 
     'clean up': async (params: any, salve: any) => {
-        salve.set('wait_function', null);
+        salve['wait_function'] = undefined
     },
-    'check clean up': async (params: any, salve: any) => {
-        let test_classic = salve.get('wait_function');
-        return test_classic === null;
-    }
 }
 
 
-let new_service = new Service({
+let service = new Service({
     service_name: 'service_test',
     peerServicesAddresses: [], // no other service will be ableable
     mastercallback: master_callback, // the slave callbacks that will be called by the slaves
@@ -82,17 +85,7 @@ let new_service = new Service({
     options: {
         host: 'localhost',
         port: 3003,
-        number_of_processes: 1,
+        number_of_nodes: 9,
     }
 });
-
-
-// shuld not need a function to start, it might
-
-new_service.start().then( () => {
-    console.log('service done');
-}).catch( (error: any) => {
-    console.log('service failed to start', error);
-});
-
-
+service.start()

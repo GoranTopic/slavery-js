@@ -33,11 +33,13 @@ class Cluster {
     }
 
 
-    public spawn( process_type: string , { numberOfSpawns, allowedToSpawn, spawnOnlyFromPrimary, metadata }: SpawnOptions = {}){
+    public spawn( process_type: string , {
+        numberOfSpawns, allowedToSpawn, spawnOnlyFromPrimary, metadata 
+    }: SpawnOptions = {}){
         this.log('Spawning new process ' + process_type);
         this.log(`allowedToSpawn: ${allowedToSpawn}`);
         this.log('this.amIThePrimaryProcess(): ' + this.amIThePrimaryProcess());
-        numberOfSpawns = numberOfSpawns || 1;
+        if(numberOfSpawns === undefined) numberOfSpawns = 1;
         this.spawnOnlyFromPrimary = spawnOnlyFromPrimary || false;
         // this makes it so that only the primary process can pass the ability to spawn new processes
         // to another process, otherwise there will be an infinite loop

@@ -13,6 +13,7 @@ class Network {
     // which in turn stores its connections to clients
     public server: Server | null;
     public name: string;
+    private listeners: Listener[];
     // this is where we store our connections to servers
     public connections: Pool<Connection>;
     // callback for when a new service connection is made
@@ -21,8 +22,9 @@ class Network {
     public serviceDisconnectCallback: Function | null;
 
     constructor({ name = 'some network' } : { name?: string }) {
-        console.log(`[Network][${name}] netowrk created`);
+        //log(`[Network][${name}] netowrk created`);
         this.name = name;
+        this.listeners = [];
         this.id = uuid();
         this.server = null;
         this.connections = new Pool();
@@ -50,12 +52,15 @@ class Network {
             let conn = this.connections.remove(server_name);
             conn && conn.close();
         }
+        // add the listeners to the new connection
+        //log(`[Network][Connect][${this.name}] adding listeners to connection`, this.listeners);
+        connection.setListeners(this.listeners);
         // add the new connection
-        console.log(`[Network][Connect][${this.name}] adding connection with name:`, server_name);
         this.connections.add(server_name, connection);
         // new connection callback
         this.serviceConnectionCallback && this.serviceConnectionCallback(connection);
-        console.log(`[Network][Connect][${this.name}] connections:`, this.connections);
+        //log(`[Network][Connect][${this.name}] connections:`, this.connections);
+        //log(`[Network][Connect][${this.name}] connection listeners:`, connection.getListeners());
         // return the connection
         return connection;
     }
@@ -147,15 +152,29 @@ class Network {
     }
 
     public registerListeners(listeners: Listener[]) {
-        //console.log(`[Network][RegisterListners][${this.name}]`, listeners);
-        console.log(`[Network][RegisterListners][${this.name}] connections:`, this.connections);
+        /* this function registers the listeners to the network and overwrites the old ones */
+        //log(`[Network][RegisterListners][${this.name}]`, listeners);
+        //log(`[Network][RegisterListners][${this.name}] connections:`, this.connections);
+        // store the listeners
+        this.listeners = listeners;
         // if we have a server created we pass the listeners to it
-        if(this.server) 
-            this.server.addListeners(listeners);
+        if(this.server) this.server.setListeners(this.listeners);
         // for every conenction in out pool we register the listeners
         this.connections.toArray().forEach((connection: Connection) => {
             connection.setListeners(listeners);
         });
+    }
+
+    public addListeners(listeners: Listener[]) {
+        /* this function adds the listeners to the network */
+        this.listeners = this.listeners.concat(listeners);
+        // if we have a server created we pass the listeners to it
+        if(this.server) this.server.addListeners(listeners);
+        // for every conenction in out pool we register the listeners
+        this.connections.toArray().forEach((connection: Connection) => {
+            connection.addListeners(listeners);
+        });
+
     }
 
     // TODO: implement this
@@ -163,7 +182,7 @@ class Network {
         // get the listeners from the server
         let server_listeners = this.server?.getListeners() || [];
         let connections_listeners = this.connections.toArray().map((connection: Connection) => {
-            console.log('inside loop conenction:', connection);
+            log('inside loop conenction:', connection);
             return { id: connection.id, listeners: connection.getListeners() }; 
         });
         // return the listeners
@@ -183,6 +202,7 @@ class Network {
     }
 
     public onServiceConnection(callback: (connection: Connection) => void) {
+        // set the network listners to the connection
         this.serviceConnectionCallback = callback;
     }
 
