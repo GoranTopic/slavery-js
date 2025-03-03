@@ -1,5 +1,5 @@
 import Service from './Service';
-import { Options, ServiceAddress, SlaveMethods } from './types';
+import type { Options, ServiceAddress, SlaveMethods } from './types';
 
 export default Service;
 

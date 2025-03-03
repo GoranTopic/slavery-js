@@ -3,6 +3,7 @@
     "version": "1.4.1",
     "description": "A simple clustering app that allows you to scale an application on multiple thread and multiple machines ",
     "main": "index.js",
+    "type": "module",
     "scripts": {
         "start": "ts-node main.ts",
         "test": "mocha --require ts-node/register --require source-map-support/register --full-trace 'test/**/*.test.ts'",

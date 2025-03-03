@@ -3,7 +3,7 @@ import { NodeManager, Node } from '../nodes';
 import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
 import { toListeners, log } from '../utils';
-import { ServiceAddress, SlaveMethods, Request, Options } from './types';
+import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import getPort from 'get-port';
 
 // the paramer the service will take

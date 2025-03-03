@@ -1,6 +1,6 @@
 import Network from './Network';
 import Connection from './Connection';
-import Listener from './types/Listener';
+import type Listener from './types/Listener.js';
 
 export default Network;
 
