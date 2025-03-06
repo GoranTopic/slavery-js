@@ -1,8 +1,6 @@
 import Service from '../src/service'
 import { performance } from 'perf_hooks'
-import { log } from '../src/utils'
 process.env.debug = 'true';
-
 // This test will create two service with fixed ip (localhost) and port,
 // they will try to comunicate with each other such that one will send 
 // a query to run to the other one and expect the correct a response
@@ -11,18 +9,16 @@ process.env.debug = 'true';
 let main_service = new Service({
     service_name: 'multi_service_test',
     peerServicesAddresses: [ 
-        { name: 'awaiter', host: 'localhost', port: 3003 } 
+        { name: 'awaiter_service', host: 'localhost', port: 3003 } 
     ], 
-    mastercallback: async ({ awaiter }) => {
+    mastercallback: async ({ awaiter } ) => {
         const list_of_waits = [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-        //wait for a second
         let start = performance.now()
         for( let wait_time of list_of_waits ){
-            console.log(`wait_time: ${wait_time}`)
-            awaiter.wait(wait_time).then( (res:any) => console.log(res) )
+            let res =  await awaiter.wait(wait_time)
+            console.log(`response: ${res}`)
         }
         let end = performance.now()
-        console.log(`[test][master] total time: ${end - start} ms`)
     },
     options: {
         host: 'localhost',
@@ -32,7 +28,7 @@ let main_service = new Service({
 main_service.start()
 
 
-//process.env.debug = 'false'
+process.env.debug = 'false'
 let awaiter_service = new Service({
     service_name: 'awaiter',
     peerServicesAddresses: [
