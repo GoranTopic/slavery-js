@@ -1,4 +1,4 @@
-import { await_interval, Queue } from '../utils';
+import { await_interval, Queue, log } from '../utils';
 import { Request } from './types'
 
 class RequestQueue {
@@ -22,13 +22,14 @@ class RequestQueue {
          * if there are, pop the first element and process it
          * if there are no elements, wait for the next element to be added 
          */
-        this.interval = setInterval(() => {
+        this.interval = setInterval( async () => {
             if (this.queue.size() > 0) {
                 let request = this.queue.pop();
                 if(!request) throw new Error('Request is null');
                 if(!this.process_request) throw new Error('Process request is null');
                 // process the request
-                let result = this.process_request(request);
+                log('[RequestQueue] Processing request', request);
+                let result = await this.process_request(request);
                 request.completed = true;
                 request.result = result;
             }
@@ -36,7 +37,7 @@ class RequestQueue {
             if(this.queueHasExceededRange()) 
                 if(this.onQueueExceed) 
                     this.onQueueExceed();
-        }, 1000);
+        }, 1);
     }
 
     public setProcessRequest(process_request: Function) {
@@ -50,8 +51,10 @@ class RequestQueue {
         return new Promise( async (resolve, reject) => {
             this.queue.push(request);
             // make an await intervall to check if the request is completed
-            await await_interval(() => request.completed === true, 10000, 100)
-            .catch((err) => { reject(err) });
+            await await_interval(() => {
+                log(request);
+                return request.completed === true
+            }, 10000, 100).catch(err => { reject(err) });
             // resolve the promise with the result of the request
             resolve(request.result);
         });

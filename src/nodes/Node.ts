@@ -72,14 +72,13 @@ class Node {
 
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
-        log('[Node][Server] setting node connection. this.mode: ' + this.mode);
         if(this.mode !== undefined && this.mode !== null ) 
             throw new Error('The node mode has already been set');
         // set the mode as a server client hander
         this.mode = 'server';
         // get the node id from the conenction
         this.id = connection.getTargetId();
-        log('[Node][Server] setting node id: ' + this.id);
+        log('[Node][setNodeConnection] setting node id: ' + this.id);
         // set the network
         this.network = network;
         // define the listners which we will be using to talk witht the client node
@@ -87,8 +86,8 @@ class Node {
             { event: '_set_status', parameters: ['status'], callback: this.handleStatusChange.bind(this) },
             { event: '_ping', parameters: [], callback: () => '_pong' },
         ]
-        // register the listeners on the connection
-        this.network.registerListeners(this.listeners);
+            // register the listeners on the connection
+            connection.setListeners(this.listeners);
     }
 
     public setStatusChangeCallback(callback: (status: NodeStatus, node: Node) => void){
@@ -193,8 +192,6 @@ class Node {
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
-        // check the listeners set in the network
-        //log('[Node][client] listeners set in the network: ', this.network.getRegisteredListeners());
     }
 
     private async run_client({method, parameter}: {method: string, parameter: any}){

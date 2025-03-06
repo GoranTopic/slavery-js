@@ -72,8 +72,9 @@ class NetworkServer {
     private async handleConnection(socket: Socket) {
        log("[Server] got new connection");
         // make a new connectection instance
-        let connection = new Connection({ socket, name: this.name });
-        log("[Server] awaiting connection to be established");
+        let connection = new Connection({ 
+            socket, name: this.name, listeners: this.listeners
+        });
         // await fo connection to be established
         await connection.connected();
         // get the id of the connection
@@ -86,18 +87,13 @@ class NetworkServer {
             let client = this.clients.remove(id);
             client && client.close();
         }
-        log("[Server] setting listeners");
         // give server listeners to the connection
-        await connection.setListeners(this.listeners);
-        log("[Server] listeners set");
+        // await connection.setListeners(this.listeners);
         // add connection to pool
         this.clients.add(id, connection);
         // run callback
-        log("[Server] connection callback: ", this.connectionCallback);
-        if(this.connectionCallback){
-            log("[Server] running connection callback");
+        if(this.connectionCallback)
             this.connectionCallback(connection);
-        }
     }
 
     private handleDisconnection(socket: Socket) {

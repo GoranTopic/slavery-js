@@ -12,10 +12,10 @@ class Connection {
      *
      * it manages conenction, the listeners and the available emitters */
     private socket: Socket | any;
+    private request_id: number = 0;
     // this node information
     public name?: string;
     public id?: string;
-    public tag?: string;
     public listeners: Listener[] = [];
     public type: 'client' | 'server';
     public host?: string;
@@ -33,6 +33,7 @@ class Connection {
     // callbacks
     private onConnectCallback: Function;
     public onDisconnectCallback: Function;
+    public onSetListenersCallback: Function;
 
     /*
      * @param Node: Node
@@ -41,18 +42,19 @@ class Connection {
      * @param port: number
      * @param id: string
      * @param name: string
-     * @param tag: string
      * */
-    constructor({ socket, host, port, id, name, onConnect, onDisconnect, tag } : {
+    constructor({ socket, host, port, id, name, listeners, onConnect, onDisconnect, onSetListeners } : {
         id?: string, socket?: Socket, host?: string,
-        port?: number, name?: string, tag?: string,
-        onConnect?: Function, onDisconnect?: Function
+        port?: number, name?: string, listeners?: Listener[],
+        onConnect?: Function, onDisconnect?: Function,
+        onSetListeners?: Function
     }) {
-        // set the tag
-        this.tag = tag || '';
         // callbacks
         this.onConnectCallback = onConnect || (() => {});
         this.onDisconnectCallback = onDisconnect || (() => {});
+        this.onSetListenersCallback = onSetListeners || (() => {});
+        // set listeners
+        if(listeners) this.listeners = listeners;
         // if get a socket to connect to the server
         if (socket && name) {
             this.type = 'server';
@@ -62,9 +64,7 @@ class Connection {
             this.socket = socket;
             // get the id of client
             this.targetId = socket.handshake.auth.id;
-            //console.log('[Connection][server] targetId: ', this.targetId)
-            // ask for the listeners
-            this.targetListeners = socket.handshake.auth.listeners;
+            log('[Connection][server] targetId: ', this.targetId)
             // since we are already getting the socket
             this.isConnected = true;
             // if get a host and port to connect to the server
@@ -88,15 +88,25 @@ class Connection {
 
     private initilaizeListeners(): void {
         /* this function inizializes the default listeners for the socket */
+        // set the object listeners 
+        this.listeners.forEach( l => {
+            this.socket.removeAllListeners(l.event);
+            this.socket.on(l.event, async (parameters:any) => {
+                log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
+                const result = await l.callback(parameters);
+                this.socket.emit(l.event + "_response", result)
+            });
+        });
         // if target is asking for connections
         this.socket.on("_listeners", () => {
             this.socket.emit("_listeners_response", this.getListeners());
         });
         // if the target is sending a their listeners
         this.socket.on("_set_listeners", (listeners: string[]) => {
-            //console.log('[Connection][Node] got _set_listeners. listeners: ', listeners)
+            log(`[${this.id}] [Connection][Node] got liteners from ${this.targetName}: `, listeners)
             this.targetListeners =
                 listeners.map(event => ({ event, callback: () => {} }));
+            this.onSetListenersCallback(this.targetListeners);
             this.socket.emit("_set_listeners_response", 'ok');
         });
         // if target is asking for name
@@ -109,10 +119,11 @@ class Connection {
         });
         // on connected
         this.socket.on("connect", async () => {
-            //console.log(`[connection][${this.socket.id}] is connected`)
+            log(`[connection][${this.socket.id}] is connected, querying target name and listeners:`)
             // ask for listeners
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
+            log(`[connection][${this.socket.id}] target name: ${this.targetName}, target listeners: ${this.targetListeners}`)
             this.isConnected = true;
             this.onConnectCallback(this);
         });
@@ -183,12 +194,8 @@ class Connection {
         return this.targetId;
     }
 
-    public getTag(): string | undefined {
-        return this.tag;
-    }
-
-
     public async setListeners(listeners: Listener[]): Promise<void> {
+        log('[Connection]<setListeners> sending listeners to: ', this.targetName)
         // set the listeners on the socket
         listeners.forEach( l => {
             this.listeners.push(l);
@@ -210,7 +217,7 @@ class Connection {
         }
     }
 
-    public  addListeners(listeners: Listener[]): void {
+    public addListeners(listeners: Listener[]): void {
         // make sure we are not adding the same listener
         const eventMap = new Map(this.listeners.map(l => [l.event, l]));
         // add the listeners
@@ -219,6 +226,14 @@ class Connection {
         this.listeners = Array.from(eventMap.values());
         // set the listeners on the socket
         this.setListeners(this.listeners);
+    }
+
+    public getTargetListeners(): Listener[] {
+        return this.targetListeners;
+    }
+
+    public onSetListeners(callback: Function): void {
+        this.onSetListenersCallback = callback;
     }
 
     public onConnect(callback: Function): void {
@@ -264,7 +279,7 @@ class Connection {
 
     public getListeners(): any[] {
         if(this.type === 'server')
-            return this.socket.eventNames();
+            return this.listeners;
         else if(this.type === 'client')
             return this.socket._callbacks;
         else

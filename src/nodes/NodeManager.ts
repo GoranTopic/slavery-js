@@ -201,8 +201,8 @@ class NodeManager {
       // get all the nodes
       let nodes = this.nodes.toArray();
       // for each node, make a promise
-      let promises = nodes.map(async (node: Node) =>
-            await callback(node)
+      let promises = nodes.map(
+          async (node: Node) => await callback(node)
       );
       // wait for all the promises to resolve
       return Promise.all(promises);

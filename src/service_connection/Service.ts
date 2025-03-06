@@ -41,7 +41,7 @@ class Service {
             'getAllMethods', 'addExceptedMethods'
         ];
         this.heartBeat = options.heartBeat ?? 100; // 100ms
-        this.network = new Network();
+        this.network = new Network({})
     }
 
     public async connect(): Promise<Service> {
@@ -53,7 +53,7 @@ class Service {
         let conn = await this.network.connect(this.name, this.host, this.port, this.tag);
         // get listners from Connection
         let listeners = conn.targetListeners;
-        // create method from listners which run the query on the connection
+        // create method fromvoyeur-house  listners which run the query on the connection
         listeners.forEach((listener: Listener) => {
             (this as any)[listener.event] = async (data: any) => {
                 // pool the lstest connection form network

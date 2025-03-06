@@ -23,11 +23,11 @@ type Parameters = {
 class Service {
     /* This will be the based class for the service which salvery will call to create proceses */
     public name: string;
-    public host: string = 'localhost';
-    public port: number = 0;
+    public host: string;
+    public port: number;
     private nodes?: NodeManager;
-    public nm_host: string = 'localhost';
-    public nm_port: number  = 0;
+    public nm_host: string;
+    public nm_port: number;
     public requestQueue: RequestQueue | null = null;
     public number_of_nodes: number;
     private masterCallback?: (...args: any[]) => any;
@@ -37,9 +37,14 @@ class Service {
     private network?: Network;
     private options: Options;
 
-
     constructor(params: Parameters) {
         this.name = params.service_name;
+        // the address of the service will take
+        this.host = params.options.host || 'localhost';
+        this.port = params.options.port || 0;
+        // the host of the node manager
+        this.nm_host = params.options.nm_host || 'localhost';
+        this.nm_port = params.options.nm_port || 0;
         // the call that will run the master process
         this.masterCallback = params.mastercallback || undefined;
         // the method that we will use ont he slave
@@ -71,7 +76,7 @@ class Service {
         }
         // if the cluster is a slave we initialize the process
         if(this.cluster.is('slave_' + this.name)) {
-            log(`[Service][Slave] ${this.name} process created`);
+            log(`[Service][Slave][${this.name}] slave process created`);
             await this.initialize_slaves();
         }
     }
@@ -83,21 +88,29 @@ class Service {
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({name: 'master_network'});
+        this.network = new Network({name: this.name + '_master_network'});
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
-        // create the server
-        this.network.createServer(this.name, this.host, this.port, []);
-        // register the listeners we have for the other services to request
+        // list the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
             // add out handle request function to the listener
             l => ({ ...l, callback: this.handle_request(l) })
         );
-        this.network.registerListeners(listeners);
+        // create the server
+        log(`[Service][initialize_master] service started server ${this.name} ${this.host}:${this.port}, listeners:`, listeners);
+        this.network.createServer(this.name, this.host, this.port, listeners);
         // connect to the services
-        await this.network.connectAll(this.peerAddresses);
-        // get services address
-        let services = this.network.getServices();
+        log(`[Service][initialize_master] connecting to services`, this.peerAddresses);
+        let connections = await this.network.connectAll(this.peerAddresses);
+        // create a service client for the services
+        let services = connections.map( (c: Connection) => {
+            let name = c.getTargetName();
+            if(name === undefined) throw new Error('Service name is undefined');
+            return new ServiceClient(name, this.network as Network);
+        }).reduce((acc: any, s: ServiceClient) => {
+            acc[s.name] = s;
+            return acc;
+        }, {})
         // run the callback for the master process
         if(this.masterCallback !== undefined)
             this.masterCallback({ ...services, nodes: this.nodes });
@@ -122,6 +135,10 @@ class Service {
 
     private async initlize_node_manager() {
         /* the node manage will be used to conenct to and manage the nodes */
+        // if the slave methods is an empty object we will not make any nodes
+        if(Object.keys(this.slaveMethods).length === 0) 
+            return this.nodes;
+        // get the port for the node manager
         if(this.nm_port === 0)
             this.nm_port = await getPort({host: this.nm_host});
         // make a node manager
@@ -142,6 +159,10 @@ class Service {
 
     private initialize_request_queue() {
         /* this function will give the request queue all the values an callback it need tow work */
+        // if there are no nodes to make don't create a request queue
+        if(Object.keys(this.slaveMethods).length === 0) 
+            return this.nodes;
+        // create a new request queue
         this.requestQueue = new RequestQueue();
         // if node manager is not defined throw an error
         if(this.nodes === undefined) throw new Error('Node Manager is not defined');
@@ -169,21 +190,52 @@ class Service {
          * the queue will processs the request when it finds an idle node
          * and the node returns the result.
          */
-        return async () => {
+        return async (parameters: any) => {
             if(this.requestQueue === null)
                 throw new Error('Request Queue is not defined');
             let promise = this.requestQueue.addRequest({
                 method: l.event,
-                parameters: l.parameters,
+                parameters: parameters,
                 completed: false,
                 result: null
             });
+            log('[handle_request] request resolved', promise);
             // wait until the request is processed
             let result = await promise;
             return result;
         }
     }
+}
 
+class ServiceClient {
+    /* this class will be used to connect to a diffrent service, 
+     * it will convert the class into a client handler for other services 
+     * it will connect to the service and create methods
+     * for every listener that the service has. */ 
+    public name: string;
+    public network: Network;
+    // get the network from the connection
+    constructor(name: string, network: Network) {
+        this.name = name;
+        this.network = network;
+        // get the conenction from the network
+        let connection = this.network.getService(name);
+        // get the listneres from the target connection
+        let listeners = connection.targetListeners;
+        log(`[ServiceClient] creating methods for listeners`, listeners);
+        // create method from listners which run the query on the connection
+        listeners.forEach((listener: Listener) => {
+            log(`[ServiceClient] creating method ${listener.event}`);
+            (this as any)[listener.event] = async (data: any) => {
+                log(`[ServiceClient] sending data to ${listener.event}`, data);
+                // get the connection
+                let connection = this.network.getService(this.name);
+                // and send the data
+                let response = await connection.send(listener.event, data);
+                log(`[ServiceClient] response from ${listener.event}`, response);
+            }
+        });
+    }
 }
 
 

@@ -1,6 +1,6 @@
 import Connection from './Connection';
 import { uuid, log, Pool } from '../utils';
-import Listener from './types/Listener';
+import type Listener from './types/Listener';
 import Server from './Server';
 
 class Network {
@@ -17,9 +17,12 @@ class Network {
     // this is where we store our connections to servers
     public connections: Pool<Connection>;
     // callback for when a new service connection is made
-    public serviceConnectionCallback: Function | null;
+    public serviceConnectionCallback?: Function;
     // callback for when a service disconnects
-    public serviceDisconnectCallback: Function | null;
+    public serviceDisconnectCallback?: Function;
+    // callback for when a new listener is added
+    public newListenersCallback?: Function;
+
 
     constructor({ name = 'some network' } : { name?: string }) {
         //log(`[Network][${name}] netowrk created`);
@@ -28,8 +31,9 @@ class Network {
         this.id = uuid();
         this.server = null;
         this.connections = new Pool();
-        this.serviceConnectionCallback = null;
-        this.serviceDisconnectCallback = null;
+        this.serviceConnectionCallback = undefined;
+        this.serviceDisconnectCallback = undefined;
+        this.newListenersCallback = undefined;
     }
 
     async connect({ name, host, port } : { name?: string, host: string, port: number }): Promise<Connection> {
@@ -37,7 +41,10 @@ class Network {
          * and it keeps track of the conenction by adding it to a pool of server connection 
          * it uses the name as the key in the pool
          * then run the callback */
-        const connection = new Connection({ host, port, id: this.id }); 
+        const connection = new Connection({
+            host, port, id: this.id,
+            onSetListeners: this.newListenersCallback
+        }); 
         // await connection and handshake
         await connection.connected();
         // get the name of the target service
@@ -66,14 +73,19 @@ class Network {
     }
 
     public async connectAll(services: { name: string, host: string, port: number }[]) {
+        log(`[Network][${this.name}] connecting to all services`, services);
         // connect to all the services
         let connections = await Promise.all(services.map(
-            async (service) => await this.connect({ 
+            async service => await this.connect({ 
                 name: service.name,
                 host: service.host,
                 port: service.port
             })
-        ));
+        )).catch((err) => {
+            log(`[Network][${this.name}] error connecting to services:`, err);
+            return [];
+        })
+        //log(`[Network][${this.name}] returning connections:`, connections);
         return connections;
     }
     
@@ -127,15 +139,6 @@ class Network {
         return this.connections.toArray().concat(this.server?.getClients() || []);
     }
 
-    public getConnectionsByTag(tag: string): Connection[] {
-        // get the connections by tag
-        let nodes = this.getNodes().filter((conn: Connection) => conn.tag === tag);
-        let connections = this.getConnections().filter((conn: Connection) => conn.tag === tag);
-        // return both nodes and connections
-        return nodes.concat(connections);
-    }
-
-
     public closeService(name: string) {
         // close the connection
         let connection = this.connections.remove(name);
@@ -165,6 +168,7 @@ class Network {
         });
     }
 
+
     public addListeners(listeners: Listener[]) {
         /* this function adds the listeners to the network */
         this.listeners = this.listeners.concat(listeners);
@@ -177,7 +181,6 @@ class Network {
 
     }
 
-    // TODO: implement this
     public getRegisteredListeners(): any {
         // get the listeners from the server
         let server_listeners = this.server?.getListeners() || [];
@@ -208,6 +211,10 @@ class Network {
 
     public onServiceDisconnect(callback: (connection: Connection) => void) {
         this.serviceDisconnectCallback = callback;
+    }
+    
+    public onNewListeners(callback: (listeners: Listener[]) => void) {
+        this.newListenersCallback = callback;
     }
 
 }
