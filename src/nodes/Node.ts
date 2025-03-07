@@ -174,7 +174,7 @@ class Node {
     public async connectToMaster(host: string, port: number){
         log('[Node][client] connecting to master');
         // conenct the master process which will tell us what to do
-        this.network = new Network({name: 'Client Node Network'});
+        this.network = new Network({name: this.id + '_node'});
         // form the conenction with the master
         this.network.connect({ host, port });
         // set the mode as a client

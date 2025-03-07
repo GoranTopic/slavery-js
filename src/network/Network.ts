@@ -24,7 +24,7 @@ class Network {
     public newListenersCallback?: Function;
 
 
-    constructor({ name = 'some network' } : { name?: string }) {
+    constructor({ name = '' } : { name?: string }) {
         //log(`[Network][${name}] netowrk created`);
         this.name = name;
         this.listeners = [];
@@ -42,7 +42,7 @@ class Network {
          * it uses the name as the key in the pool
          * then run the callback */
         const connection = new Connection({
-            host, port, id: this.id,
+            name : this.name, host, port, id: this.id,
             onSetListeners: this.newListenersCallback
         }); 
         // await connection and handshake

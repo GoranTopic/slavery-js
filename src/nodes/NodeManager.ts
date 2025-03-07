@@ -43,7 +43,7 @@ class NodeManager {
     constructor(options: Options) {
         this.name = options.name;
         this.options = options;
-        this.network = new Network({ name: 'node_manager network' });
+        this.network = new Network({ name: this.name + '_node_manager' });
         // create server
         this.network.createServer(
             this.name + '_node_manager',

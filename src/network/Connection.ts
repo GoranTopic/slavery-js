@@ -90,33 +90,27 @@ class Connection {
         /* this function inizializes the default listeners for the socket */
         // set the object listeners 
         this.listeners.forEach( l => {
+            console.log('[Connection][initilaizeListeners] setting listener: ', l.event)
             this.socket.removeAllListeners(l.event);
-            this.socket.on(l.event, async (parameters:any) => {
+            this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
                 log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
-                const result = await l.callback(parameters);
-                this.socket.emit(l.event + "_response", result)
-            });
+                return await l.callback(parameters);
+            }));
         });
         // if target is asking for connections
-        this.socket.on("_listeners", () => {
-            this.socket.emit("_listeners_response", this.getListeners());
-        });
+        this.socket.on("_listeners", this.respond("_listeners", () => this.getListeners()));
         // if the target is sending a their listeners
-        this.socket.on("_set_listeners", (listeners: string[]) => {
+        this.socket.on("_set_listeners", this.respond("_set_listeners", (listeners: string[]) => {
             log(`[${this.id}] [Connection][Node] got liteners from ${this.targetName}: `, listeners)
             this.targetListeners =
                 listeners.map(event => ({ event, callback: () => {} }));
             this.onSetListenersCallback(this.targetListeners);
-            this.socket.emit("_set_listeners_response", 'ok');
-        });
+            return 'ok';
+        }));
         // if target is asking for name
-        this.socket.on("_name", () => {
-            this.socket.emit("_name_response", this.name);
-        });
+        this.socket.on("_name", this.respond("_name", () => this.name));
         // if target is asking for id
-        this.socket.on("_id", () => {
-            this.socket.emit("_id_response", this.id);
-        });
+        this.socket.on("_id", () => this.id);
         // on connected
         this.socket.on("connect", async () => {
             log(`[connection][${this.socket.id}] is connected, querying target name and listeners:`)
@@ -202,12 +196,10 @@ class Connection {
             // remove the listener if it exists
             this.socket.removeAllListeners(l.event);
             // add new listener
-            this.socket.on(l.event, async (parameters:any) => {
+            this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
                 // run the callback defined in the listner
-                const result = await l.callback(parameters);
-                // send the response
-                this.socket.emit(l.event + "_response", result)
-            });
+                return await l.callback(parameters);
+            }));    
         });
         // update the listeners on the target
         if(this.type === 'server'){
@@ -260,15 +252,18 @@ class Connection {
         return new Promise((resolve, reject) => {
             // set a time out
             let timeout = setTimeout( () => { reject('timeout') }, 1000 * 60); // 1 minute
+            // get request id
+            let request_id = ++this.request_id;
+            if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
             // send the query
-            //console.log('[Connection][Query] sending query from socket: ', this.type, ' to', this.targetType, 'event: ', event, 'data: ', data)
-            this.socket.emit(event, data)
-            this.socket.on(event + "_response", (response: any) => {
+            console.log(`[${this.name}][Connection][Query] sending query from socket: `, this.type, ' to', this.targetType, 'event: ', event, 'data: ', data)
+            this.socket.emit(event, {data, request_id: request_id});
+            this.socket.on(event + `_${request_id}_response`, (response: any) => {
                 //console.log('[Connection][Query] got response from ', this.targetType, 'event: ', event, 'response: ', response)
                 // clear the timeout
                 clearTimeout(timeout);
                 // clear the listener
-                this.socket.removeAllListeners(event + "_response");
+                this.socket.removeAllListeners(event + `_${request_id}_response`);
                 // resolve the response
                 resolve(response);
             });
@@ -276,6 +271,19 @@ class Connection {
     }
 
     public send = this.query;
+
+    private respond(event: string, callback: Function) {
+        /* this is a wrapper function to respond to a query */
+        return async (parameters: any) => {
+            console.log(`[${this.name}][Connection][respond] got query: ${event} from ${this.targetName}: `, parameters)
+            let data = parameters.data;
+            let request_id = parameters.request_id;
+            let response = await callback(data);
+            console.log(`[${this.name}][Connection][respond] callback.toString(): `, callback.toString())
+            console.log(`[${this.name}][Connection][respond] responding to query: ${event} from ${this.targetName}: `, response)
+            this.socket.emit(event + `_${request_id}_response`, response);
+        }
+    }
 
     public getListeners(): any[] {
         if(this.type === 'server')

@@ -65,7 +65,7 @@ class Service {
         // let initlize the cluster so that we can start the service
         this.cluster = new Cluster(this.options);
         // create a new process for the master process
-        this.cluster.spawn('master_' + this.name, { 
+        this.cluster.spawn('master_' + this.name, {
             allowedToSpawn: true, // give the ability to spawn new processes
             spawnOnlyFromPrimary: true // make sure that only one master process is created
         });
@@ -88,7 +88,7 @@ class Service {
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({name: this.name + '_master_network'});
+        this.network = new Network({name: this.name + '_service'});
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
         // list the listeners we have for the other services to request
@@ -119,7 +119,7 @@ class Service {
     private async initialize_slaves() {
         let node = new Node();
         // TODO: Need to find a better way to pass the host and port
-        // to the slave process, so far i am only able to pass it through
+        // to the slave process, so far I am only able to pass it through
         // the metadata in the cluster
         // get the nm_host and nm_port from the metadata
         let metadata = process.env.metadata;
@@ -136,7 +136,7 @@ class Service {
     private async initlize_node_manager() {
         /* the node manage will be used to conenct to and manage the nodes */
         // if the slave methods is an empty object we will not make any nodes
-        if(Object.keys(this.slaveMethods).length === 0) 
+        if(Object.keys(this.slaveMethods).length === 0)
             return this.nodes;
         // get the port for the node manager
         if(this.nm_port === 0)
@@ -160,7 +160,7 @@ class Service {
     private initialize_request_queue() {
         /* this function will give the request queue all the values an callback it need tow work */
         // if there are no nodes to make don't create a request queue
-        if(Object.keys(this.slaveMethods).length === 0) 
+        if(Object.keys(this.slaveMethods).length === 0)
             return this.nodes;
         // create a new request queue
         this.requestQueue = new RequestQueue();
@@ -173,12 +173,12 @@ class Service {
             let node = await this.nodes.getIdle();
             // send the request to the node
             let result = await node.run(request.method, request.parameters);
-            return result; 
+            return result;
         });
         // set when queue has exceeded the size range
         this.requestQueue.setQueueRange({ max: this.options.max_queued_requests || 3, min: 0 });
         this.requestQueue.setOnQueueExceeded(() => {
-            // when we have too many request we will make a new node
+            //TODO: when we have too many request we will make a new node
             //this.nodes?.spawnNode();
         });
     }
@@ -199,19 +199,19 @@ class Service {
                 completed: false,
                 result: null
             });
-            log('[handle_request] request resolved', promise);
             // wait until the request is processed
             let result = await promise;
+            log('[handle_request] request resolved', result)
             return result;
         }
     }
 }
 
 class ServiceClient {
-    /* this class will be used to connect to a diffrent service, 
-     * it will convert the class into a client handler for other services 
+    /* this class will be used to connect to a diffrent service,
+     * it will convert the class into a client handler for other services
      * it will connect to the service and create methods
-     * for every listener that the service has. */ 
+     * for every listener that the service has. */
     public name: string;
     public network: Network;
     // get the network from the connection
@@ -233,6 +233,7 @@ class ServiceClient {
                 // and send the data
                 let response = await connection.send(listener.event, data);
                 log(`[ServiceClient] response from ${listener.event}`, response);
+                return response;
             }
         });
     }

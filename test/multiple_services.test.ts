@@ -18,8 +18,8 @@ let main_service = new Service({
         //wait for a second
         let start = performance.now()
         for( let wait_time of list_of_waits ){
-            console.log(`wait_time: ${wait_time}`)
-            awaiter.wait(wait_time).then( (res:any) => console.log(res) )
+            //console.log(`wait_time: ${wait_time}`)
+            awaiter.wait(wait_time).then( (res:any) => console.log('response from .wait:', res.result) )
         }
         let end = performance.now()
         console.log(`[test][master] total time: ${end - start} ms`)
