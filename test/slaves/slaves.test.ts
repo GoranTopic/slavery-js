@@ -5,19 +5,19 @@ import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
 
-let master_callback = async ({nodes}: any) => {
+let master_callback = async ({slaves}: any) => {
     console.log(`[${process.argv[1].split('/').pop()}] testing to check if slavery runs processes concurrently: `);
     let start = performance.now();
     let end = null; 
     // wait for a least one slave before continuing
-    await nodes.numberOfNodes(1);
+    await slaves.numberOfNodesConnected(1);
     await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
         .reverse()
         .map( 
              async counter => new Promise( async resolve => {
                 // get a slave that is not currely working
                 log(`[test][master][${counter}] waiting for idle slave`);
-                let slave = await nodes.getIdle(); 
+                let slave = await slaves.getIdle(); 
                 if( slave ) log(`[test][master][${counter}] got slave:`, slave.id)
                 else log(`[test][master][${counter}] no slave available`);
                 // run the set up on the slave
@@ -40,7 +40,7 @@ let master_callback = async ({nodes}: any) => {
     if( seconds > 15 ) console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
     else console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
     console.log('[test][master] test ended, service exiting all the nodes');
-    nodes.exit();
+    slaves.exit();
     // to exit the master process you need to call process.exit(0) fromt his fuction
     // at least that is what I think is happening...
     process.exit(0);
@@ -48,7 +48,7 @@ let master_callback = async ({nodes}: any) => {
 
 
 let slave_callbacks = {
-    'setup': (params: any , slave: any) => {
+    'setup': (params: any, slave: any) => {
         // function to count sum of numbers, purely for the porpuse of processing
         let wait_function = 
             (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
