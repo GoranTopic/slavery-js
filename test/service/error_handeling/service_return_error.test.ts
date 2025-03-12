@@ -13,15 +13,16 @@ let test_service = new Service({
     ],
     mastercallback: async ({ errorer }) => {
         let result = await errorer.throw_error()
+        // if the result is and error pass the test
         if(result instanceof Error){
-            console.log('error was thrown and cought')
+            console.log('return error test passed')
         }
     },
     options: {
         host: 'localhost',
         port: 3002,
-        throwONerror: true,
-        returnError: false,
+        throwError: false,
+        returnError: true,
         logError: false,
     }
 })
