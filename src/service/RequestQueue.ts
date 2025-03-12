@@ -1,83 +1,89 @@
 import { await_interval, Queue, log } from '../utils';
-import { Request } from './types'
+import { Request } from './types';
 
 class RequestQueue {
-    /* This class will kept track of all the requests that are made to the service, 
-     * how long is the request taking to be processed,
-     * how many requests are in the queue
-     * when are the requests being processed
-     * request individualy */
+    /* This class will keep track of all the requests that are made to the service,
+     * how long each request takes to be processed,
+     * how many requests are in the queue,
+     * when the requests are being processed, and
+     * request individually.
+     */
 
-    // Queue of promises
     private queue: Queue<Request> = new Queue();
-    private onQueueExceed: Function | null = null;
-    // interval to check the queue, pop the first element and process it
-    private range: {max: number, min: number} = {max: 0, min: 0};
     private process_request: Function | null = null;
     private interval: NodeJS.Timeout;
+    private turnover_times: number[] = []; // Stores time taken for the last 500 requests
+    private MAX_TURNOVER_ENTRIES = 500; // Limit storage to last 500 requests
 
     constructor() {
         /*
-         * set iterator to check if there are items in the queue
-         * if there are, pop the first element and process it
-         * if there are no elements, wait for the next element to be added 
+         * Set an interval to check if there are items in the queue.
+         * If there are, pop the first element and process it.
+         * If there are no elements, wait for the next element to be added.
          */
-        this.interval = setInterval( async () => {
+        this.interval = setInterval(async () => {
             if (this.queue.size() > 0) {
                 let request = this.queue.pop();
-                if(!request) throw new Error('Request is null');
-                if(!this.process_request) throw new Error('Process request is null');
-                // process the request
+                if (!request) throw new Error('Request is null');
+                if (!this.process_request) throw new Error('Process request is null');
+
                 log('[RequestQueue] Processing request', request);
+
+                const startTime = Date.now();
                 let result = await this.process_request(request);
+                const endTime = Date.now();
+
                 request.completed = true;
                 request.result = result;
+
+                // Track the time taken for this request
+                const timeTaken = endTime - startTime;
+                this.turnover_times.push(timeTaken);
+
+                // Keep only the last 500 entries
+                if (this.turnover_times.length > this.MAX_TURNOVER_ENTRIES) {
+                    this.turnover_times.shift(); // Remove the oldest entry
+                }
+
+                log(`[RequestQueue] Request completed in ${timeTaken}ms`);
             }
-            // check if the queue is greater than the range
-            if(this.queueHasExceededRange()) 
-                if(this.onQueueExceed) 
-                    this.onQueueExceed();
-        }, 1);
+        }, 100);
     }
 
     public setProcessRequest(process_request: Function) {
         this.process_request = process_request;
     }
 
-
     public addRequest(request: Request): Promise<any> {
-        // Add request to the queue and return a promise 
+        // Add request to the queue and return a promise
         // that will be resolved when the request is completed
-        return new Promise( async (resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             this.queue.push(request);
-            // make an await intervall to check if the request is completed
+
+            // Wait until the request is completed
             await await_interval(() => {
                 log(request);
-                return request.completed === true
-            }, 10000, 100).catch(err => { reject(err) });
-            // resolve the promise with the result of the request
+                return request.completed === true;
+            }, 10000, 100).catch(err => reject(err));
+
+            // Resolve the promise with the result of the request
             resolve(request.result);
         });
     }
 
-    public setQueueRange({max, min}: {max: number, min: number}) {
-        this.range = {max, min};
+    public queueSize() {
+        return this.queue.size();
     }
 
-    // callback to be called when the queue is greater than the range
-    public setOnQueueExceeded(c: Function) {
-        this.onQueueExceed = c;
-    }
-
-    public queueHasExceededRange() {
-        return this.queue.size() > this.range.max;
+    public getTurnoverRatio(): number {
+        if (this.turnover_times.length === 0) return 0;
+        const sum = this.turnover_times.reduce((acc, time) => acc + time, 0);
+        return sum / this.turnover_times.length;
     }
 
     public exit() {
         clearInterval(this.interval);
     }
-    
 }
-
 
 export default RequestQueue;

@@ -1,5 +1,6 @@
 import Network, { Listener, Connection } from '../network';
-import { ServiceAddress } from './types';
+import { ServiceClient } from '../service';
+import type { ServiceAddress } from './types';
 import { await_interval, log } from '../utils';
 import { serializeError, deserializeError } from 'serialize-error';
 
@@ -72,7 +73,7 @@ class Node {
 
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
-        if(this.mode !== undefined && this.mode !== null ) 
+        if(this.mode !== undefined && this.mode !== null )
             throw new Error('The node mode has already been set');
         // set the mode as a server client hander
         this.mode = 'server';
@@ -111,7 +112,6 @@ class Node {
         // set the status to working
         this.handleStatusChange('working');
         let res = await this.send('_run', { method, parameter });
-        //log('[Node][run_server] got result from client node: ', res);
         // set the status to idle
         this.handleStatusChange('idle');
         // if there is an error
@@ -126,7 +126,7 @@ class Node {
         let res = await this.send('_set_services', services);
         return res;
     }
-    
+
     public async ping_server(){
         // this function will ping the client node
         let res = await this.send('_ping');
@@ -152,7 +152,6 @@ class Node {
     }
 
     public async send(method: string, parameter: any = null){
-        log(`[Node] sending data to client node of ` + this.id + `: ${method}`);
         // fucntion for sending a method to the client node
         if(this.network === undefined) throw new Error('The network has not been set');
         if(this.id === undefined) throw new Error('The id has not been set');
@@ -172,7 +171,6 @@ class Node {
 
     /* this function will be called when the client node tells us that it is working */
     public async connectToMaster(host: string, port: number){
-        log('[Node][client] connecting to master');
         // conenct the master process which will tell us what to do
         this.network = new Network({name: this.id + '_node'});
         // form the conenction with the master
@@ -196,12 +194,18 @@ class Node {
 
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
-        log('[Node][run_client] {method, parameter}: ', {method, parameter});
         try {
             // set the status to working
             this.updateStatus('working');
+            // get the services that we have connected to
+            let services = this.services.map(
+                (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
+            ).reduce((acc: any, s: ServiceClient) => {
+                acc[s.name] = s;
+                return acc;
+            }, {})
             // run method
-            const result = await this.methods[method](parameter, this);
+            const result = await this.methods[method](parameter, { ...services, slave: this });
             // set has done method
             this.doneMethods[method] = true;
             // return the result
@@ -230,10 +234,8 @@ class Node {
         // connect to the services
         for(let service of services){
             let res = await this.connectService(service);
-            if(!res){
-                //throw new Error('Could not connect to the service, ' + service.name);
+            if(!res)
                 console.error('Could not connect to the service, ', service.name);
-            }
         }
         this.servicesConnected = true;
         return true
@@ -243,9 +245,11 @@ class Node {
         /* this is the client inplementation.
          * it will connect to the service and create methods
          * for every listener that the service has */
-        if(!host || !port) throw new Error('The service information is not complete');
+        if(!host || !port)
+            throw new Error('The service information is not complete');
         // check if there is a service already running on the port and host
-        if(this.network === undefined) throw new Error('The network has not been set');
+        if(this.network === undefined)
+            throw new Error('The network has not been set');
         return await this.network.connect({name, host, port});
     }
     
@@ -258,7 +262,6 @@ class Node {
 
     private async exit_client(){
         // this function will exit the client node
-        log('[Node][Client] exiting node ' + this.id);
         return process.exit(0);
     }
 
@@ -293,7 +296,6 @@ class Node {
     public hasFinished = this.hasDone;
     public hasError = this.isError;
     public toFinish = this.untilFinish;
-
 }
 
 

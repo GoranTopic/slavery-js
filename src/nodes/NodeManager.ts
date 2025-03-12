@@ -141,14 +141,25 @@ class NodeManager {
       /* spawn new nodes */
       if(name === '') name = 'node_' + this.name;
       log('[nodeManager][spawnNodes] spawning nodes', name, count);
-      this.cluster.spawn(name, { 
+      this.cluster.spawn(name, {
           numberOfSpawns: count,
           metadata: metadata
       });
   }
 
-  public async killNodes({count}: {count: number}) {
-      /* TODO: kill the nodes */
+  public async killNode(nodeId: string = '') {
+      let node = (nodeId === '')? // get any node
+          this.nodes.pop():
+          this.nodes.get(nodeId);
+      if(node === null || node === undefined)
+          throw new Error('Node sentenced to death could not be found');
+      await node.exit();
+  }
+
+  public async killNodes(nodesId: string[]=[]) {
+      /* kill nodes */
+      for(let nodeId of nodesId)
+          await this.killNode(nodeId);
   }
 
   public getIdleCount(){
@@ -175,16 +186,7 @@ class NodeManager {
       return this.network.getRegisteredListeners();
   }
 
-
-  public async increaseNodes() {
-      //TODO: implement this function
-  }
-
-  public async decreaseNodes() {
-      //TODO: implement this function
-  }
-
-  public async numberOfNodes(count: number) {
+  public async numberOfNodesConnected(count: number) {
       await await_interval(() => this.nodes.size() >= count, 0)
       return true;
   }
@@ -212,11 +214,13 @@ class NodeManager {
 
   private setBusy = (NodeId: string) => this.nodes.disable(NodeId);
 
+  /* synonims */
+  public addNode = this.spawnNodes
+  public removeNode = this.killNodes
+  public getNumberOfNodes = this.getNodeCount;
+
+
 
 }
 
 export default NodeManager;
-
-
-
-

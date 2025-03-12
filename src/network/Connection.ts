@@ -43,6 +43,7 @@ class Connection {
      * @param id: string
      * @param name: string
      * */
+
     constructor({ socket, host, port, id, name, listeners, onConnect, onDisconnect, onSetListeners } : {
         id?: string, socket?: Socket, host?: string,
         port?: number, name?: string, listeners?: Listener[],
@@ -90,7 +91,6 @@ class Connection {
         /* this function inizializes the default listeners for the socket */
         // set the object listeners 
         this.listeners.forEach( l => {
-            console.log('[Connection][initilaizeListeners] setting listener: ', l.event)
             this.socket.removeAllListeners(l.event);
             this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
                 log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
@@ -189,7 +189,6 @@ class Connection {
     }
 
     public async setListeners(listeners: Listener[]): Promise<void> {
-        log('[Connection]<setListeners> sending listeners to: ', this.targetName)
         // set the listeners on the socket
         listeners.forEach( l => {
             this.listeners.push(l);
@@ -205,7 +204,7 @@ class Connection {
         if(this.type === 'server'){
             //let response = 
             await this.query('_set_listeners', listeners.map(listener => listener.event));
-            //if(response === 'ok') console.log('[Connection]<setListeners> listeners set successfully')
+            //if(response === 'ok') log('[Connection]<setListeners> listeners set successfully')
         }
     }
 
@@ -256,10 +255,9 @@ class Connection {
             let request_id = ++this.request_id;
             if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
             // send the query
-            console.log(`[${this.name}][Connection][Query] sending query from socket: `, this.type, ' to', this.targetType, 'event: ', event, 'data: ', data)
             this.socket.emit(event, {data, request_id: request_id});
             this.socket.on(event + `_${request_id}_response`, (response: any) => {
-                //console.log('[Connection][Query] got response from ', this.targetType, 'event: ', event, 'response: ', response)
+                //log('[Connection][Query] got response from ', this.targetType, 'event: ', event, 'response: ', response)
                 // clear the timeout
                 clearTimeout(timeout);
                 // clear the listener
@@ -275,12 +273,9 @@ class Connection {
     private respond(event: string, callback: Function) {
         /* this is a wrapper function to respond to a query */
         return async (parameters: any) => {
-            console.log(`[${this.name}][Connection][respond] got query: ${event} from ${this.targetName}: `, parameters)
             let data = parameters.data;
             let request_id = parameters.request_id;
             let response = await callback(data);
-            console.log(`[${this.name}][Connection][respond] callback.toString(): `, callback.toString())
-            console.log(`[${this.name}][Connection][respond] responding to query: ${event} from ${this.targetName}: `, response)
             this.socket.emit(event + `_${request_id}_response`, response);
         }
     }

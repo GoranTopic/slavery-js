@@ -14,7 +14,10 @@ type Options = {
     // the number of node that have to be idle before decreasing the number of processes
     decrease_processes_at_idles?: number,
     // thow exception on error
-    throw_error?: boolean,
+    throwError?: boolean,
+    returnError?: boolean,
+    logError?: boolean,
+    
 }
 
 export default Options;

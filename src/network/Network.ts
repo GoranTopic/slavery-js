@@ -4,10 +4,12 @@ import type Listener from './types/Listener';
 import Server from './Server';
 
 class Network {
-    /* this class will handle the connections of a node in the network. 
+    /* *
+     * this class will handle the connections of a node in the network. 
      * this node can be in eighter a server or a client.
      * Each Node will have a NetworkNode 
-     */
+     * */
+
     public id: string;
     // this is where a node store its server, 
     // which in turn stores its connections to clients

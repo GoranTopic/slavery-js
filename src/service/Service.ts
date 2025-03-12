@@ -2,8 +2,10 @@ import Network, { Listener, Connection } from '../network';
 import { NodeManager, Node } from '../nodes';
 import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
+import ServiceClient from './ServiceClient';
 import { toListeners, log } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
+import { serializeError } from 'serialize-error';
 import getPort from 'get-port';
 
 // the paramer the service will take
@@ -76,14 +78,13 @@ class Service {
         }
         // if the cluster is a slave we initialize the process
         if(this.cluster.is('slave_' + this.name)) {
-            log(`[Service][Slave][${this.name}] slave process created`);
             await this.initialize_slaves();
         }
     }
 
     private async initialize_master() {
         // initialize the node manager
-        log(`[Service][${this.name}] Initializing node manager`);
+        log(`[${this.name}] > Service > Initializing node manager`);
         await this.initlize_node_manager();
         // initialize the request queue
         this.initialize_request_queue();
@@ -96,24 +97,79 @@ class Service {
             // add out handle request function to the listener
             l => ({ ...l, callback: this.handle_request(l) })
         );
+        // add the local service listener
+        listeners = listeners.concat(this.getServiceListeners());
         // create the server
-        log(`[Service][initialize_master] service started server ${this.name} ${this.host}:${this.port}, listeners:`, listeners);
         this.network.createServer(this.name, this.host, this.port, listeners);
         // connect to the services
-        log(`[Service][initialize_master] connecting to services`, this.peerAddresses);
         let connections = await this.network.connectAll(this.peerAddresses);
         // create a service client for the services
         let services = connections.map( (c: Connection) => {
             let name = c.getTargetName();
             if(name === undefined) throw new Error('Service name is undefined');
-            return new ServiceClient(name, this.network as Network);
+            return new ServiceClient(name, this.network as Network, this.options);
         }).reduce((acc: any, s: ServiceClient) => {
             acc[s.name] = s;
             return acc;
         }, {})
         // run the callback for the master process
         if(this.masterCallback !== undefined)
-            this.masterCallback({ ...services, nodes: this.nodes });
+            this.masterCallback({ ...services, slaves: this.nodes, master: this });
+    }
+
+    private getServiceListeners() {
+        // let add the listeners which we this service will respond
+        return [{
+            // get number of nodes
+            event: '_get_nodes_count',
+            callback: () => this.nodes?.getNodeCount()
+        },{
+            event: '_get_nodes',
+            callback: () => this.nodes?.getNodes()
+        },{
+            event: '_get_idle_nodes',
+            callback: () => this.nodes?.getIdle()
+        },{
+            event: '_get_busy_nodes',
+            callback: () => this.nodes?.getBusy()
+        },{ // select individual nodes, or groups of nodes
+            event: '_select_node',
+            callback: () => {
+                //TODO: implement this
+                return null
+            }
+        },{
+            event: '_select_nodes',
+            params: ['node_ids'],
+            callback: (node_ids: string[] | string) => {
+                //TODO: implement this
+                return null
+            }
+        },{ // spawn or kill a node
+            event: '_add_node',
+            params: ['number_of_nodes'],
+            callback: (number_of_nodes: number) =>
+            this.nodes?.spawnNodes('slave_' + this.name, number_of_nodes)
+        },{ // kill a node
+            event: '_kill_node',
+            params: ['node_id'],
+            callback: (node_ids: string[] | string | undefined) =>
+            (typeof node_ids === 'string' || node_ids === undefined)?
+                this.nodes?.killNode(node_ids):
+                this.nodes?.killNodes(node_ids)
+        },{ // exit the service
+            event: '_queue_size',
+            callback: () => this.requestQueue?.queueSize()
+        },{
+            event: '_turn_over_ratio',
+            callback: () => this.requestQueue?.getTurnoverRatio()
+        },{
+            event: '_exit',
+            callback: () => {
+                this.nodes?.exit()
+                process.exit(0)
+            }
+        }];
     }
 
     private async initialize_slaves() {
@@ -126,9 +182,11 @@ class Service {
         if(metadata === undefined)
             throw new Error('could not get post and host of the node manager, metadata is undefined');
         let { host, port } = JSON.parse(metadata)['metadata'];
-        log(`[Service][Slave][${this.name}] connecting to node manager at ${host}:${port}`);
+        log(`[${this.name}] > Service > connecting to node manager at ${host}:${port}`);
         // connect with the master process
         await node.connectToMaster(host, port);
+        // add services to the node
+        await node.setServices(this.peerAddresses);
         // read the methods to be used
         node.addMethods(this.slaveMethods)
     }
@@ -175,17 +233,11 @@ class Service {
             let result = await node.run(request.method, request.parameters);
             return result;
         });
-        // set when queue has exceeded the size range
-        this.requestQueue.setQueueRange({ max: this.options.max_queued_requests || 3, min: 0 });
-        this.requestQueue.setOnQueueExceeded(() => {
-            //TODO: when we have too many request we will make a new node
-            //this.nodes?.spawnNode();
-        });
     }
 
     private handle_request(l: Listener): Function {
-        /* this function will take a the listener trigger by another service
-         * it will set the request in the queue, and return a promise
+        /* this function will take a listener triggered by another a request
+         * it will set the request in the  request queue, and return a promise
          * which resolves once the request is processed.
          * the queue will processs the request when it finds an idle node
          * and the node returns the result.
@@ -201,43 +253,13 @@ class Service {
             });
             // wait until the request is processed
             let result = await promise;
-            log('[handle_request] request resolved', result)
+            if(result.isError === true) // if there is an error serialize it
+                result.error = serializeError(result.error);
             return result;
         }
     }
 }
 
-class ServiceClient {
-    /* this class will be used to connect to a diffrent service,
-     * it will convert the class into a client handler for other services
-     * it will connect to the service and create methods
-     * for every listener that the service has. */
-    public name: string;
-    public network: Network;
-    // get the network from the connection
-    constructor(name: string, network: Network) {
-        this.name = name;
-        this.network = network;
-        // get the conenction from the network
-        let connection = this.network.getService(name);
-        // get the listneres from the target connection
-        let listeners = connection.targetListeners;
-        log(`[ServiceClient] creating methods for listeners`, listeners);
-        // create method from listners which run the query on the connection
-        listeners.forEach((listener: Listener) => {
-            log(`[ServiceClient] creating method ${listener.event}`);
-            (this as any)[listener.event] = async (data: any) => {
-                log(`[ServiceClient] sending data to ${listener.event}`, data);
-                // get the connection
-                let connection = this.network.getService(this.name);
-                // and send the data
-                let response = await connection.send(listener.event, data);
-                log(`[ServiceClient] response from ${listener.event}`, response);
-                return response;
-            }
-        });
-    }
-}
 
 
 export default Service;
