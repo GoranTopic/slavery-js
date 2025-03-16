@@ -202,7 +202,9 @@ class Node {
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
         // wait until services are connected
-        await await_interval(() => this.servicesConnected, 10000) // wait for 10 seconds
+        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+            throw new Error(`[Node][${this.id}] Could not connect to the services`);
+        })
         try {
             // set the status to working
             this.updateStatus('working');
