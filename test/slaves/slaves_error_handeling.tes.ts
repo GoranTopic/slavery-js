@@ -1,3 +1,4 @@
+import { expect } from "chai";
 import Service from '../../src/service'
 import { log } from '../../src/utils'
 // add the debug flag to the environment variables to see the debug messages
@@ -15,12 +16,17 @@ let service = new Service({
         let slave = await slaves.getIdle(); 
         await slave.run('throw_error')
         .then( (result: any) => { 
-            console.log(`[test][master] slave ${slave.id} returned`);
-            if (result.isError) 
+            expect(result.isError).to.be.true;
+            if (result.isError){ 
+                expect(result.error).instanceOf(Error);
                 throw new Error(result.error)
-            else
+            }else{
                 console.log(`[test][master] slave ${slave.id} did not return an error`);
-        }).catch(() => console.log(`[test][master] caught the error`));
+            }
+        }).catch( (error: any) => {
+            expect(error).instanceOf(Error);
+            console.log(`[${process.argv[1].split('/').pop()}] ✅ Error was Caught`);
+        });
         // end test
         slaves.exit();
         process.exit(0);

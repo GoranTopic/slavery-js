@@ -89,7 +89,7 @@ class Service {
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({name: this.name + '_service'});
+        this.network = new Network({name: this.name + '_service_network'});
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
         // list the listeners we have for the other services to request
@@ -115,61 +115,6 @@ class Service {
         // run the callback for the master process
         if(this.masterCallback !== undefined)
             this.masterCallback({ ...services, slaves: this.nodes, master: this });
-    }
-
-    private getServiceListeners() {
-        // let add the listeners which we this service will respond
-        return [{
-            // get number of nodes
-            event: '_get_nodes_count',
-            callback: () => this.nodes?.getNodeCount()
-        },{
-            event: '_get_nodes',
-            callback: () => this.nodes?.getNodes()
-        },{
-            event: '_get_idle_nodes',
-            callback: () => this.nodes?.getIdle()
-        },{
-            event: '_get_busy_nodes',
-            callback: () => this.nodes?.getBusy()
-        },{ // select individual nodes, or groups of nodes
-            event: '_select_node',
-            callback: () => {
-                //TODO: implement this
-                return null
-            }
-        },{
-            event: '_select_nodes',
-            params: ['node_ids'],
-            callback: (node_ids: string[] | string) => {
-                //TODO: implement this
-                return null
-            }
-        },{ // spawn or kill a node
-            event: '_add_node',
-            params: ['number_of_nodes'],
-            callback: (number_of_nodes: number) =>
-            this.nodes?.spawnNodes('slave_' + this.name, number_of_nodes)
-        },{ // kill a node
-            event: '_kill_node',
-            params: ['node_id'],
-            callback: (node_ids: string[] | string | undefined) =>
-            (typeof node_ids === 'string' || node_ids === undefined)?
-                this.nodes?.killNode(node_ids):
-                this.nodes?.killNodes(node_ids)
-        },{ // exit the service
-            event: '_queue_size',
-            callback: () => this.requestQueue?.queueSize()
-        },{
-            event: '_turn_over_ratio',
-            callback: () => this.requestQueue?.getTurnoverRatio()
-        },{
-            event: '_exit',
-            callback: () => {
-                this.nodes?.exit()
-                process.exit(0)
-            }
-        }];
     }
 
     private async initialize_slaves() {
@@ -235,6 +180,59 @@ class Service {
         });
     }
 
+    private getServiceListeners() {
+        // let add the listeners which we this service will respond
+        return [{
+            // get number of nodes
+            event: '_get_nodes_count',
+            callback: () => this.nodes?.getNodeCount()
+        },{
+            event: '_get_nodes',
+            callback: () => this.nodes?.getNodes()
+        },{
+            event: '_get_idle_nodes',
+            callback: () => this.nodes?.getIdle()
+        },{
+            event: '_get_busy_nodes',
+            callback: () => this.nodes?.getBusy()
+        },{ // select individual nodes, or groups of nodes
+            event: '_select_node',
+            callback: () => {
+                //TODO: implement this
+                return null
+            }
+        },{
+            event: '_select_nodes',
+            params: ['node_ids'],
+            callback: (node_ids: string[] | string) => {
+                //TODO: implement this
+                return null
+            }
+        },{ // spawn or kill a node
+            event: '_add_node',
+            params: ['number_of_nodes'],
+            callback: (number_of_nodes: number) =>
+            this.nodes?.spawnNodes('slave_' + this.name, number_of_nodes)
+        },{ // kill a node
+            event: '_kill_node',
+            params: ['node_id'],
+            callback: (node_ids: string[] | string | undefined) =>
+            (typeof node_ids === 'string' || node_ids === undefined)?
+                this.nodes?.killNode(node_ids):
+                this.nodes?.killNodes(node_ids)
+        },{ // exit the service
+            event: '_queue_size',
+            callback: () => this.requestQueue?.queueSize()
+        },{
+            event: '_turn_over_ratio',
+            callback: () => this.requestQueue?.getTurnoverRatio()
+        },{
+            event: 'exit',
+            callback: () => this.exit()
+        }];
+    }
+
+
     private handle_request(l: Listener): Function {
         /* this function will take a listener triggered by another a request
          * it will set the request in the  request queue, and return a promise
@@ -257,6 +255,16 @@ class Service {
                 result.error = serializeError(result.error);
             return result;
         }
+    }
+
+    public exit(){
+        // exit the service
+        log(`[${this.name}] will exit in 1 seconds`);
+        setTimeout(() => {
+            if(this.nodes !== undefined) this.nodes.exit();
+            process.exit(0);
+        }, 1000);
+        return true
     }
 }
 

@@ -34,6 +34,7 @@ class Node {
     public services: ServiceAddress[] = [];
     public doneMethods: { [key: string]: boolean } = {};
     public methods: { [key: string]: (parameter?: any, self?: Node) => any } = {};
+    public userStash: any = {};
 
     constructor(){}
 
@@ -47,8 +48,10 @@ class Node {
     public isError = () => this.status === 'error';
     private updateLastHeardOf = () => this.lastUpdateAt = Date.now();
     private updateStatus = (status: NodeStatus) => this.status = status;
-    public untilFinish = async () => { // await until the function is idle
-        await await_interval(() => this.isIdle(), 1000); return true;
+    public untilFinish = async () => { // await until the node is idle
+        await await_interval(() => this.isIdle(), 1000)
+        .catch(() => { throw new Error('The node is not idle') })
+        return true;
     }
     public run = async (method: string, parameter: any) => {
         if(this.mode === 'client') return await this.run_client({ method, parameter });
@@ -71,6 +74,9 @@ class Node {
         else throw new Error('The mode has not been set');
     }
 
+    public setUserStash = (key: string, value: any) => this.userStash[key] = value;
+    public getUserStash = (key: string) => this.userStash[key];
+
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
         if(this.mode !== undefined && this.mode !== null )
@@ -79,7 +85,6 @@ class Node {
         this.mode = 'server';
         // get the node id from the conenction
         this.id = connection.getTargetId();
-        log('[Node][setNodeConnection] setting node id: ' + this.id);
         // set the network
         this.network = network;
         // define the listners which we will be using to talk witht the client node
@@ -172,7 +177,9 @@ class Node {
     /* this function will be called when the client node tells us that it is working */
     public async connectToMaster(host: string, port: number){
         // conenct the master process which will tell us what to do
-        this.network = new Network({name: this.id + '_node'});
+        // create an id for the node
+        this.id = this.id || Math.random().toString(36).substring(4);
+        this.network = new Network({name: 'node', id: this.id});
         // form the conenction with the master
         this.network.connect({ host, port });
         // set the mode as a client
@@ -194,6 +201,8 @@ class Node {
 
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
+        // wait until services are connected
+        await await_interval(() => this.servicesConnected, 10000) // wait for 10 seconds
         try {
             // set the status to working
             this.updateStatus('working');
@@ -236,6 +245,8 @@ class Node {
             let res = await this.connectService(service);
             if(!res)
                 console.error('Could not connect to the service, ', service.name);
+            else 
+                log(`[Node][${this.id}] Connected to the service, ${service.name}`);
         }
         this.servicesConnected = true;
         return true
@@ -296,6 +307,13 @@ class Node {
     public hasFinished = this.hasDone;
     public hasError = this.isError;
     public toFinish = this.untilFinish;
+    public setStash = this.setUserStash;
+    public getStash = this.getUserStash;
+    public set = this.setUserStash;
+    public get = this.getUserStash;
+    public stash = this.setUserStash;
+    public unstash = this.getUserStash;
+
 }
 
 

@@ -1,4 +1,6 @@
-import Service from '../src/service'
+import { expect } from 'chai'
+import Service from '../../src/service'
+import { log } from '../../src/utils'
 import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
@@ -15,19 +17,22 @@ let test_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3003 },
         { name: 'logger', host: 'localhost', port: 3004 }
     ],
-    mastercallback: async ({ awaiter, logger}) => {
+    mastercallback: async ({ awaiter, logger, master }) => {
+        console.log(`[${process.argv[1].split('/').pop()}] starting test, node communication with a service`)
         let start = performance.now();
-        await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ].map( async (i) => await awaiter.wait(i) ))
+        await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ].map(
+            async (i) => await awaiter.wait(i).then( (res: any) => expect(res.error).to.be.undefined)
+        ))
         let end = performance.now()
-        let seconds = (end - start) / 1000
-        await logger.log(`total time: ${end - start} ms`)
+        let seconds = Math.round((end - start) / 10) / 100
         if( seconds > 15 )
-            await logger.log('❌ concurrent test failed, took: ', seconds, 'seconds');
+            console.log(`[${process.argv[1].split('/').pop()}] ❌ concurrent test failed, took: ${seconds} seconds`)
         else
-            await logger.log('✅ concurrent test passed, took: ', seconds, 'seconds');
-        await logger.log('test ended, service exiting all the nodes');
+            console.log(`[${process.argv[1].split('/').pop()}] ✅ concurrent test passed, took: ${seconds} seconds`)
         // this will send a signal to exit every node and every service
-        process.exit();
+        await awaiter.exit();
+        await logger.exit();
+        await master.exit();
     },
     options: {
         host: 'localhost',
@@ -46,7 +51,7 @@ let awaiter_service = new Service({
     slaveMethods: {
         'wait': async (wating_time: number, { logger }) => {
             let wait_function =
-                (s: number) : Promise<number> => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+                (s: number) : Promise<number> => new Promise( r => setTimeout( () => r(s), s * 1000))
             // run some code
             let s = await wait_function(wating_time)
             if( s > 7 )
@@ -76,7 +81,8 @@ let logger_service = new Service({
     ],
     slaveMethods: {
         'log': async (message: string) => {
-            console.log('form logger service: ' + message);
+            expect(message).to.be.a('string')
+            log('form logger service: ' + message);
         }
     },
     options: {

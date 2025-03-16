@@ -99,9 +99,9 @@ class NodeManager {
 
   public async getIdle() : Promise<Node> {
       /* this function return a node that is idle */
-      //log('[node manager] gettting idle node');
       // check if there are nodes in the pool
-      // if(this.nodes.isEmpty()) console.warn('no nodes in the pool');
+      if(this.nodes.isEmpty()) 
+          log('[node manager] (WARNING) no nodes found');
       // await until we get a node which is idle
       // 0 will make it wait for every for a idle node
       await await_interval(() => this.nodes.hasEnabled(), 0)
@@ -187,7 +187,9 @@ class NodeManager {
   }
 
   public async numberOfNodesConnected(count: number) {
-      await await_interval(() => this.nodes.size() >= count, 0)
+      let timeout = 100000;
+      await await_interval(() => this.nodes.size() >= count, timeout)
+      .catch(() => { throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`) });
       return true;
   }
 

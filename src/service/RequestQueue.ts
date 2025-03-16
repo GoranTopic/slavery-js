@@ -12,6 +12,7 @@ class RequestQueue {
     private queue: Queue<Request> = new Queue();
     private process_request: Function | null = null;
     private interval: NodeJS.Timeout;
+    private heartbeat = 100; // Check every 100ms if the request is completed
     private turnover_times: number[] = []; // Stores time taken for the last 500 requests
     private MAX_TURNOVER_ENTRIES = 500; // Limit storage to last 500 requests
 
@@ -59,13 +60,16 @@ class RequestQueue {
         // that will be resolved when the request is completed
         return new Promise(async (resolve, reject) => {
             this.queue.push(request);
-
-            // Wait until the request is completed
+            // Wait until the request is completed, or 60 minutes
             await await_interval(() => {
                 log(request);
                 return request.completed === true;
-            }, 10000, 100).catch(err => reject(err));
-
+            }, 60 * 60 * 1000, this.heartbeat)
+            .catch(err => {
+                console.error('[RequestQueue] Request failed to complete');
+                console.error(err);
+                reject(err)
+            });
             // Resolve the promise with the result of the request
             resolve(request.result);
         });

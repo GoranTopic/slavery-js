@@ -5,13 +5,13 @@ import Server from './Server';
 
 class Network {
     /* *
-     * this class will handle the connections of a node in the network. 
+     * this class will handle the connections of a node in the network.
      * this node can be in eighter a server or a client.
-     * Each Node will have a NetworkNode 
+     * Each Node will have a NetworkNode
      * */
 
     public id: string;
-    // this is where a node store its server, 
+    // this is where a node store its server,
     // which in turn stores its connections to clients
     public server: Server | null;
     public name: string;
@@ -26,11 +26,11 @@ class Network {
     public newListenersCallback?: Function;
 
 
-    constructor({ name = '' } : { name?: string }) {
+    constructor({ name = '', id = undefined } : { name?: string, id?: string }) {
         //log(`[Network][${name}] netowrk created`);
         this.name = name;
         this.listeners = [];
-        this.id = uuid();
+        this.id = id || uuid();
         this.server = null;
         this.connections = new Pool();
         this.serviceConnectionCallback = undefined;
@@ -39,22 +39,22 @@ class Network {
     }
 
     async connect({ name, host, port } : { name?: string, host: string, port: number }): Promise<Connection> {
-        /* this function connects to a server instance 
-         * and it keeps track of the conenction by adding it to a pool of server connection 
+        /* this function connects to a server instance or a Node Manager
+         * and it keeps track of the conenction by adding it to a pool of server connection
          * it uses the name as the key in the pool
          * then run the callback */
         const connection = new Connection({
             name : this.name, host, port, id: this.id,
             onSetListeners: this.newListenersCallback
-        }); 
+        });
         // await connection and handshake
         await connection.connected();
         // get the name of the target service
         let server_name = connection.getTargetName();
-        if(server_name === undefined) 
+        if(server_name === undefined)
             throw new Error('Server name is undefined');
         if(name !== undefined) // check if the name is the same
-            if(server_name !== name) 
+            if(server_name !== name)
                 throw new Error(`Server name mismatch: ${server_name} !== ${name}`);
         // if we already have a connection with the same id, remove it
         if(this.connections.has(server_name)) {
@@ -78,7 +78,7 @@ class Network {
         log(`[Network][${this.name}] connecting to all services`, services);
         // connect to all the services
         let connections = await Promise.all(services.map(
-            async service => await this.connect({ 
+            async service => await this.connect({
                 name: service.name,
                 host: service.host,
                 port: service.port
@@ -90,7 +90,7 @@ class Network {
         //log(`[Network][${this.name}] returning connections:`, connections);
         return connections;
     }
-    
+
     public createServer(
         name: string, host: string, port: number,
         listeners: Listener[] = []
@@ -103,11 +103,17 @@ class Network {
         this.server?.exit();
     }
 
-    public getService(name: string): Connection {
+    public getService(name: string): Connection | null {
         // get the service connection
         let service = this.connections.get(name);
-        if(service === null)  // if the service is not found we throw an error
-            throw new Error('Service not found');
+        if(service === null) {  // if the service is not found we throw an error
+            setTimeout(() => {
+                // try to get the service again
+                let services = this.connections.toArray();
+                console.error(`Services`, services);
+            }, 1000);
+            console.error(`Service ${name} not found for ${this.name}`);
+        }
         // throw an error if the service is not found
         if(service === undefined) throw new Error('Service not found');
         // return the service
@@ -188,7 +194,7 @@ class Network {
         let server_listeners = this.server?.getListeners() || [];
         let connections_listeners = this.connections.toArray().map((connection: Connection) => {
             log('inside loop conenction:', connection);
-            return { id: connection.id, listeners: connection.getListeners() }; 
+            return { id: connection.id, listeners: connection.getListeners() };
         });
         // return the listeners
         return { server: server_listeners, connections: connections_listeners };
@@ -214,7 +220,7 @@ class Network {
     public onServiceDisconnect(callback: (connection: Connection) => void) {
         this.serviceDisconnectCallback = callback;
     }
-    
+
     public onNewListeners(callback: (listeners: Listener[]) => void) {
         this.newListenersCallback = callback;
     }

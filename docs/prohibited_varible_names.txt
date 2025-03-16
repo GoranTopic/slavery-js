@@ -1,0 +1,12 @@
+FOR SERVICE NAMES WE CANNO USE the names:
+- "slave", "slaves", "master" 
+
+METHOD FOR THE SERVICES CANNOT HAVE THE NAME:
+
+- "all", "select", "selectOne", "one", "connect", "disconnect", "reconnect", "exit", 
+- "_run", "_name", "_id", "_listeners", "_set_listeners", "_set_services", "_ping", "_pong", "_exit"
+
+- "_connect_service", "_is_idle", "_is_busy", "_is_error", "_has_done", "_set_status"
+
+- "_get_nodes_count", "_get_nodes", "_get_idle_nodes", "_get_busy_nodes", "_select_node", "_select_nodes", "_add_node", "_kill_node", "_queue_size", "_turn_over_ratio"
+
