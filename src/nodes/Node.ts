@@ -216,7 +216,7 @@ class Node {
                 return acc;
             }, {})
             // run method
-            const result = await this.methods[method](parameter, { ...services, slave: this });
+            const result = await this.methods[method](parameter, { ...services, slave: this, self: this });
             // set has done method
             this.doneMethods[method] = true;
             // return the result

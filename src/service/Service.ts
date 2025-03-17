@@ -114,7 +114,7 @@ class Service {
         }, {})
         // run the callback for the master process
         if(this.masterCallback !== undefined)
-            this.masterCallback({ ...services, slaves: this.nodes, master: this });
+            this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
     }
 
     private async initialize_slaves() {

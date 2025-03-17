@@ -1,3 +1,5 @@
+import { expect } from 'chai'
+import { log } from '../../../src/utils'
 import Service from '../../../src/service'
 //import { performance } from 'perf_hooks'
 process.env.debug = 'false';
@@ -11,9 +13,11 @@ let test_service = new Service({
     peerServicesAddresses: [
         { name: 'errorer', host: 'localhost', port: 3003 }
     ],
-    mastercallback: async ({ errorer }) => {
+    mastercallback: async ({ errorer, master }) => {
         await errorer.throw_error()
-        console.log('if there was the error message printed above, then the test passed')
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ if you see and error above this line, the test passed`)
+        await errorer.exit()
+        await master.exit()
     },
     options: {
         host: 'localhost',
@@ -30,9 +34,7 @@ let error_service = new Service({
     service_name: 'errorer',
     peerServicesAddresses: [],
     slaveMethods: {
-        'throw_error': async () => {
-            throw new Error('this is an error');
-        }
+        'throw_error': async () => { throw new Error('this is an error') }
     }, // the methods that the slaves will
     options: {
         host: 'localhost',

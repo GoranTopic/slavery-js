@@ -1,5 +1,5 @@
 FOR SERVICE NAMES WE CANNO USE the names:
-- "slave", "slaves", "master" 
+- "slave", "slaves", "master", "self"
 
 METHOD FOR THE SERVICES CANNOT HAVE THE NAME:
 
