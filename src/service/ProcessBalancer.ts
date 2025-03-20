@@ -1,40 +1,59 @@
 import os from 'os';
+import { log } from '../utils';
 
 interface balancerConfig {
     minSlaves?: number;
     maxSlaves?: number;
-    scaleUpThreshold?: number;
-    scaleDownThreshold?: number;
+    queueScaleUpThreshold?: number;
+    queueScaleDownThreshold?: number;
+    maxIdleRateThreshold?: number;
+    minIdleRateThreshold?: number;
     cpuThreshold?: number;
     memThreshold?: number;
     checkInterval?: number;
-    checkQueueSize: () => number;
-    addSlave: () => void;
-    removeSlave: () => void;
+    checkSlaves: (() => { idleCount: number | undefined, workingCount:number | undefined }) | undefined;
+    checkQueueSize: (() => number) | undefined;
+    addSlave: (() => void) | undefined;
+    removeSlave: (() => void) | undefined;
 }
 
 class ProcessBalancer {
     private idleSlaves: number = 0;
     private prevQueueSize: number = 0;
 
-    private scaleUpThreshold: number;
-    private scaleDownThreshold: number;
+    private queueScaleUpThreshold: number;
+    private queueScaleDownThreshold: number;
+    private maxIdleRateThreshold: number;
+    private minIdleRateThreshold: number;
     private cpuThreshold: number;
     private memThreshold: number;
     private checkInterval: number;
-    private checkQueueSize: () => number;
-    private addSlave: () => void;
-    private removeSlave: () => void;
+    private checkQueueSize: (() => number) | undefined;
+    private checkSlaves: (() => { idleCount: number | undefined, workingCount:number | undefined }) | undefined;
+    private addSlave: (() => void) | undefined;
+    private removeSlave: (() => void) | undefined;
 
     constructor(config: balancerConfig) {
-        this.scaleUpThreshold = config.scaleUpThreshold || 5;
-        this.scaleDownThreshold = config.scaleDownThreshold || 1;
+        // if there is at least 3 request in the queue, allow to scale up
+        this.queueScaleUpThreshold = config.queueScaleUpThreshold || 3;
+        // if there is at most one request on the queue, allow to scale down
+        this.queueScaleDownThreshold = config.queueScaleDownThreshold || 1;
+        // if we are using a lot of resources, don't scale up
         this.cpuThreshold = config.cpuThreshold || 90;
         this.memThreshold = config.memThreshold || 90;
-        this.checkInterval = config.checkInterval || 5000;
+        // if 80 percent of all slaves are idle, don't allow to make more
+        this.maxIdleRateThreshold = config.maxIdleRateThreshold || 0.8
+        // if 10 percent of all slaves are idle, don't remove any
+        this.minIdleRateThreshold = config.minIdleRateThreshold || 0.1
+        // how often do we check
+        this.checkInterval = config.checkInterval || 500;
+        // function need to check
         this.checkQueueSize = config.checkQueueSize;
+        this.checkSlaves = config.checkSlaves;
         this.addSlave = config.addSlave;
         this.removeSlave = config.removeSlave;
+        // check if we got all the need callbacks
+        this.checkRequiredFunctions();
         // Initialize monitoring
         this.startMonitoring();
     }
@@ -53,39 +72,76 @@ class ProcessBalancer {
     }
 
     private monitorSystem(): void {
+        this.checkRequiredFunctions();
+        //@ts-ignore
         const queueSize = this.checkQueueSize();
+        //@ts-ignore
+        const { idleCount, workingCount } = this?.checkSlaves();
+        if(idleCount === undefined || workingCount === undefined)
+            throw new Error('checkSlaves function returned idleCount or workingCount with value of undefined')
+        const idleRate = idleCount / workingCount + idleCount
         const queueGrowth = queueSize - this.prevQueueSize;
         this.prevQueueSize = queueSize;
         const avgCpu = this.getCpuUsage();
         const avgMem = this.getMemoryUsage();
 
-        console.log(
-            `Queue Size: ${queueSize}, Growth: ${queueGrowth}, CPU: ${avgCpu.toFixed(2)}%, MEM: ${avgMem.toFixed(2)}%, Idle Slaves: ${this.idleSlaves}`
-        );
+        console.log(` 
+            Queue Size: ${queueSize},
+            Growth: ${queueGrowth},
+            CPU: ${avgCpu.toFixed(2)}%,
+            MEM: ${avgMem.toFixed(2)}%,
+            Idle Slaves: ${idleCount},
+            Working Slaves: ${workingCount},
+            Total Slaves: ${idleCount + workingCount},
+            Idle Ratio: ${(idleCount / workingCount).toFixed(2)},
+            Total Idle Slaves: ${this.idleSlaves}`
+           );
 
-        // if queue size is growing, CPU and MEM are below threshold, and we have idle slaves
-        if ( 
-            queueSize > this.scaleUpThreshold &&
-            queueGrowth > 0 &&
-            avgCpu < this.cpuThreshold &&
-            avgMem < this.memThreshold
-        ) {
-            this.addSlave();
-        }
-
-        if (
-            queueSize < this.scaleDownThreshold &&
-            this.idleSlaves > 1 &&
-            queueGrowth <= 0
-        ) {
-            this.removeSlave();
-        }
+           if (
+               // if the queue size is passed a threshold: 3
+               queueSize > this.queueScaleUpThreshold &&
+               // and it is growing
+               queueGrowth > 0 &&
+               // and the average CPU and MEM usage is below 90%
+               avgCpu < this.cpuThreshold &&
+               avgMem < this.memThreshold &&
+               // and the ratio of idle slaves to working slaves is greater than than threshold
+               idleRate < this.maxIdleRateThreshold
+           ){
+               console.log('Adding Slave!');
+               //@ts-ignore
+               this.addSlave();
+           }
+           if ( // if the queue size is less than the threshold
+               queueSize < this.queueScaleDownThreshold &&
+               // if there is at least one
+               this.idleSlaves > 1 &&
+               // if the queue size is degreesing
+               queueGrowth <= 0 &&
+               // if the idle rate is low
+               idleRate > this.minIdleRateThreshold
+              ){
+                  console.log('Removing Slave!');
+                  //@ts-ignore
+                  this.removeSlave();
+              }
     }
 
     private startMonitoring(): void {
         setInterval(() => {
             this.monitorSystem();
         }, this.checkInterval);
+    }
+
+    private checkRequiredFunctions(): void {
+        if (this.checkQueueSize === undefined)
+            throw new Error('Missing required function checkQueueSize in config');
+        if (this.checkSlaves === undefined)
+            throw new Error('Missing required function checkSlaves in config');
+        if (this.addSlave === undefined)
+            throw new Error('Missing required function addSlave in config');
+        if (this.removeSlave === undefined)
+            throw new Error('Missing required function removeSlave in config');
     }
 }
 

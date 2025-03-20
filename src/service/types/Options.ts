@@ -17,6 +17,8 @@ type Options = {
     throwError?: boolean,
     returnError?: boolean,
     logError?: boolean,
+    // auto scale based on length of Rquest Queue and the idle rate od nodes
+    auto_scale?: boolean,
     
 }
 

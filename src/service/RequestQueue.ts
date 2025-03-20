@@ -12,7 +12,7 @@ class RequestQueue {
     private queue: Queue<Request> = new Queue();
     private process_request: Function | null = null;
     private interval: NodeJS.Timeout;
-    private heartbeat = 100; // Check every 100ms if the request is completed
+    private heartbeat = 1; // Check every 100ms if the request is completed
     private turnover_times: number[] = []; // Stores time taken for the last 500 requests
     private MAX_TURNOVER_ENTRIES = 500; // Limit storage to last 500 requests
 
@@ -75,7 +75,7 @@ class RequestQueue {
         });
     }
 
-    public queueSize() {
+    public queueSize() : number {
         return this.queue.size();
     }
 

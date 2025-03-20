@@ -1,4 +1,6 @@
-import Service from '../src/service'
+import Service from '../../src/service'
+import { expect } from 'chai'
+import { log } from '../../src/utils'
 import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
@@ -8,28 +10,35 @@ process.env.debug = 'false';
 
 
 let main_service = new Service({
-    service_name: 'multi_service_test',
+    service_name: 'tester',
     peerServicesAddresses: [ 
         { name: 'awaiter', host: 'localhost', port: 3003 } 
     ], 
-    mastercallback: async ({ awaiter }) => {
+    mastercallback: async ({ awaiter, self }) => {
+        console.log(`[${process.argv[1].split('/').pop()}] starting test to see if if a service and respond to multiple requests concurrently`);
         let start = performance.now();
-        await Promise
-        .all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
-             .map( async (i) => {
-                 await awaiter.wait(i)
-                 .then( (res:any) => console.log('response: ', res.result) )
-             })
-            )
-            let end = performance.now()
-            let seconds = (end - start) / 1000
-            console.log(`[test][master] total time: ${end - start} ms`)
-            if( seconds > 15 ) console.log('❌ concurrent test failed, took: ', seconds, 'seconds');
-            else console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
-            console.log('[test][master] test ended, service exiting all the nodes');
-            // to exit the master process you need to call process.exit(0) fromt his fuction
-            // at least that is what I think is happening...
-            process.exit(0);
+        await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ].map(
+            async (i) => {
+                await awaiter.wait(i)
+                .then(
+                    (res:any) => expect(res).to.be.oneOf([
+                        `waited for ${i} seconds, 😄`, 
+                        `waited for ${i} seconds, 😃`,
+                        `waited for ${i} seconds, 😐`,
+                        `waited for ${i} seconds, 😡`
+                    ])
+                )
+            })
+        )
+        let end = performance.now()
+        let seconds = (end - start) / 1000
+        log(`[test][master] total time: ${end - start} ms`)
+        expect(seconds).to.be.lessThan(15)
+        expect(seconds).to.be.greaterThan(9)
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ the sevice can respond to multiple requests, it took ${seconds} seconds`);
+        // exit
+        await awaiter.exit()
+        await self.exit()
     },
     options: {
         host: 'localhost',
@@ -43,7 +52,7 @@ main_service.start()
 let awaiter_service = new Service({
     service_name: 'awaiter',
     peerServicesAddresses: [
-        { name: 'multi_service_test', host: 'localhost', port: 3002 }
+        { name: 'tester', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
         'setup': (params: any , slave: any) => {
@@ -51,7 +60,7 @@ let awaiter_service = new Service({
             let wait_function = 
                 (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
             slave['wait_function'] = wait_function 
-            console.log(`[test][slave][slave ${slave.id}] was setup`);
+            log(`[test][slave][slave ${slave.id}] was setup`);
             return true;
         }, 
         'wait': async (wating_time: number, slave: any) => {
@@ -60,14 +69,10 @@ let awaiter_service = new Service({
             // count sum of numbers
             let s = await wait_function(wating_time)
             // run some code
-            if( s > 7 )
-                return `waited for ${s} seconds, 😡`
-            else if( s > 5 )
-                return `waited for ${s} seconds, 😐`
-            else if( s > 2  )
-                return `waited for ${s} seconds, 😃` 
-            else
-                return `waited for ${s} seconds, 😄`
+            if( s > 7 ) return `waited for ${s} seconds, 😡`
+            else if( s > 5 ) return `waited for ${s} seconds, 😐`
+            else if( s > 2  ) return `waited for ${s} seconds, 😃` 
+            else return `waited for ${s} seconds, 😄`
         }, 
         'clean up': async (params: any, salve: any) => {
             salve['wait_function'] = undefined

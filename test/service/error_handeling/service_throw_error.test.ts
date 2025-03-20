@@ -1,5 +1,5 @@
+import { expect } from 'chai'
 import Service from '../../../src/service'
-//import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
 /*
@@ -11,12 +11,15 @@ let test_service = new Service({
     peerServicesAddresses: [
         { name: 'errorer', host: 'localhost', port: 3003 }
     ],
-    mastercallback: async ({ errorer }) => {
+    mastercallback: async ({ errorer, self }) => {
         await errorer.throw_error()
         .catch((err: Error) => {
-            console.log('error was thrown and cought')
-            return err
+            expect(err).to.be.an.instanceof(Error)
+            expect(err.message).to.equal('this is an error')
+            console.log(`[${process.argv[1].split('/').pop()}] ✅ Error was thrown and caught successfully`)
         });
+        await errorer.exit()
+        await self.exit()
     },
     options: {
         host: 'localhost',
@@ -33,9 +36,7 @@ let error_service = new Service({
     service_name: 'errorer',
     peerServicesAddresses: [],
     slaveMethods: {
-        'throw_error': async () => {
-            throw new Error('this is an error');
-        }
+        'throw_error': async () => { throw new Error('this is an error') }
     }, // the methods that the slaves will
     options: {
         host: 'localhost',

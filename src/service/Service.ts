@@ -2,6 +2,7 @@ import Network, { Listener, Connection } from '../network';
 import { NodeManager, Node } from '../nodes';
 import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
+import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
 import { toListeners, log } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
@@ -28,9 +29,10 @@ class Service {
     public host: string;
     public port: number;
     private nodes?: NodeManager;
+    private processBalancer?: ProcessBalancer | null = null;
+    private requestQueue: RequestQueue | null = null;
     public nm_host: string;
     public nm_port: number;
-    public requestQueue: RequestQueue | null = null;
     public number_of_nodes: number;
     private masterCallback?: (...args: any[]) => any;
     private slaveMethods: SlaveMethods;
@@ -57,10 +59,15 @@ class Service {
         this.options = params.options;
         // smallest number of processes need to run
         // the master and a slave
-        if(this.options.number_of_nodes === undefined)
+        if(this.options.number_of_nodes === undefined){
             this.number_of_nodes = 1;
-        else
+            if(this.options.auto_scale === undefined)
+                this.options.auto_scale = true;
+        }else{
             this.number_of_nodes = this.options.number_of_nodes;
+            if(this.options.auto_scale === undefined)
+                this.options.auto_scale = false
+        }
     }
 
     public async start() { // this will start the service
@@ -101,7 +108,9 @@ class Service {
         listeners = listeners.concat(this.getServiceListeners());
         // create the server
         this.network.createServer(this.name, this.host, this.port, listeners);
-        // connect to the services
+        // initilze the process balancer
+        this.initialize_process_balancer();
+                // connect to the services
         let connections = await this.network.connectAll(this.peerAddresses);
         // create a service client for the services
         let services = connections.map( (c: Connection) => {
@@ -127,7 +136,6 @@ class Service {
         if(metadata === undefined)
             throw new Error('could not get post and host of the node manager, metadata is undefined');
         let { host, port } = JSON.parse(metadata)['metadata'];
-        log(`[${this.name}] > Service > connecting to node manager at ${host}:${port}`);
         // connect with the master process
         await node.connectToMaster(host, port);
         // add services to the node
@@ -139,8 +147,7 @@ class Service {
     private async initlize_node_manager() {
         /* the node manage will be used to conenct to and manage the nodes */
         // if the slave methods is an empty object we will not make any nodes
-        if(Object.keys(this.slaveMethods).length === 0)
-            return this.nodes;
+        if(Object.keys(this.slaveMethods).length === 0) return null;
         // get the port for the node manager
         if(this.nm_port === 0)
             this.nm_port = await getPort({host: this.nm_host});
@@ -163,8 +170,7 @@ class Service {
     private initialize_request_queue() {
         /* this function will give the request queue all the values an callback it need tow work */
         // if there are no nodes to make don't create a request queue
-        if(Object.keys(this.slaveMethods).length === 0)
-            return this.nodes;
+        if(Object.keys(this.slaveMethods).length === 0) return null
         // create a new request queue
         this.requestQueue = new RequestQueue();
         // if node manager is not defined throw an error
@@ -180,24 +186,40 @@ class Service {
         });
     }
 
+    private initialize_process_balancer() {
+        /* this function will initialize the process balancer */
+        if(Object.keys(this.slaveMethods).length === 0) return null;
+        // if the auto scale is true we will create a process balancer
+        if(this.options.auto_scale === true){
+            this.processBalancer = new ProcessBalancer({
+                // pass the functions need for the balancer to know the hwo to balance
+                checkQueueSize: this.requestQueue?.queueSize.bind(this.requestQueue),
+                checkSlaves: () => ({ idleCount: this.nodes?.getIdleCount(), workingCount: this.nodes?.getBusyCount() }),
+                addSlave: () => this.nodes?.spawnNodes( 'slave_' + this.name, 1, { metadata: { host: this.nm_host, port: this.nm_port } }),
+                removeSlave: this.nodes?.killNodes.bind(this.nodes),
+            });
+        }
+    }
+
+
     private getServiceListeners() {
         // let add the listeners which we this service will respond
         return [{
             // get number of nodes
             event: '_get_nodes_count',
-            callback: () => this.nodes?.getNodeCount()
+            callback: () => ({ result: this.nodes?.getNodeCount() })
         },{
             event: '_get_nodes',
-            callback: () => this.nodes?.getNodes()
+            callback: () => ({ result: this.nodes?.getNodes() })
         },{
-            event: '_get_idle_nodes',
-            callback: () => this.nodes?.getIdle()
+            event: '_get_idle_nodes', // wee need to filter this array of objects
+            callback: () => ({ result: this.nodes?.getIdleNodes() })
         },{
-            event: '_get_busy_nodes',
-            callback: () => this.nodes?.getBusy()
+            event: '_get_busy_nodes', // this one too
+            callback: () =>({ result: this.nodes?.getBusyNodes() })
         },{ // select individual nodes, or groups of nodes
             event: '_select_node',
-            callback: () => {
+            callback: (parameter : string | string[] | undefined) => {
                 //TODO: implement this
                 return null
             }
@@ -212,23 +234,40 @@ class Service {
             event: '_add_node',
             params: ['number_of_nodes'],
             callback: (number_of_nodes: number) =>
-            this.nodes?.spawnNodes('slave_' + this.name, number_of_nodes)
+            ({ result: this.nodes?.spawnNodes(
+                'slave_' + this.name,
+                number_of_nodes,
+                { metadata: { host: this.nm_host, port: this.nm_port } }
+            ) })
         },{ // kill a node
             event: '_kill_node',
             params: ['node_id'],
-            callback: (node_ids: string[] | string | undefined) =>
-            (typeof node_ids === 'string' || node_ids === undefined)?
-                this.nodes?.killNode(node_ids):
-                this.nodes?.killNodes(node_ids)
+            callback: async(node_ids: string[] | string | undefined | number) => {
+                let res;
+                if(node_ids === undefined){
+                    res = await this.nodes?.killNode();
+                }else if(typeof node_ids === 'string'){
+                    res = await this.nodes?.killNode(node_ids);
+                }else if(typeof node_ids === 'number'){
+                    for(let i = 0; i < node_ids; i++) await this.nodes?.killNode();
+                }else if(node_ids.length === 0){
+                    res = await this.nodes?.killNode();
+                }else if(node_ids.length >= 1){
+                    res = await this.nodes?.killNodes(node_ids);
+                }else {
+                    return { isError: true, error: serializeError(new Error('Invalid node id')) }
+                }
+                return ({result: res});
+            }
         },{ // exit the service
             event: '_queue_size',
-            callback: () => this.requestQueue?.queueSize()
+            callback: () => ({ result: this.requestQueue?.queueSize() })
         },{
             event: '_turn_over_ratio',
-            callback: () => this.requestQueue?.getTurnoverRatio()
+            callback: () => ({ result: this.requestQueue?.getTurnoverRatio() })
         },{
             event: 'exit',
-            callback: () => this.exit()
+            callback: () => ({ result: this.exit() })
         }];
     }
 
@@ -258,10 +297,13 @@ class Service {
     }
 
     public exit(){
-        // exit the service
         log(`[${this.name}] will exit in 1 seconds`);
         setTimeout(() => {
+            // we close the connections we have,
+            if(this.network !== undefined) this.network.close();
+            // we close the node manager, with all the nodes
             if(this.nodes !== undefined) this.nodes.exit();
+            // then we exit the process
             process.exit(0);
         }, 1000);
         return true

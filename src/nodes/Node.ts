@@ -65,7 +65,7 @@ class Node {
     }
     public exit = async () => {
         if(this.mode === 'client') return await this.exit_client();
-        else if(this.mode === 'server') return await this.send('_exit', null);
+        else if(this.mode === 'server') return await this.exit_server();
         else throw new Error('The mode has not been set');
     }
     public ping = async () => {
@@ -140,10 +140,11 @@ class Node {
     }
 
     public async exit_server(){
-        // this function tell the node client to exti
-        return await this.send('_exit')
+        // this function tell the node client to exit
+        let res = await this.send('_exit', null)
         // we catch the timeout erro scince the client node will exit
         .catch((error) => { if(error === 'timeout') return true; else throw error; });
+        return res
     }
 
     public async registerServices(service: ServiceAddress[]){
@@ -188,12 +189,11 @@ class Node {
         this.listeners = [
             { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
             { event: '_set_services', parameters: ['services'], callback: this.setServices_client.bind(this) },
-            { event: '_is_idle', parameters: [], callback: this.isIdle },
-            { event: '_is_busy', parameters: [], callback: this.isBusy },
-            { event: '_is_error', parameters: [], callback: this.isError },
-            { event: '_has_done', parameters: ['method'], callback: this.hasDone },
+            { event: '_is_idle', parameters: [], callback: this.isIdle.bind(this) },
+            { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
+            { event: '_has_done', parameters: ['method'], callback: this.hasDone.bind(this) },
             { event: '_ping', parameters: [], callback: () => 'pong' },
-            { event: '_exit', parameters: [], callback: this.exit }
+            { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
@@ -274,8 +274,14 @@ class Node {
     }
 
     private async exit_client(){
-        // this function will exit the client node
-        return process.exit(0);
+        // before we bail we must be nice enough to close our connections
+        setTimeout(() => {
+            // we close the connections we have,
+            if(this.network !== undefined) this.network.close();
+            // then we exit the process
+            process.exit(0);
+        }, 1000);
+        return true
     }
 
     public getListeners(){

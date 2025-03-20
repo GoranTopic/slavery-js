@@ -4,11 +4,11 @@ import { log } from '../../src/utils'
 import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
-/*
-   This test will create three services, one will be the test service while the other
-   will be the awaiter service, which represents the processing and
-   and the logger service which will log the results of the processing
-   */
+/* *
+ * This test will create three services, one will be the test service while the other
+ * will be the awaiter service, which represents the processing and
+ * and the logger service which will log the results of the processing
+ * */
 
 
 let test_service = new Service({
@@ -21,7 +21,7 @@ let test_service = new Service({
         console.log(`[${process.argv[1].split('/').pop()}] starting test, node communication with a service`)
         let start = performance.now();
         await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ].map(
-            async (i) => await awaiter.wait(i).then( (res: any) => expect(res.error).to.be.undefined)
+            async (i) => await awaiter.wait(i).then( (res: any) => expect(res).not.to.be.undefined )
         ))
         let end = performance.now()
         let seconds = Math.round((end - start) / 10) / 100
@@ -62,6 +62,7 @@ let awaiter_service = new Service({
                 await logger.log(`waited for ${s} seconds, 😐`)
             else
                 await logger.log(`waited for ${s} seconds, 😄`)
+            return s
         }
     },
     options: {

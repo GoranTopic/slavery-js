@@ -99,21 +99,22 @@ class Network {
         this.server = new Server({ name, host, port, listeners });
     }
 
-    public closeServer() {
-        this.server?.exit();
+    public close() {
+        // if we have a server we close it
+        if(this.server){
+            this.server.close()
+        }
+        // close all the connections
+        this.connections.toArray().forEach((connection: Connection) => {
+            connection.close();
+        });
     }
 
     public getService(name: string): Connection | null {
         // get the service connection
         let service = this.connections.get(name);
-        if(service === null) {  // if the service is not found we throw an error
-            setTimeout(() => {
-                // try to get the service again
-                let services = this.connections.toArray();
-                console.error(`Services`, services);
-            }, 1000);
+        if(service === null) // if the service is not found we throw an error
             console.error(`Service ${name} not found for ${this.name}`);
-        }
         // throw an error if the service is not found
         if(service === undefined) throw new Error('Service not found');
         // return the service

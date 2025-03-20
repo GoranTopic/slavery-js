@@ -115,8 +115,18 @@ class NodeManager {
   }
 
   public getBusy(){
-      // returned the diabled nodes
-      return this.nodes.getDisabled();
+      // returned a single busy node
+      return this.nodes.getDisabled().pop();
+  }
+
+  public getIdleNodes() : Node[] {
+      /* this function return the nodes which are idle */
+      return this.nodes.getEnabledObjects();
+  }
+
+  public getBusyNodes() : Node[] {
+      /* this function return the nodes which are busy */
+      return this.nodes.getDisabledObjects();
   }
 
   public async forEach(callback: (node: Node) => void) {
@@ -148,11 +158,16 @@ class NodeManager {
   }
 
   public async killNode(nodeId: string = '') {
-      let node = (nodeId === '')? // get any node
-          this.nodes.pop():
-          this.nodes.get(nodeId);
+      // this function will get an idle node fom the pool 
+      if(this.nodes.isEmpty())
+          return false
+      // get an idle node
+      let node = (nodeId === '')?
+          this.nodes.removeOne() :
+          this.nodes.remove(nodeId);
       if(node === null || node === undefined)
           throw new Error('Node sentenced to death could not be found');
+      // and exit it 
       await node.exit();
   }
 

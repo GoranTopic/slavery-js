@@ -24,6 +24,7 @@ class ServiceClient {
         this.options = options;
         // get the conenction from the network
         let connection = this.network.getService(name);
+        if(connection === null) throw new Error(`Service ${name} not found`);
         // get the listneres from the target connection
         let listeners = connection.targetListeners;
         // create method from listners which run the query on the connection
@@ -32,6 +33,7 @@ class ServiceClient {
                 // get the connection
                 let connection = this.network.getService(this.name);
                 // and send the data
+                if (connection === null) throw new Error(`Service ${name} not found`);
                 let response = await connection.send(listener.event, data);
                 // check if we got an error and handle it
                 if (response.isError === true) {
@@ -41,7 +43,7 @@ class ServiceClient {
                     if (this.options.returnError) return error;
                     else return null;
                 }
-                return response;
+                return response.result;
             }
         });
     }

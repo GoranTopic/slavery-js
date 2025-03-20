@@ -97,7 +97,9 @@ class NetworkServer {
     }
 
     private handleDisconnection(socket: Socket) {
+        console.log('[Server] got disconnection from node');
         let socketId = socket.id
+        console.log('[Server] socket id: ', socketId);
         // filter every client based on the socket id
         let conn = this.clients.toArray()
         .filter((client: Connection) => client.socketId === socketId)[0];
@@ -171,7 +173,7 @@ class NetworkServer {
         return client.getListeners();
     }
 
-    async exit() {
+    async close() {
         // broadcast exit to all slaves
         this.io.emit('_exit');
         // close all sockets

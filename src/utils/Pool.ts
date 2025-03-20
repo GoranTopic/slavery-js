@@ -2,7 +2,8 @@ import Queue from './Queue'
 import log from './log'
 
 class Pool<T> {
-    /* this class handle the socket connectd
+    /* *
+     * this class handle the socket connectd
      * queue of sockets and manages connection with the workers
      * */
 
@@ -114,9 +115,6 @@ class Pool<T> {
         return this.enabled.size() > 0;
     }
 
-    next() : T | null {
-        return this.rotate();
-    }
 
     nextAndDisable() : T | null { // dequeue and disable
         if(this.size() === 0) return null
@@ -147,7 +145,21 @@ class Pool<T> {
         return null;
     }
 
+    removeOne() : T | null {
+        // get the first element of the enabled list
+        if(this.enabled.size() > 0){
+            let id = this.enabled.dequeue();
+            if(id === undefined || id === false) return null;
+            // remove the item from the pool
+            let item = this.items[id];
+            delete this.items[id];
+            return item;
+        }
+        return null;
+    }
+
     get( id: string ) : T | null {
+        /* get the item from the pool */
         if(!this.has(id)) return null;
         return this.items[id];
     }
@@ -201,8 +213,16 @@ class Pool<T> {
         return this.enabled.toArray();
     }
 
+    getEnabledObjects() : T[] {
+        return this.enabled.toArray().map( id => this.items[id] );
+    }
+
     getDisabled() : string[] {
         return this.disabled;
+    }
+
+    getDisabledObjects() : T[] {
+        return this.disabled.map( id => this.items[id] );
     }
 
     getConnections() : string[] {
@@ -218,7 +238,8 @@ class Pool<T> {
         else return false;
     }
 
-     // synonims
+    // synonims
+    next = this.rotate
     pop = this.nextAndDisable;
     shift = this.nextAndEnable;
     unshift = this.add;

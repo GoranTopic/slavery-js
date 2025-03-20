@@ -1,4 +1,3 @@
-import { expect } from 'chai'
 import { log } from '../../../src/utils'
 import Service from '../../../src/service'
 //import { performance } from 'perf_hooks'
