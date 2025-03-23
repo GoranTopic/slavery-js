@@ -8,7 +8,7 @@ process.env.debug = 'false';
 
 
 let test_service = new Service({
-    service_name: 'multi_service_test',
+    service_name: 'test',
     peerServicesAddresses: [ 
         { name: 'awaiter', host: 'localhost', port: 3003 } 
     ], 
@@ -17,14 +17,14 @@ let test_service = new Service({
         // ask the awaiter to create a new node
         await awaiter._add_node()
         // wait for some time, 3 seconds
-        await new Promise( r => setTimeout( () => r(1), 2 * 1000) )
+        await awaiter._number_of_nodes_connected(2)
         // get the number of slaves again
         let second_slave_count = await awaiter._get_nodes_count()
         expect(second_slave_count).to.be.equal(2)
         // add more nodes
         await awaiter._add_node(30)
         // wait for some time, 3 seconds
-        await new Promise( r => setTimeout( () => r(1), 3 * 1000) )
+        await awaiter._number_of_nodes_connected(32)
         // get the number of slaves again
         let third_slave_count = await awaiter._get_nodes_count()
         expect(third_slave_count).to.be.equal(32)
@@ -36,7 +36,6 @@ let test_service = new Service({
     options: {
         host: 'localhost',
         port: 3002,
-        number_of_nodes: 1,
     }
 })
 test_service.start()
@@ -45,7 +44,7 @@ test_service.start()
 let awaiter_service = new Service({
     service_name: 'awaiter',
     peerServicesAddresses: [
-        { name: 'multi_service_test', host: 'localhost', port: 3002 }
+        { name: 'test', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
         'wait': async () => await new Promise( r => { setTimeout( () => { r(1) }, 1 * 1000) })
@@ -53,7 +52,8 @@ let awaiter_service = new Service({
     options: {
         host: 'localhost',
         port: 3003,
-        auto_scale: true,
+        auto_scale: false,
+        number_of_nodes: 1,
     }
 })
 awaiter_service.start()

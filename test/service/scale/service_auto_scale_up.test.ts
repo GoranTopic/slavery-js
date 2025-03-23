@@ -24,14 +24,12 @@ let test_service = new Service({
         console.log(`[${process.argv[1].split('/').pop()}] testing the ability of the service to auto scale up`)
         // check the number of slave awaiter has
         let first_slave_count = await awaiter._get_nodes_count()
-        console.log('[test][master] first slave count: ', first_slave_count)
         // set inteval for asking the awaiter 
         let interval = setInterval( () => awaiter.wait(time_to_wait), next_request_interval * 1000 )
         // wait for some time, to let the service scale up
         await wait(10)
         // get the number of slaves again
         let second_slave_count = await awaiter._get_nodes_count()
-        console.log('[test][master] second slave count: ', second_slave_count)
         // check if the number of slaves has increased by at least the percentage_to_scale
         expect(second_slave_count).to.be.greaterThan(first_slave_count * (1 + percentage_to_scale_up))
         console.log(`[${process.argv[1].split('/').pop()}] ✅ service was able to scale up by at least ${percentage_to_scale_up * 100}%`)

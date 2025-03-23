@@ -50,6 +50,7 @@ let test_service = new Service({
     options: {
         host: 'localhost',
         port: 3002,
+        auto_scale: false,
     }
 })
 test_service.start()
