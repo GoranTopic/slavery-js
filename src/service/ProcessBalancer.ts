@@ -18,9 +18,8 @@ interface balancerConfig {
 }
 
 class ProcessBalancer {
-    private idleSlaves: number = 0;
     private prevQueueSize: number = 0;
-
+    private interval: NodeJS.Timeout | undefined;
     private queueScaleUpThreshold: number;
     private queueScaleDownThreshold: number;
     private maxIdleRateThreshold: number;
@@ -55,7 +54,7 @@ class ProcessBalancer {
         // check if we got all the need callbacks
         this.checkRequiredFunctions();
         // Initialize monitoring
-        this.startMonitoring();
+        this.interval = this.startMonitoring();
     }
 
     private getCpuUsage(): number {
@@ -86,7 +85,7 @@ class ProcessBalancer {
         const avgCpu = this.getCpuUsage();
         const avgMem = this.getMemoryUsage();
 
-        console.log(`
+        log(`[ProcessBalancer]
             Queue Size: ${queueSize},
             Growth: ${queueGrowth},
             CPU: ${avgCpu.toFixed(2)}%,
@@ -108,7 +107,7 @@ class ProcessBalancer {
                // and the ratio of idle slaves to working slaves is greater than than threshold
                idleRate < this.maxIdleRateThreshold
            ){
-               console.log('Adding Slave!');
+               log('Scaling up');
                //@ts-ignore
                this.addSlave();
            }
@@ -121,14 +120,14 @@ class ProcessBalancer {
                // if the idle rate is low
                idleRate > this.minIdleRateThreshold
               ){
-                  console.log('Removing Slave!');
+                  log('Scaling down');
                   //@ts-ignore
                   this.removeSlave();
               }
     }
 
-    private startMonitoring(): void {
-        setInterval(() => {
+    private startMonitoring(): NodeJS.Timeout {
+        return setInterval(() => {
             this.monitorSystem();
         }, this.checkInterval);
     }
@@ -142,6 +141,11 @@ class ProcessBalancer {
             throw new Error('Missing required function addSlave in config');
         if (this.removeSlave === undefined)
             throw new Error('Missing required function removeSlave in config');
+    }
+
+    public exit(): void {
+        // end monitoring
+        clearInterval(this.interval);
     }
 }
 

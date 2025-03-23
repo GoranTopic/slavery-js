@@ -1,7 +1,6 @@
 import Service from '../../../src/service'
-//import { expect } from 'chai'
+import { expect } from 'chai'
 //import { log } from '../../../src/utils'
-//import { performance } from 'perf_hooks'
 process.env.debug = 'false';
 
 // this test will check if the service can automaticaly scale up 
@@ -11,8 +10,9 @@ process.env.debug = 'false';
 const wait = async (seconds: number) => new Promise( r => setTimeout( () => r(1), seconds * 1000) )
 
 
-const time_to_wait = 10
-const next_request_interval = 1
+const time_to_wait = 2
+const next_request_interval = 0.5
+const percentage_to_scale_up = 0.9
 
 
 let test_service = new Service({
@@ -21,26 +21,24 @@ let test_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3003 } 
     ], 
     mastercallback: async ({ awaiter, self }) => {
+        console.log(`[${process.argv[1].split('/').pop()}] testing the ability of the service to auto scale up`)
         // check the number of slave awaiter has
         let first_slave_count = await awaiter._get_nodes_count()
         console.log('[test][master] first slave count: ', first_slave_count)
         // set inteval for asking the awaiter 
-        setInterval( () => {
-            awaiter.wait(time_to_wait)
-            console.log('[Master] Request made')
-        }, next_request_interval * 1000 )
-        // wait for some time, 3 seconds
-        //await wait(3)
+        let interval = setInterval( () => awaiter.wait(time_to_wait), next_request_interval * 1000 )
+        // wait for some time, to let the service scale up
+        await wait(10)
         // get the number of slaves again
-        //let second_slave_count = await awaiter._get_nodes_count()
-        //console.log('[test][master] second slave count: ', second_slave_count)
-        /*
-           console.log('[test][master] second slave count: ', second_slave_count)
-           else console.log('✅ concurrent test passed, took: ', seconds, 'seconds');
-           console.log('[test][master] test ended, service exiting all the nodes');
-           */
-        //await awaiter.exit()
-        //await self.exit()
+        let second_slave_count = await awaiter._get_nodes_count()
+        console.log('[test][master] second slave count: ', second_slave_count)
+        // check if the number of slaves has increased by at least the percentage_to_scale
+        expect(second_slave_count).to.be.greaterThan(first_slave_count * (1 + percentage_to_scale_up))
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ service was able to scale up by at least ${percentage_to_scale_up * 100}%`)
+        // clear the interval
+        clearInterval(interval)
+        await awaiter.exit()
+        await self.exit()
     },
     options: {
         host: 'localhost',
@@ -56,12 +54,7 @@ let awaiter_service = new Service({
         { name: 'test', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
-        'wait': async (seconds: number) =>{
-            console.log('[slave] waiting for ' + seconds)
-            await wait(seconds)
-            console.log('[slave] wating ended ' + seconds)
-            return 
-        }
+        'wait': async (seconds: number) => await wait(seconds)
     },
     options: {
         host: 'localhost',

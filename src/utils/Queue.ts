@@ -95,6 +95,9 @@ class Queue<T> {
         return this.items.length === 0;
     }
 
+    // clear the queue
+    clear = () => this.items = [];
+
     // synonyms
     pop =  this.dequeue;
     push = this.enqueue;
@@ -102,7 +105,6 @@ class Queue<T> {
     unshift = this.enqueue;
     front = this.peek;
     end = this.next;
-    clear = this.items = [];
 }
 
 export default Queue;

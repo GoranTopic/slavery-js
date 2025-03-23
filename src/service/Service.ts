@@ -177,13 +177,8 @@ class Service {
             this.requestQueue = new RequestQueue({
                 // we pass the functions that the request queue will use
                 get_slave: this.nodes.getIdle.bind(this.nodes),
-                process_request: async ( node: Node, request: Request) => {
-                    // get an idle node from the node manager
-                    console.log('[Processing Request] got idle node:', node.id);
-                    // send the request to the node
-                    let result = await node.run(request.method, request.parameters);
-                    return result;
-                }
+                process_request: 
+                    async (node: Node, request: Request) => await node.run(request.method, request.parameters)
             });
     }
 
@@ -197,7 +192,7 @@ class Service {
                 checkQueueSize: this.requestQueue?.queueSize.bind(this.requestQueue),
                 checkSlaves: () => ({ idleCount: this.nodes?.getIdleCount(), workingCount: this.nodes?.getBusyCount() }),
                 addSlave: () => this.nodes?.spawnNodes( 'slave_' + this.name, 1, { metadata: { host: this.nm_host, port: this.nm_port } }),
-                removeSlave: this.nodes?.killNodes.bind(this.nodes),
+                removeSlave: () => this.nodes?.killNode()
             });
         }
     }
@@ -218,6 +213,10 @@ class Service {
         },{
             event: '_get_busy_nodes', // this one too
             callback: () =>({ result: this.nodes?.getBusyNodes() })
+        },{
+            event: '_number_of_nodes_connected',
+            params: ['node_num'],
+            callback: async (node_num: number) => await this.nodes?.numberOfNodesConnected(node_num)
         },{ // select individual nodes, or groups of nodes
             event: '_select_node',
             callback: (parameter : string | string[] | undefined) => {
@@ -298,13 +297,17 @@ class Service {
     }
 
     public exit(){
-        log(`[${this.name}] will exit in 1 seconds`);
+        //log(`[${this.name}] will exit in 1 seconds`);
         setTimeout(() => {
-            // we close the connections we have,
-            if(this.network !== undefined) this.network.close();
-            // we close the node manager, with all the nodes
-            if(this.nodes !== undefined) this.nodes.exit();
-            // then we exit the process
+            // first we close the ProcessBalancer if we have one
+            if(this.processBalancer) this.processBalancer.exit();
+            // request queue will be closed
+            if(this.requestQueue) this.requestQueue.exit();
+            // then we close the nodes Manager
+            if(this.nodes) this.nodes.exit();
+            // then we close the connections we have,
+            if(this.network) this.network.close();
+            // lastly we close ourselves, how sad
             process.exit(0);
         }, 1000);
         return true
