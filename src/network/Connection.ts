@@ -65,7 +65,7 @@ class Connection {
             this.socket = socket;
             // get the id of client
             this.targetId = socket.handshake.auth.id;
-            log('[Connection][server] targetId: ', this.targetId)
+            //log('[Connection][server] targetId: ', this.targetId)
             // since we are already getting the socket
             this.isConnected = true;
             // if get a host and port to connect to the server
@@ -93,7 +93,7 @@ class Connection {
         this.listeners.forEach( l => {
             this.socket.removeAllListeners(l.event);
             this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
-                log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
+                //log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
                 return await l.callback(parameters);
             }));
         });
@@ -101,7 +101,7 @@ class Connection {
         this.socket.on("_listeners", this.respond("_listeners", () => this.getListeners()));
         // if the target is sending a their listeners
         this.socket.on("_set_listeners", this.respond("_set_listeners", (listeners: string[]) => {
-            log(`[${this.id}] [Connection][Node] got liteners from ${this.targetName}: `, listeners)
+            //log(`[${this.id}] [Connection][Node] got liteners from ${this.targetName}: `, listeners)
             this.targetListeners =
                 listeners.map(event => ({ event, callback: () => {} }));
             this.onSetListenersCallback(this.targetListeners);
@@ -113,17 +113,17 @@ class Connection {
         this.socket.on("_id", () => this.id);
         // on connected
         this.socket.on("connect", async () => {
-            log(`[connection][${this.socket.id}] is connected, querying target name and listeners:`)
+            //log(`[connection][${this.socket.id}] is connected, querying target name and listeners:`)
             // ask for listeners
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
-            log(`[connection][${this.socket.id}] target name: ${this.targetName}, target listeners: ${this.targetListeners}`)
+            //log(`[connection][${this.socket.id}] target name: ${this.targetName}, target listeners: ${this.targetListeners}`)
             this.isConnected = true;
             this.onConnectCallback(this);
         });
         // if it disconnects
         this.socket.on("reconnect", async (attempt: number) => {
-            log(`[connection][${this.socket.id}] is reconnected, attempt: ${attempt}`)
+            //log(`[connection][${this.socket.id}] is reconnected, attempt: ${attempt}`)
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
             this.isConnected = true;
@@ -131,7 +131,7 @@ class Connection {
         });
         // if it disconnects
         this.socket.on("diconnect", () => {
-            log(`[connection][${this.socket.id}] is disconnected`)
+            //log(`[connection][${this.socket.id}] is disconnected`)
             this.isConnected = false;
             this.onDisconnectCallback(this);
         });

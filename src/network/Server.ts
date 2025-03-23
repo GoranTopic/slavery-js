@@ -174,12 +174,8 @@ class NetworkServer {
     }
 
     async close() {
-        // broadcast exit to all slaves
-        this.io.emit('_exit');
         // close all sockets
         this.io.close();
-        // exit process
-        process.exit();
     }
 
 }
