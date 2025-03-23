@@ -14,10 +14,12 @@ class Queue<T> {
         return true;
     }
 
-    dequeue() {
+    dequeue(): T | false {
         // remove item from the beginning of the queue
         if(this.items.length > 0) {
-            return this.items.shift()
+            const item = this.items.shift()
+            if(item === undefined) return false;
+            return item;
         }
         return false;
     }

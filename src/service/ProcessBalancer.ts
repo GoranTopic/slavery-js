@@ -37,7 +37,7 @@ class ProcessBalancer {
         // if there is at least 3 request in the queue, allow to scale up
         this.queueScaleUpThreshold = config.queueScaleUpThreshold || 3;
         // if there is at most one request on the queue, allow to scale down
-        this.queueScaleDownThreshold = config.queueScaleDownThreshold || 1;
+        this.queueScaleDownThreshold = config.queueScaleDownThreshold || 0;
         // if we are using a lot of resources, don't scale up
         this.cpuThreshold = config.cpuThreshold || 90;
         this.memThreshold = config.memThreshold || 90;
@@ -72,11 +72,12 @@ class ProcessBalancer {
     }
 
     private monitorSystem(): void {
+        if(this.checkQueueSize === undefined) throw Error('checkQueueSize is undefined');
+        if(this.checkSlaves === undefined) throw Error('checkSlaves is undefined');
+
         this.checkRequiredFunctions();
-        //@ts-ignore
         const queueSize = this.checkQueueSize();
-        //@ts-ignore
-        const { idleCount, workingCount } = this?.checkSlaves();
+        const { idleCount, workingCount } = this.checkSlaves();
         if(idleCount === undefined || workingCount === undefined)
             throw new Error('checkSlaves function returned idleCount or workingCount with value of undefined')
         const idleRate = idleCount / workingCount + idleCount
@@ -85,7 +86,7 @@ class ProcessBalancer {
         const avgCpu = this.getCpuUsage();
         const avgMem = this.getMemoryUsage();
 
-        console.log(` 
+        console.log(`
             Queue Size: ${queueSize},
             Growth: ${queueGrowth},
             CPU: ${avgCpu.toFixed(2)}%,
@@ -93,8 +94,7 @@ class ProcessBalancer {
             Idle Slaves: ${idleCount},
             Working Slaves: ${workingCount},
             Total Slaves: ${idleCount + workingCount},
-            Idle Ratio: ${(idleCount / workingCount).toFixed(2)},
-            Total Idle Slaves: ${this.idleSlaves}`
+            Idle Ratio: ${(idleCount / workingCount).toFixed(2)}`
            );
 
            if (
@@ -112,11 +112,11 @@ class ProcessBalancer {
                //@ts-ignore
                this.addSlave();
            }
-           if ( // if the queue size is less than the threshold
-               queueSize < this.queueScaleDownThreshold &&
+           if ( // if the queue size is less than or equal to the threshold
+               queueSize <= this.queueScaleDownThreshold &&
                // if there is at least one
-               this.idleSlaves > 1 &&
-               // if the queue size is degreesing
+               idleCount > 1 &&
+               // if the queue size is degreesing or not growing
                queueGrowth <= 0 &&
                // if the idle rate is low
                idleRate > this.minIdleRateThreshold

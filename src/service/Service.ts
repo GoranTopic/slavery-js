@@ -171,19 +171,20 @@ class Service {
         /* this function will give the request queue all the values an callback it need tow work */
         // if there are no nodes to make don't create a request queue
         if(Object.keys(this.slaveMethods).length === 0) return null
-        // create a new request queue
-        this.requestQueue = new RequestQueue();
-        // if node manager is not defined throw an error
-        if(this.nodes === undefined) throw new Error('Node Manager is not defined');
-        // how do process a request
-        this.requestQueue.setProcessRequest( async (request: Request) => {
+            // if node manager is not defined throw an error
             if(this.nodes === undefined) throw new Error('Node Manager is not defined');
-            // get an idle node from the node manager
-            let node = await this.nodes.getIdle();
-            // send the request to the node
-            let result = await node.run(request.method, request.parameters);
-            return result;
-        });
+            // create a new request queue
+            this.requestQueue = new RequestQueue({
+                // we pass the functions that the request queue will use
+                get_slave: this.nodes.getIdle.bind(this.nodes),
+                process_request: async ( node: Node, request: Request) => {
+                    // get an idle node from the node manager
+                    console.log('[Processing Request] got idle node:', node.id);
+                    // send the request to the node
+                    let result = await node.run(request.method, request.parameters);
+                    return result;
+                }
+            });
     }
 
     private initialize_process_balancer() {
