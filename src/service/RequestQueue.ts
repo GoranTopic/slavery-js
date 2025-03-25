@@ -42,8 +42,9 @@ class RequestQueue {
             this.isRunning = true;
             // get the first request from queue
             let request = this.queue.pop();
+            if(request === false) throw new Error('Request is null... is the request queue empty?');
             // get a slave to process the request
-            const slave = await this.get_slave();
+            const slave = await this.get_slave(request.selector);
             // process the request
             let startTime = Date.now();
             let endTime : number;
@@ -52,9 +53,9 @@ class RequestQueue {
             // process the request
             this.process_request(slave, request).then(
                 (result: any) => { // record the time
+                    if(!request) throw new Error('Request is false... is the request queue empty?');
                     endTime = Date.now();
                     // add values to the request
-                    if(request === false) throw new Error('Request is null... now what?');
                     request.completed = true;
                     request.result = result;
                     // Track the time taken for this request

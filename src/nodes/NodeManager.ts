@@ -54,7 +54,6 @@ class NodeManager {
         this.network.onNodeConnection(this.handleNewNode.bind(this));
         // handle when a node is disconnected
         this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
-
   }
 
   private handleNewNode(connection: Connection) {
@@ -97,10 +96,18 @@ class NodeManager {
           throw new Error('invalid node status');
   }
 
-  public async getIdle() : Promise<Node> {
+  public async getIdle(node_id: string = '') : Promise<Node> {
       /* this function return a node that is idle */
+      if(node_id !== '') { // we are looking for a specific node on the pool
+          let node = this.getNode(node_id);
+          // await for seelcted node to be idle
+          await await_interval(() => node.isIdle(), 60 * 60 * 60 * 1000).catch(() => {
+              throw new Error(`timeout of one hour, node ${node_id} is not idle`);
+          });
+          return node;
+      }
       // check if there are nodes in the pool
-      if(this.nodes.isEmpty()) 
+      if(this.nodes.isEmpty())
           log('[node manager] (WARNING) no nodes found');
       // await until we get a node which is idle
       // 0 will make it wait for every for a idle node
@@ -158,7 +165,7 @@ class NodeManager {
   }
 
   public async killNode(nodeId: string = '') {
-      // this function will get an idle node fom the pool 
+      // this function will get an idle node fom the pool
       if(this.nodes.isEmpty())
           return false
       // get an idle node
@@ -167,7 +174,7 @@ class NodeManager {
           this.nodes.remove(nodeId);
       if(node === null || node === undefined)
           throw new Error('Node sentenced to death could not be found');
-      // and exit it 
+      // and exit it
       await node.exit();
   }
 
@@ -194,6 +201,13 @@ class NodeManager {
 
   public getNodeCount() {
     return this.nodes.size();
+  }
+
+  public getNode(nodeId: string) {
+      // get a node by its id
+      let node = this.nodes.get(nodeId);
+      if(node === null) throw new Error(`[node manager] (ERROR) selected node ${nodeId} not found`);
+      return node;
   }
 
   public getListeners() {

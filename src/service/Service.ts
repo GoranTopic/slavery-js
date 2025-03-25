@@ -200,13 +200,14 @@ class Service {
 
     private getServiceListeners() {
         // let add the listeners which we this service will respond
-        return [{
+        // lets ignore the selector field
+        let listeners = [{
             // get number of nodes
             event: '_get_nodes_count',
             callback: () => ({ result: this.nodes?.getNodeCount() })
         },{
             event: '_get_nodes',
-            callback: () => ({ result: this.nodes?.getNodes() })
+            callback: () => this.nodes?.getNodes().map((n: Node) => ({ status: n.status, id: n.id }))
         },{
             event: '_get_idle_nodes', // wee need to filter this array of objects
             callback: () => ({ result: this.nodes?.getIdleNodes() })
@@ -218,17 +219,18 @@ class Service {
             params: ['node_num'],
             callback: async (node_num: number) => await this.nodes?.numberOfNodesConnected(node_num)
         },{ // select individual nodes, or groups of nodes
-            event: '_select_node',
-            callback: (parameter : string | string[] | undefined) => {
-                //TODO: implement this
-                return null
-            }
-        },{
-            event: '_select_nodes',
-            params: ['node_ids'],
-            callback: (node_ids: string[] | string) => {
-                //TODO: implement this
-                return null
+            event: '_select',
+            params: ['node_num'],
+            callback: async (node_num: number) => {
+                // get the idle nodes 
+                let nodes = this.nodes?.getNodes().map((n: Node) => n.id);
+                if(nodes === undefined) return { isError: true, error: serializeError(new Error('Nodes are undefined')) }
+                // if the number of nodes is greater than the number of nodes we have
+                if(node_num > nodes.length) return { isError: true, error: serializeError(new Error('Not enough nodes')) }
+                // select the nodes
+                let selected_nodes = nodes.slice(0, node_num);
+                // return the selected nodes
+                return { result: selected_nodes }
             }
         },{ // spawn or kill a node
             event: '_add_node',
@@ -269,22 +271,26 @@ class Service {
             event: 'exit',
             callback: () => ({ result: this.exit() })
         }];
-    }
+        // get only the paramters, diregar the rest
+        return listeners.map(l => {
+            return { ...l, callback: ({ parameters }: any) => l.callback(parameters) }
+        });
 
+    }
 
     private handle_request(l: Listener): Function {
         /* this function will take a listener triggered by another a request
          * it will set the request in the  request queue, and return a promise
          * which resolves once the request is processed.
          * the queue will processs the request when it finds an idle node
-         * and the node returns the result.
-         */
-        return async (parameters: any) => {
+         * and the node returns the result. */
+        return async (data: any) => {
             if(this.requestQueue === null)
                 throw new Error('Request Queue is not defined');
             let promise = this.requestQueue.addRequest({
                 method: l.event,
-                parameters: parameters,
+                parameters: data.parameters,
+                selector: data.selector,
                 completed: false,
                 result: null
             });

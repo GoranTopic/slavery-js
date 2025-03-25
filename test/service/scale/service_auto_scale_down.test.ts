@@ -12,6 +12,7 @@ const wait = async (seconds: number) => new Promise( r => setTimeout( () => r(1)
 const time_to_wait = 2
 const starting_nodes = 10
 const percentage_to_scale_down = 0.9
+const node_count_grace_error = 1
 
 let test_service = new Service({
     service_name: 'test',
@@ -21,17 +22,15 @@ let test_service = new Service({
     mastercallback: async ({ awaiter, self }) => {
         console.log(`[${process.argv[1].split('/').pop()}] testing if the service can auto scale down`);
         // wait for the nodes to initialize
-        await awaiter._number_of_nodes_connected(starting_nodes)
+        await awaiter._number_of_nodes_connected(starting_nodes - node_count_grace_error);
         let first_slave_count = await awaiter._get_nodes_count();
-        //console.log(`first_slave_count: ${first_slave_count}`);
-        expect(first_slave_count).to.be.greaterThanOrEqual(starting_nodes-1) // incase we lost a node on the way
+        expect(first_slave_count).to.be.greaterThanOrEqual(starting_nodes - node_count_grace_error);
         // wait for the nodes to initialize
         for (let i = 0; i < 10; i++) awaiter.wait(time_to_wait)
         // wait for some time, 3 seconds until the nodes are scaled down
         await wait(10)
         // get the number of slaves again
         let second_slave_count = await awaiter._get_nodes_count()
-        //console.log(`second_slave_count: ${second_slave_count}`);
         expect(second_slave_count).to.be.lessThan(first_slave_count * percentage_to_scale_down)
         console.log(`[${process.argv[1].split('/').pop()}] ✅ service was able to auto scale down by at least ${percentage_to_scale_down * 100}%`)
         await awaiter.exit()

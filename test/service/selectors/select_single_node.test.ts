@@ -14,23 +14,30 @@ let test_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3003 },
     ],
     mastercallback: async ({ awaiter, self }) => {
-        console.log(`[${process.argv[1].split('/').pop()}] starting test, to select and control a single node`)
+        console.log(`[${process.argv[1].split('/').pop()}] starting test, to select and control a single, or multiple nodes`)
+        await awaiter._number_of_nodes_connected(3);
         // select a single node
-        let node1 = await awaiter.select(1)
-        let node2 = await awaiter.select(1)
-        await node1.setup()
-        let res = await node1.wait(3)
-        expect(res).to.equal('waited for 3 seconds, 😐')
-        /*
-        try {
-            await node2.wait(3)
-        } catch (e) {
-            console.error(e)
-            expect(e).to.equal('Node is busy')
-        }
-        */
-        console.log(`[${process.argv[1].split('/').pop()}] ✅ concurrent test passed`)
-        // this will send a signal to exit every node and every service
+        let node = await awaiter.select(1)
+        // make a simple request
+        let [ res ] = await node.setup()
+        expect(res).to.equal('setup done')
+        // select all nodes 
+        let nodes = await awaiter.select()
+        // make a simple request
+        let responces = await nodes.setup(3)
+        expect(responces).to.have.length(3)
+        // check the all 3 reponses
+        expect(responces[0]).to.equal('setup done')
+        expect(responces[1]).to.equal('setup done')
+        expect(responces[2]).to.equal('setup done')
+        responces = await nodes.wait(3)
+        expect(responces).to.have.length(3)
+        expect(responces[0]).to.equal('waited for 3 seconds, 😐')
+        expect(responces[1]).to.equal('waited for 3 seconds, 😐')
+        expect(responces[2]).to.equal('waited for 3 seconds, 😐')
+        // pass test
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ control of single and multiple nodes passed`)
+        // close the node
         await awaiter.exit();
         await self.exit();
     },
@@ -48,8 +55,9 @@ let awaiter_service = new Service({
         { name: 'test', host: 'localhost', port: 3002 },
     ],
     slaveMethods: {
-        'setup': async ({}, {slave}) => {
+        'setup': async (params, {slave}) => {
             slave.wait = async (s: number) : Promise<number> => new Promise( r => setTimeout( () => r(s), s * 1000))
+            return 'setup done'
         },
         'wait': async (wating_time: number, { slave }) => {
             let s = await slave.wait(wating_time)
