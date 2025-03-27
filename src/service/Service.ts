@@ -4,10 +4,9 @@ import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
-import { toListeners, log } from '../utils';
+import { toListeners, log, getPort } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import { serializeError } from 'serialize-error';
-import getPort from 'get-port';
 
 // the paramer the service will take
 type Parameters = {

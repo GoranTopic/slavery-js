@@ -44,10 +44,11 @@ class Connection {
      * @param name: string
      * */
 
-    constructor({ socket, host, port, id, name, listeners, onConnect, onDisconnect, onSetListeners } : {
+    constructor({ socket, host, port, id, name, listeners, timeout,
+                onConnect, onDisconnect, onSetListeners } : {
         id?: string, socket?: Socket, host?: string,
         port?: number, name?: string, listeners?: Listener[],
-        onConnect?: Function, onDisconnect?: Function,
+        timeout?: number, onConnect?: Function, onDisconnect?: Function,
         onSetListeners?: Function
     }) {
         // callbacks
@@ -75,7 +76,8 @@ class Connection {
             // use the id
             this.id = id;
             this.socket = io(`ws://${host}:${port}`, {
-                auth: { id }
+                auth: { id },
+                timeout: timeout || 1000 * 60 // 1 minute
             });
             // since we are not connected yet
             this.isConnected = false;
