@@ -26,8 +26,25 @@ class ServiceContainer {
     private options: ServiceOptions;
 
     constructor(params: Parameters) {
+        this.sds_ip = params.ip;
+        this.sds_host = params.host;
+        this.service_name = params.service_name;
+        this.mastercallback = params.options.mastercallback;
+
+        // create a service based on the paramters passed
+        this.service = new Service({
+    // the name of the service
+    service_name: string,
+    // the address of the service will take
+    peerServicesAddresses: ServiceAddress[],
+    // the master callback that will be called by the master process
+    mastercallback?: (...args: any[]) => any,
+    // the slave callbacks that will be called by the slaves
+    slaveMethods?: SlaveMethods,
+    // the options that will be passed to the service
+    options: Options
         // check if there is a service running on the sds_ip and sds_host
-        if(
+        
         // if not, start the service
 
         this.sevice_name = params.service_name;
