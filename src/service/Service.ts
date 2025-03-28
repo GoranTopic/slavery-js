@@ -4,6 +4,7 @@ import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
+import Stash from './Stash';
 import { toListeners, log, getPort } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import { serializeError } from 'serialize-error';
@@ -28,6 +29,7 @@ class Service {
     public host: string;
     public port: number;
     private nodes?: NodeManager;
+    private stash: Stash = new Stash();
     private processBalancer?: ProcessBalancer | null = null;
     private requestQueue: RequestQueue | null = null;
     public nm_host: string;
@@ -155,6 +157,7 @@ class Service {
             name: this.name,
             host: this.nm_host,
             port: this.nm_port,
+            stash: this.stash, // set the stash
         })
         // spawn the nodes from the node Manager
         await this.nodes.spawnNodes('slave_' + this.name, this.number_of_nodes, {
@@ -274,7 +277,6 @@ class Service {
         return listeners.map(l => {
             return { ...l, callback: ({ parameters }: any) => l.callback(parameters) }
         });
-
     }
 
     private handle_request(l: Listener): Function {
@@ -317,6 +319,14 @@ class Service {
         }, 1000);
         return true
     }
+
+    public set = async (key: string, value: any) => {
+        await this.stash.set(key, value);
+    }
+
+    public get = async (key: string) =>
+        await this.stash.get(key);
+    
 }
 
 

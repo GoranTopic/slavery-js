@@ -1,7 +1,7 @@
 import Cluster from '../cluster';
 import Network, { Connection } from '../network';
 import Node from './Node';
-import { ServiceAddress } from '../service';
+import { ServiceAddress, Stash } from '../service';
 import { Pool, await_interval, log } from '../utils';
 
 /* this class is created to manage the nodes socket conenctions on a service,
@@ -29,6 +29,8 @@ type Options = {
     increase_node_at_requests?: number,
     // the number of node that have to be idle before decreasing the number of processes
     decrease_node_at_idles?: number,
+    // you can pass the stash object to the node manager
+    stash?: Stash,
 }
 
 class NodeManager {
@@ -38,6 +40,7 @@ class NodeManager {
     private nodes: Pool<Node> = new Pool();
     private options: Options;
     private cluster = new Cluster({});
+    private stash: Stash | null;
 
 
     constructor(options: Options) {
@@ -54,6 +57,8 @@ class NodeManager {
         this.network.onNodeConnection(this.handleNewNode.bind(this));
         // handle when a node is disconnected
         this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
+        // set the stash
+        this.stash = options.stash || null;
   }
 
   private handleNewNode(connection: Connection) {
@@ -61,6 +66,11 @@ class NodeManager {
       log('[Node manager] Got a new connectection from a node');
       // create a new node
       let node = new Node();
+      // set the functions for the stash of objects
+      node.setStashFunctions({
+          get: async (key: string) => await this.stash?.get(key),
+          set: async (key: string, value: any) => await this.stash?.set(key, value),
+      });
       // set the connection to the node
       node.setNodeConnection(connection, this.network);
       // add callback on status change
@@ -73,6 +83,7 @@ class NodeManager {
       // add to the enabled pool
       this.setIdle(id);
   }
+
 
   private handleNodeDisconnect(connection: Connection) {
       // get the node id
@@ -249,8 +260,6 @@ class NodeManager {
   public addNode = this.spawnNodes
   public removeNode = this.killNodes
   public getNumberOfNodes = this.getNodeCount;
-
-
 
 }
 

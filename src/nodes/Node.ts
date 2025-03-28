@@ -4,7 +4,6 @@ import type { ServiceAddress } from './types';
 import { await_interval, log } from '../utils';
 import { serializeError, deserializeError } from 'serialize-error';
 
-
 /*
  * this class will basicaly connect to all of the services given to it by the primary service.
  * 1.- attempt to make a conenction the primary service passed by the server
@@ -30,11 +29,13 @@ class Node {
     public servicesConnected: boolean = false;
     // fields when the class is client handler on a service
     public statusChangeCallback: ((status: NodeStatus, node: Node) => void) | null = null;
+    // stash changes functions
+    public stashSetFunction: (({ key, value }: { key: string, value: any }) => any) | null = null;
+    public stashGetFunction: ((key: string) => any) | null = null;
     // fields when the class is a service handler on a node
     public services: ServiceAddress[] = [];
     public doneMethods: { [key: string]: boolean } = {};
     public methods: { [key: string]: (parameter?: any, self?: Node) => any } = {};
-    public userStash: any = {};
 
     constructor(){}
 
@@ -53,29 +54,30 @@ class Node {
         .catch(() => { throw new Error('The node is not idle') })
         return true;
     }
+
     public run = async (method: string, parameter: any) => {
         if(this.mode === 'client') return await this.run_client({ method, parameter });
         else if(this.mode === 'server') return await this.run_server({ method, parameter });
         else throw new Error('The mode has not been set');
     }
+
     public setServices = async (services: ServiceAddress[]) => {
         if(this.mode === 'client') return await this.setServices_client(services);
         else if(this.mode === 'server') return await this.setServices_server(services);
         else throw new Error('The mode has not been set');
     }
+
     public exit = async () => {
         if(this.mode === 'client') return await this.exit_client();
         else if(this.mode === 'server') return await this.exit_server();
         else throw new Error('The mode has not been set');
     }
+
     public ping = async () => {
         if(this.mode === 'client') return await this.ping_client();
         else if(this.mode === 'server') return await this.ping_server();
         else throw new Error('The mode has not been set');
     }
-
-    public setUserStash = (key: string, value: any) => this.userStash[key] = value;
-    public getUserStash = (key: string) => this.userStash[key];
 
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
@@ -88,9 +90,14 @@ class Node {
         // set the network
         this.network = network;
         // define the listners which we will be using to talk witht the client node
+        if(this.stashSetFunction === null || this.stashGetFunction === null )
+            throw new Error('The stash functions have not been set');
+        // set the listeners
         this.listeners = [//  this callbacks will run when we recive this event from the client node
             { event: '_set_status', parameters: ['status'], callback: this.handleStatusChange.bind(this) },
             { event: '_ping', parameters: [], callback: () => '_pong' },
+            { event: '_set_stash', parameters: ['key', 'value'], callback: this.stashSetFunction },
+            { event: '_get_stash', parameters: ['key'], callback: this.stashGetFunction },
         ]
             // register the listeners on the connection
             connection.setListeners(this.listeners);
@@ -98,6 +105,11 @@ class Node {
 
     public setStatusChangeCallback(callback: (status: NodeStatus, node: Node) => void){
         this.statusChangeCallback = callback;
+    }
+
+    public setStashFunctions({ set, get }: { set: (key: string, value: any) => any, get: (key: string) => any }){
+        this.stashSetFunction = ({ key, value }: { key: string, value: any }) => set(key, value);
+        this.stashGetFunction = get;
     }
 
     public handleStatusChange(status: NodeStatus){
@@ -167,7 +179,7 @@ class Node {
         if(this.mode === 'server') 
             connection = this.network.getNode(this.id);
         else if(this.mode === 'client') 
-            connection = this.network.getNode('master');
+            connection = this.network.getService('master');
         if(connection === undefined) 
             throw new Error('Could not get the conenction from the network');
         // send the method to the node
@@ -182,7 +194,7 @@ class Node {
         this.id = this.id || Math.random().toString(36).substring(4);
         this.network = new Network({name: 'node', id: this.id});
         // form the conenction with the master
-        this.network.connect({ host, port });
+        this.network.connect({ host, port, as: 'master' });
         // set the mode as a client
         this.mode = 'client';
         // set the listeners which we will us on the and the master can call on
@@ -201,7 +213,7 @@ class Node {
 
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
-        // wait until services are connected
+        // wait until services are connected, with timeout of 10 seconds
         await await_interval(() => this.servicesConnected, 10000).catch(() => {
             throw new Error(`[Node][${this.id}] Could not connect to the services`);
         })
@@ -230,6 +242,10 @@ class Node {
             this.updateStatus('idle');
         }
     }
+
+    // this function will communicate with the master node and set the stash in that moment
+    public setStash = async (key: string, value: any) => await this.send('_set_stash', { key, value });
+    public getStash = async (key: string) => await this.send('_get_stash', key);
 
     public addMethods(methods: { [key: string]: (parameter: any) => any }){
         // we add the methods to this class
@@ -315,13 +331,10 @@ class Node {
     public hasFinished = this.hasDone;
     public hasError = this.isError;
     public toFinish = this.untilFinish;
-    public setStash = this.setUserStash;
-    public getStash = this.getUserStash;
-    public set = this.setUserStash;
-    public get = this.getUserStash;
-    public stash = this.setUserStash;
-    public unstash = this.getUserStash;
-
+    public set = this.setStash;
+    public get = this.getStash;
+    public stash = this.setStash;
+    public unstash = this.getStash;
 }
 
 

@@ -6,7 +6,9 @@ import Server from './Server';
 class Network {
     /* *
      * this class will handle the connections of a node in the network.
-     * this node can be in eighter a server or a client.
+     * this node can be in either a server or a client.
+     * in a server it will have a Server instance and it will handle the nodes connections
+     * in a client it will have a pool of connections to other servers
      * Each Node will have a NetworkNode
      * */
 
@@ -38,7 +40,7 @@ class Network {
         this.newListenersCallback = undefined;
     }
 
-    async connect({ name, host, port } : { name?: string, host: string, port: number }): Promise<Connection> {
+    async connect({ name, host, port, as } : { name?: string, host: string, port: number, as?: string }): Promise<Connection> {
         /* this function connects to a server instance or a Node Manager
          * and it keeps track of the conenction by adding it to a pool of server connection
          * it uses the name as the key in the pool
@@ -56,20 +58,19 @@ class Network {
         if(name !== undefined) // check if the name is the same
             if(server_name !== name)
                 throw new Error(`Server name mismatch: ${server_name} !== ${name}`);
+        // if we are saving the connection as a different name
+        if(as !== undefined) server_name = as;
         // if we already have a connection with the same id, remove it
         if(this.connections.has(server_name)) {
             let conn = this.connections.remove(server_name);
             conn && conn.close();
         }
         // add the listeners to the new connection
-        //log(`[Network][Connect][${this.name}] adding listeners to connection`, this.listeners);
         connection.setListeners(this.listeners);
         // add the new connection
         this.connections.add(server_name, connection);
         // new connection callback
         this.serviceConnectionCallback && this.serviceConnectionCallback(connection);
-        //log(`[Network][Connect][${this.name}] connections:`, this.connections);
-        //log(`[Network][Connect][${this.name}] connection listeners:`, connection.getListeners());
         // return the connection
         return connection;
     }
@@ -110,14 +111,12 @@ class Network {
         });
     }
 
-    public getService(name: string): Connection | null {
+    public getService(name: string): Connection {
         // get the service connection
         let service = this.connections.get(name);
-        if(service === null) // if the service is not found we throw an error
-            console.error(`Service ${name} not found for ${this.name}`);
-        // throw an error if the service is not found
-        if(service === undefined) throw new Error('Service not found');
-        // return the service
+        // if the service is not found we throw an error
+        if(service === null)
+            throw new Error(`Service ${name} not found for ${this.name}`);
         return service;
     }
 

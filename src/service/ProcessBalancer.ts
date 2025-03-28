@@ -85,6 +85,7 @@ class ProcessBalancer {
         const avgCpu = this.getCpuUsage();
         const avgMem = this.getMemoryUsage();
 
+        /*
         log(`[ProcessBalancer]
             Queue Size: ${queueSize},
             Growth: ${queueGrowth},
@@ -95,6 +96,7 @@ class ProcessBalancer {
             Total Slaves: ${idleCount + workingCount},
             Idle Ratio: ${(idleCount / workingCount).toFixed(2)}`
            );
+           */
 
            if (
                // if the queue size is passed a threshold: 3
@@ -107,7 +109,7 @@ class ProcessBalancer {
                // and the ratio of idle slaves to working slaves is greater than than threshold
                idleRate < this.maxIdleRateThreshold
            ){
-               log('Scaling up');
+               log('Scaling up, adding a node');
                //@ts-ignore
                this.addSlave();
            }
@@ -120,7 +122,7 @@ class ProcessBalancer {
                // if the idle rate is low
                idleRate > this.minIdleRateThreshold
               ){
-                  log('Scaling down');
+                  log('Scaling down, removing a node');
                   //@ts-ignore
                   this.removeSlave();
               }

@@ -7,6 +7,7 @@ type Parameters = {
     service_name: string;
     ip: string;
     host: string;
+
     options: ServiceOptions;
 };
 
@@ -22,7 +23,7 @@ class ServiceContainer {
     public sevice_name: string;
     public sds_ip: string; // Service Dicovery Service ip
     public sds_host: string; // Service Discovery Service host
-    public service: Service;
+    public service: Service 
     private options: ServiceOptions;
 
     constructor(params: Parameters) {
