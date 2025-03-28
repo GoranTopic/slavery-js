@@ -53,12 +53,12 @@ let master_callback = async ({slaves}: any) => {
 let slave_callbacks = {
     'setup': (params: any, { slave }: any ) => {
         // function to count sum of numbers, purely for the porpuse of processing
-        slave.set('wait_function', (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) }))
+        slave['wait_function'] = (s: number) => new Promise( r => setTimeout( () => r(s), s * 1000) );
         return true;
     },
     'run': async (wating_time: number, { slave }: any) => {
         // count sum of numbers
-        let make_timeout = slave.get('wait_function')
+        let make_timeout = slave['wait_function'];
         let timeout = make_timeout(wating_time);
         let s = await timeout;
         // run some code

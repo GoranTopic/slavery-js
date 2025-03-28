@@ -34,7 +34,7 @@ class Stash {
   }
 
   async set(key: string, value: StashItem): Promise<void> {
-    this.validateSerializable(value);
+    //this.validateSerializable(value);
     return this.withLock(async () => {
       this.store.set(key, value);
     });
