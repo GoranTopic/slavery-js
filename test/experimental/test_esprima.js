@@ -109,5 +109,3 @@ console.log('Second parameter name:', secondParamName);
 // get the names of methods called on "value"
 const methodsCalledOnValue = getCalledMethods(ast, firstParamName);
 console.log('Methods called on the first paramter:', methodsCalledOnValue);
-
-

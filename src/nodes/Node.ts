@@ -244,8 +244,8 @@ class Node {
     }
 
     // this function will communicate with the master node and set the stash in that moment
-    public setStash = async (key: string, value: any) => await this.send('_set_stash', { key, value });
-    public getStash = async (key: string) => await this.send('_get_stash', key);
+    public setStash = async (key: any, value: any = null) => await this.send('_set_stash', { key, value });
+    public getStash = async (key: string = '') => await this.send('_get_stash', key);
 
     public addMethods(methods: { [key: string]: (parameter: any) => any }){
         // we add the methods to this class

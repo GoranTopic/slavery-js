@@ -4,8 +4,8 @@ import { log, isActive } from '../../src/utils'
 process.env.debug = 'false';
 
 /* *
-   this test will test the abilty to accurald detect if the service discovery service is working
-   * */
+ * This test will test the abilty to accurald detect if the service discovery service is working
+ * */
 
 
 let test_service = new Service({

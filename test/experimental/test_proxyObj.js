@@ -1,15 +1,25 @@
 const proxyObjecHandler = {
     get(target, prop) {
-        //console.log('target',target)
         // this will take
-        return (args) => {
-            console.log(`method: ${prop} called`)
-            // type of args
-            console.log(typeof args)
-            //to string
-            //let strs = args.map( arg => arg.toString())
-            //console.log(`arguments:`)
-            //console.log(strs)
+        return (args, args2) => {
+            let method = prop;
+            let callback;
+            let options;
+            // get the callback from the function
+            if(typeof args === undefined) 
+                throw new Error('No parameters passed')
+            else if (typeof args !== 'function') 
+                throw new Error('first paramter must be a function')
+            callback = args.toString();
+            // get the options object
+            if(args2 !== undefined) {
+                if(typeof args2 !== 'object') 
+                    throw new Error('second parameter must be an object')
+                options = args2;
+            }
+            console.log('method:', method)
+            console.log('callback:', callback)
+            console.log('options:', options)
             return proxy;
         };
     }
@@ -26,6 +36,6 @@ proxy
     })
     .slave( slave => {
         console.log('something else', slave)
-    }, 9090, 'someArgString')
-    .yetAnotherMethod();
+    }, { a: 1, b: 2})
+    //.yetAnotherMethod();
 

@@ -1,14 +1,12 @@
-import Service from '../service';
-import ServiceOptions from './types';
-import { ServiceAddress } from '../service';
+import Service, { ServiceAddress, SlaveMethods, Options as ServiceOptions } from '../service';
+import { ServiceCodeParser } from '../utils';
 import { getPort } from '../utils';
 
 type Parameters = {
     service_name: string;
     ip: string;
     host: string;
-
-    options: ServiceOptions;
+    service_code: string;
 };
 
 class ServiceContainer {
@@ -24,13 +22,15 @@ class ServiceContainer {
     public sds_ip: string; // Service Dicovery Service ip
     public sds_host: string; // Service Discovery Service host
     public service: Service 
+    public mastercallback: (...args: any[]) => any;
+    public slaveMethods: SlaveMethods;
     private options: ServiceOptions;
 
     constructor(params: Parameters) {
         this.sds_ip = params.ip;
         this.sds_host = params.host;
         this.service_name = params.service_name;
-        this.mastercallback = params.options.mastercallback;
+        this.mastercallback = 
 
         // create a service based on the paramters passed
         this.service = new Service({
@@ -45,13 +45,9 @@ class ServiceContainer {
     // the options that will be passed to the service
     options: Options
         // check if there is a service running on the sds_ip and sds_host
-        
         // if not, start the service
-
         this.sevice_name = params.service_name;
-
     }
-
 }
 
 

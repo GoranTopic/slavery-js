@@ -320,11 +320,11 @@ class Service {
         return true
     }
 
-    public set = async (key: string, value: any) => {
+    public set = async (key: any, value: any = null) => {
         await this.stash.set(key, value);
     }
 
-    public get = async (key: string) =>
+    public get = async (key: string = '') =>
         await this.stash.get(key);
     
 }
