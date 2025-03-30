@@ -14,8 +14,6 @@
  */
 
 
-
-
 /*  this function will make the proxy object which takes a callback
  *  and returns a proxy object
  *  @param {function} callback - the callback to be called
@@ -34,30 +32,33 @@ const makeProxyObject = (callback: proxyObjectCallback) => {
 
 const makeProxyObjecHandler = (callback: proxyObjectCallback) => ({
     get(target: any, prop: any) {
-        console.log('target',target)
         // this will take
-        return (args: any) => {
-            console.log(`method: ${prop}`)
-            // type of args
-            console.log(typeof args)
-            if (typeof args === 'function') {
-                console.log('args is a function')
-                // call the callback
-                callback(prop, args.name, args)
-                return proxy;
-            } else {
-                console.log('args is not a function')
-                // call the callback
-                callback(prop, args, args)
+        return (args: any, args2: any) => {
+            let method = prop;
+            let methodFn = args;
+            let options;
+            // get the callback from the function
+            if(typeof args === undefined) 
+                throw new Error('No parameters passed')
+            else if (typeof args !== 'function') 
+                throw new Error('first paramter must be a function')
+            methodFn = args.toString();
+            // get the options object
+            if(args2 !== undefined) {
+                if(typeof args2 !== 'object') 
+                    throw new Error('second parameter must be an object')
+                options = args2;
             }
-            //to string
-            let strs = args.map( (arg:any) => arg.toString())
-            console.log(`arguments:`)
-            console.log(strs)
+            // run the passed callback
+            console.log('method:', method)
+            console.log('methodFn:', methodFn)
+            console.log('options:', options)
+            callback(method, methodFn, options);
+            // return the proxy object
             return proxy;
         };
     }
 });
 
-export default makeProxyObject;
 
+export default makeProxyObject;

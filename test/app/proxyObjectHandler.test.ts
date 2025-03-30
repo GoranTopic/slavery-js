@@ -11,15 +11,13 @@ let functions_passed = { master: false, slave: false, logger: false }
 const po = makeProxyObject( (function_name: string, fn: string, options: any) => {
     // expect to have one of the following names    
     const service_names = ['master', 'slave', 'logger']
-    console.log('function_name', function_name)
-    console.log('fn', fn)
     expect(function_name).to.be.oneOf(service_names)
     if(function_name === 'master') {
-        expect('function').to.be.equal("async () => {\n    console.log(\'master\')\n}")
+        expect(fn).to.be.equal('async()=>{console.log("master")}')
         expect(options).to.be.equal(undefined)
         functions_passed.master = true
     } else if(function_name === 'slave') {
-        expect('function').to.be.equal("async () => {\n    1 + 1;\n}")
+        expect(fn).to.be.equal('async()=>{1+1}')
         expect(options).to.be.deep.equal({ 
             port: 3000, 
             host: 'localhost',
@@ -28,7 +26,7 @@ const po = makeProxyObject( (function_name: string, fn: string, options: any) =>
         })
         functions_passed.slave = true
     } else if(function_name === 'logger') {
-        expect('function').to.be.equal("async () => {\n    console.log(\'logger\')\n}")
+        expect(fn).to.be.equal('async()=>{console.log("logger")}')
         expect(options).to.be.equal(undefined)
         functions_passed.logger = true
     }
@@ -36,6 +34,7 @@ const po = makeProxyObject( (function_name: string, fn: string, options: any) =>
 
 console.log(`[${process.argv[1].split('/').pop()}] starting test for proxyObjectHandler, which is the entry point if the application`)
 // run the proxy object
+//@ts-ignore
 po.master(async () => {
     console.log('master')
 }).slave(async () => {
