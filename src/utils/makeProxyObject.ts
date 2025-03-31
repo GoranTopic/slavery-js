@@ -50,9 +50,6 @@ const makeProxyObjecHandler = (callback: proxyObjectCallback) => ({
                 options = args2;
             }
             // run the passed callback
-            console.log('method:', method)
-            console.log('methodFn:', methodFn)
-            console.log('options:', options)
             callback(method, methodFn, options);
             // return the proxy object
             return proxy;

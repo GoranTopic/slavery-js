@@ -1,111 +1,89 @@
 import * as esprima from 'esprima';
-import * as estraverse from 'estraverse';
-
+import escodegen from 'escodegen';
 
 // Sample JavaScript code as a string
-const code = `
+const function_code = `
 function hello(value, {hello, word, logger, master}){ 
-    let x = 3;
-    value.run(paramters);
-    value.execute(param1, param2);
-    value.an;
-    value.anotherFunction(param1, param2, param3);
-    value
-    hello();
-    val.notFromValue();
-    otherFunction();
-}
-`;
 
-// Parse the code into an AST
-const ast = esprima.parseScript(code);
+    // some code
+    1 + 4;
+    let internal = 5;
+    console.log('Hello World' + internal);
 
-// Function to collect method calls on a specific object with argument counts
-function getCalledMethods(ast, objectName) {
-    const calledMethods = [];
-    // Traverse the AST
-    estraverse.traverse(ast, {
-        enter(node) {
-            // Check for call expressions like value.run()
-            if (
-                node.type === 'CallExpression' &&
-                node.callee.type === 'MemberExpression' &&
-                node.callee.object.name === objectName
-            ) {
-                // Collect the method name and argument count
-                calledMethods.push({
-                    method: node.callee.property.name,
-                    argCount: node.arguments.length
-                });
-            }
-        }
-    });
-    return calledMethods;
-}
+    let fn = function (param1, param2) {
+        something();
+    }
+
+    let fn1 = (param1, param2) => {
+        something();
+    }
+
+    function hello(param1, param2){
+        console.log('Hello');
+        console.log('World');
+    }
+}`;
 
 /**
- * Extracts the name(s) of the parameter(s) at the specified index from the first function found in the given code.
- * Handles both regular and destructured parameters.
- * @param {string} code - The JavaScript code containing the function.
- * @param {number} index - The zero-based index of the parameter to retrieve.
- * @returns {string[]|null} - An array of parameter names, or null if no function or parameter at the specified index is found.
+ * Extract the outer function (with inner functions removed) and all inner functions separately.
+ * @param {string} code - JavaScript function code as a string.
+ * @returns {{ outer_function: string, inner_functions: { name: string, fn: string }[] }}
  */
-function getParameterNamesByIndex(code, index) {
-    // Parse the code into an Abstract Syntax Tree (AST)
-    const ast = esprima.parseScript(code);
-    let paramNames = null;
-    // Traverse the AST to find function declarations or expressions
-    estraverse.traverse(ast, {
-        enter(node) {
-            if (
-                (node.type === 'FunctionDeclaration' || node.type === 'FunctionExpression' || node.type === 'ArrowFunctionExpression') &&
-                node.params.length > index
-            ) {
-                // Get the parameter at the specified index
-                const param = node.params[index];
-                paramNames = extractParamNames(param);
-                // Stop traversal after finding the first function with the specified parameter
-                this.break();
-            }
-        }
-    });
-    return paramNames;
-}
+function extractOuterAndInnerFunctions(code) {
+    const ast = esprima.parseScript(code, { range: true });
+    let result = {
+        outer_function: '',
+        inner_functions: []
+    };
 
-/**
- * Recursively extracts parameter names from a parameter node.
- * @param {object} param - The parameter node.
- * @returns {string[]} - An array of parameter names.
- */
-function extractParamNames(param) {
-    const names = [];
-    if (param.type === 'Identifier') {
-        names.push(param.name);
-    } else if (param.type === 'AssignmentPattern') {
-        names.push(...extractParamNames(param.left));
-    } else if (param.type === 'ObjectPattern') {
-        for (const property of param.properties) {
-            names.push(...extractParamNames(property.value));
-        }
-    } else if (param.type === 'ArrayPattern') {
-        for (const element of param.elements) {
-            if (element) {
-                names.push(...extractParamNames(element));
-            }
+    for (const node of ast.body) {
+        if (node.type === 'FunctionDeclaration') {
+            const outerFunctionNode = JSON.parse(JSON.stringify(node)); // Deep clone to modify safely
+
+            // Filter out inner function declarations and variable declarations with functions
+            outerFunctionNode.body.body = outerFunctionNode.body.body.filter(statement => {
+                // Identify inner function declarations
+                if (statement.type === 'FunctionDeclaration') {
+                    result.inner_functions.push({
+                        name: statement.id.name,
+                        fn: escodegen.generate(statement)
+                    });
+                    return false; // Remove from outer function body
+                }
+
+                // Identify variable declarations with function expressions or arrow functions
+                if (statement.type === 'VariableDeclaration') {
+                    const isFunctionVar = statement.declarations.some(decl =>
+                        decl.init &&
+                        (decl.init.type === 'FunctionExpression' || decl.init.type === 'ArrowFunctionExpression')
+                    );
+
+                    if (isFunctionVar) {
+                        for (const decl of statement.declarations) {
+                            if (
+                                decl.init &&
+                                (decl.init.type === 'FunctionExpression' || decl.init.type === 'ArrowFunctionExpression')
+                            ) {
+                                const fnBody = escodegen.generate(decl.init);
+                                result.inner_functions.push({
+                                    name: decl.id.name,
+                                    fn: `function ${decl.id.name}${fnBody.slice(fnBody.indexOf('('))}`
+                                });
+                            }
+                        }
+                        return false; // Remove from outer function body
+                    }
+                }
+
+                return true; // Keep non-function-related code
+            });
+
+            result.outer_function = escodegen.generate(outerFunctionNode);
+            break; // Only process the first outer function
         }
     }
-    return names;
+
+    return result;
 }
 
-
-// get the name of the first parameter in the code
-const firstParamName = getParameterNamesByIndex(code, 0)[0];
-console.log('First parameter name:', firstParamName);
-
-// get the name of the second parameter in the code
-const secondParamName = getParameterNamesByIndex(code, 1);
-console.log('Second parameter name:', secondParamName);
-
-// get the names of methods called on "value"
-const methodsCalledOnValue = getCalledMethods(ast, firstParamName);
-console.log('Methods called on the first paramter:', methodsCalledOnValue);
+console.log(extractOuterAndInnerFunctions(function_code));
