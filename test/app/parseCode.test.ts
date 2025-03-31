@@ -38,19 +38,22 @@ function hello(value, {hello, word, logger, master}){
 console.log(`[${process.argv[1].split('/').pop()}] testing function extraction`);
 const result = extractFunctions(code);
 
+// evaluate the functions
+const outer = result.outer_function.toString();
+
 // Check outer function includes only the non-inner-function code
-expect(result.outer_function).to.include('function hello(value, {hello, word, logger, master})');
-expect(result.outer_function).to.include('1 + 4;');
-expect(result.outer_function).to.include('let internal = 5;');
-expect(result.outer_function).to.include('let internal2 = 10;');
-expect(result.outer_function).to.include('let internal3 = 20;');
-expect(result.outer_function).to.include('let internal4 = 40;');
+expect(outer).to.include('function hello(value, {hello, word, logger, master})');
+expect(outer).to.include('1 + 4;');
+expect(outer).to.include('let internal = 5;');
+expect(outer).to.include('let internal2 = 10;');
+expect(outer).to.include('let internal3 = 20;');
+expect(outer).to.include('let internal4 = 40;');
 
 
 const innerFnNames = result.inner_functions.map(fn => fn.name);
 expect(innerFnNames).to.include.members(['hello', 'fn', 'fn1', 'fn2', 'fn3', 'fn4']);
 
-const innerFnCodes = result.inner_functions.map(fn => fn.fn);
+const innerFnCodes = result.inner_functions.map(fn => fn.fn.toString());
 expect(innerFnCodes[0]).to.include('function hello(param1, param2)');
 expect(innerFnCodes[0]).to.include('console.log(\'Hello\');');
 expect(innerFnCodes[0]).to.include('console.log(\'World\');');
@@ -70,6 +73,5 @@ expect(innerFnCodes[4]).to.include('\'Hello, \' + name')
 
 expect(innerFnCodes[5]).to.include('function fn4(param1, param2)');
 expect(innerFnCodes[5]).to.include('something4();');
-
 
 console.log(`[${process.argv[1].split('/').pop()}] ✅ Functions extracted correctly`);

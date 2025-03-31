@@ -1,14 +1,14 @@
 import * as esprima from 'esprima';
 
 type ParsedFunction = {
-    outer_function: string;
-    inner_functions: { name: string; fn: string }[];
+    outer_function: Function
+    inner_functions: { name: string; fn: Function }[];
 };
 
 function extractFunctions(code: string): ParsedFunction {
     const ast = esprima.parseScript(code, { range: true });
-    let outer_function = '';
-    const inner_functions: { name: string; fn: string }[] = [];
+    let outer = '';
+    const inner: { name: string; fn: string }[] = [];
 
 for (const node of ast.body) {
     if (node.type === 'FunctionDeclaration' && node.id?.name === 'hello') {
@@ -22,7 +22,7 @@ for (const node of ast.body) {
         for (const stmt of node.body.body) {
             if (stmt.type === 'FunctionDeclaration') {
                 const innerCode = code.slice(stmt.range![0], stmt.range![1]);
-                inner_functions.push({ name: stmt.id!.name, fn: innerCode });
+                inner.push({ name: stmt.id!.name, fn: innerCode });
                 innerRanges.push([stmt.range![0], stmt.range![1]]);
             }
 
@@ -44,7 +44,7 @@ for (const node of ast.body) {
                         const bodyCode = code.slice(decl.init.body.range![0], decl.init.body.range![1]);
                         const formattedFn = `function ${fnName}(${args}) ${bodyCode}`;
 
-                        inner_functions.push({ name: fnName, fn: formattedFn });
+                        inner.push({ name: fnName, fn: formattedFn });
                         innerRanges.push([stmt.range![0], stmt.range![1]]);
                     }
                 }
@@ -58,11 +58,14 @@ for (const node of ast.body) {
             cleanedBody = cleanedBody.replace(innerCode, '');
         }
 
-        outer_function = `${code.slice(node.range![0], node.body.range![0] + 1)}${cleanedBody}\n}`;
+        outer = `${code.slice(node.range![0], node.body.range![0] + 1)}${cleanedBody}\n}`;
 }
 }
-// return
-return { outer_function, inner_functions };
+    // create the functions objects
+    let outer_function = new Function(outer);
+    let inner_functions = inner.map((fn) => ({ name: fn.name, fn: new Function(fn.fn) }));
+    // return
+    return { outer_function, inner_functions };
 }
 
 
