@@ -19,7 +19,8 @@
  *  @param {function} callback - the callback to be called
  */
 
-type proxyObjectCallback = (methodCalled: string, functionCalled: string, object: any) => void;
+// this is a promise 
+type proxyObjectCallback =  (methodCalled: string, functionCalled: string, object: any) => any
 
 let proxy: ProxyConstructor;
 
@@ -50,12 +51,11 @@ const makeProxyObjecHandler = (callback: proxyObjectCallback) => ({
                 options = args2;
             }
             // run the passed callback
-            callback(method, methodFn, options);
+            callback(method, methodFn, options)
             // return the proxy object
             return proxy;
         };
     }
 });
-
 
 export default makeProxyObject;

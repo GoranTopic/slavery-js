@@ -1,31 +1,50 @@
-const proxyObjecHandler = {
-    get(target: any, prop: any) {
-        //console.log('target',target)
-        // this will take
-        return (args: any) => {
-            console.log(`method: ${prop} called`)
-            // type of args
-            console.log(typeof args)
-            //to string
-            //let strs = args.map( arg => arg.toString())
-            //console.log(`arguments:`)
-            //console.log(strs)
-            return proxy;
-        };
-    }
-};
+import makeProxyObject from './makeProxyObject';
+import extractFunctions from './extractFunctions';
+import Service from '../service';
+//import type { 
 
-// Create a proxy object.
-const proxy = new Proxy({}, proxyObjecHandler)
+type callableFunction = (...args: any[]) => any;
 
-// example usage
-proxy
-    .master( (master:any) => {
-        console.log(master)
-        console.log('some function')
+type EntryOptions = {
+    host: string;
+    port: number;
+}
+
+const entry =  (entryOptions: EntryOptions) => {
+    // this function is use to set up the options for the servies
+    let options = entryOptions;
+    // make a proxy object will take of xreating each service
+    let proxyObject = makeProxyObject(handleProxyCall(options));
+    // return the proxy object
+    return proxyObject; // <--- the proxy obj will return itself in perpituity
+}
+
+const handleProxyCall = (globalOptions: EntryOptions) => 
+(function_name: string, fn: string, options: any) => {
+    // get the service name and the functions
+    const service_name = function_name;
+    const paresed = extractFunctions(fn);
+    const mastercallback = paresed.outer_function;
+    const slaveMethods = paresed.inner_functions
+    .reduce((acc: any, curr: any) => {
+        acc[curr.name] = curr.fn;
+        return acc;
+    }, {});
+    // get the port and the host
+    const port = globalOptions.port;
+    const host = globalOptions.host;
+    // make a new service
+    let service = new Service({
+        service_name,
+        peerDiscoveryServiceAddress: { host, port },
+        mastercallback: mastercallback as callableFunction,
+        slaveMethods,
+        options,
     })
-    .slave( (slave:any) => {
-        console.log('something else', slave)
-    }, 9090, 'someArgString')
-    .yetAnotherMethod();
+    service.start()
+}
 
+
+
+
+export default  entry;

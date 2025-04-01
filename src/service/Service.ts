@@ -1,5 +1,5 @@
 import Network, { Listener, Connection } from '../network';
-import { NodeManager, Node } from '../nodes';
+import Node, { NodeManager } from '../nodes';
 import Cluster from '../cluster';
 import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';

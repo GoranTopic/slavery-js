@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { extractFunctions } from '../../src/utils';
+import extractFunctions from '../../src/app/extractFunctions';
 
 const code = `
 function hello(value, {hello, word, logger, master}){
