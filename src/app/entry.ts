@@ -1,3 +1,4 @@
+import PeerDiscoveryServer from '../peerDiscovery';
 import makeProxyObject from './makeProxyObject';
 import extractFunctions from './extractFunctions';
 import Service from '../service';
@@ -10,11 +11,17 @@ type EntryOptions = {
     port: number;
 }
 
-const entry =  (entryOptions: EntryOptions) => {
+const entry = (entryOptions: EntryOptions) => {
     // this function is use to set up the options for the servies
     let options = entryOptions;
     // make a proxy object will take of xreating each service
     let proxyObject = makeProxyObject(handleProxyCall(options));
+    // make the peer discovery server
+    let peerDiscoveryServer = new PeerDiscoveryServer({
+        host: options.host,
+        port: options.port,
+    });
+    peerDiscoveryServer.start();
     // return the proxy object
     return proxyObject; // <--- the proxy obj will return itself in perpituity
 }
@@ -36,7 +43,7 @@ const handleProxyCall = (globalOptions: EntryOptions) =>
     // make a new service
     let service = new Service({
         service_name,
-        peerDiscoveryServiceAddress: { host, port },
+        peerDiscoveryAddress: { name: 'peer-discovery-service', host, port },
         mastercallback: mastercallback as callableFunction,
         slaveMethods,
         options,

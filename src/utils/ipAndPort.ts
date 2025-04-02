@@ -1,7 +1,6 @@
 import * as os from 'os';
 import * as ip from 'ip';
 import getPort from 'get-port';
-import { Connection } from '../network';
 
 interface NetworkInterfaceInfo {
     ip: string;
@@ -48,34 +47,4 @@ function findLocalIpOnSameNetwork(targetIp: string) : string | null {
     return null;
 }
 
-
-/**
- * Checks if a Socket.IO server is running at the specified host and port.
- * @param host - The hostname or IP address of the server.
- * @param port - The port number on which the server is expected to be listening.
- * @returns A promise that resolves to true if the server is running, otherwise false.
- */
-async function isActive({ host, port }: { host: string, port: string }) : Promise<boolean> {
-    return new Promise((resovle) => {
-        const connection = new Connection({
-            host, port: parseInt(port), id: 'test' + Math.random(),
-            //onConnect: () => resovle(true)
-        });
-        connection.on('connect', () => {
-            resovle(true);
-            connection.close();
-        });
-        connection.on('connect_error', () => {
-            resovle(false);
-            connection.close();
-        });
-        connection.on('connect_timeout', () => {
-            resovle(false);
-            connection.close();
-        });
-    });
-}
-
-
-
-export { findLocalIpOnSameNetwork, getLocalIpAndSubnet, getPort, isActive };
+export { findLocalIpOnSameNetwork, getLocalIpAndSubnet, getPort };

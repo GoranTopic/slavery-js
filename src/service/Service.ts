@@ -1,11 +1,12 @@
 import Network, { Listener, Connection } from '../network';
 import Node, { NodeManager } from '../nodes';
 import Cluster from '../cluster';
+import { PeerDiscoveryClient } from '../peerDiscovery';
 import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
 import Stash from './Stash';
-import { toListeners, log, getPort } from '../utils';
+import { toListeners, log, getPort, isServerActive } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import { serializeError } from 'serialize-error';
 
@@ -14,13 +15,15 @@ type Parameters = {
     // the name of the service
     service_name: string,
     // the address of the service will take
-    peerServicesAddresses: ServiceAddress[],
+    peerServicesAddresses?: ServiceAddress[],
+    // the adderess of the peer discovery service used to find the other services
+    peerDiscoveryAddress?: { host: string, port: number },
     // the master callback that will be called by the master process
     mastercallback?: (...args: any[]) => any,
     // the slave callbacks that will be called by the slaves
     slaveMethods?: SlaveMethods,
     // the options that will be passed to the service
-    options: Options
+    options?: Options
 };
 
 class Service {
@@ -38,6 +41,8 @@ class Service {
     private masterCallback?: (...args: any[]) => any;
     private slaveMethods: SlaveMethods;
     private peerAddresses: ServiceAddress[];
+    private peerDiscoveryAddress?: { host: string, port: number };
+    private peerDiscovery?: PeerDiscoveryClient;
     private cluster?: Cluster;
     private network?: Network;
     private options: Options;
@@ -45,19 +50,26 @@ class Service {
     constructor(params: Parameters) {
         this.name = params.service_name;
         // the address of the service will take
-        this.host = params.options.host || 'localhost';
-        this.port = params.options.port || 0;
+        this.host = params.options?.host || 'localhost';
+        this.port = params?.options?.port || 0;
         // the host of the node manager
-        this.nm_host = params.options.nm_host || 'localhost';
-        this.nm_port = params.options.nm_port || 0;
+        this.nm_host = params.options?.nm_host || 'localhost';
+        this.nm_port = params.options?.nm_port || 0;
         // the call that will run the master process
         this.masterCallback = params.mastercallback || undefined;
         // the method that we will use ont he slave
         this.slaveMethods = params.slaveMethods || {};
         // other sevices that we conenct to
-        this.peerAddresses = params.peerServicesAddresses;
+        this.peerAddresses = params.peerServicesAddresses || [];
+        // the peer discovery service
+        this.peerDiscoveryAddress = params.peerDiscoveryAddress || undefined;
+        this.peerDiscovery = undefined;
+        // if both the peerAddresses and the peerDiscoveryServiceAddress are not defined,
+        // we will throw an error
+        if(this.peerAddresses.length === 0 && this.peerDiscoveryAddress === undefined)
+            throw new Error('Peer Addresses or Peer Discovery Service Address must be defined');
         // the options that will be passed to the service
-        this.options = params.options;
+        this.options = params.options || {};
         // smallest number of processes need to run
         // the master and a slave
         if(this.options.number_of_nodes === undefined){
@@ -74,7 +86,7 @@ class Service {
     public async start() { // this will start the service
         // let initlize the cluster so that we can start the service
         this.cluster = new Cluster(this.options);
-        // create a new process for the master process
+       // create a new process for the master process
         this.cluster.spawn('master_' + this.name, {
             allowedToSpawn: true, // give the ability to spawn new processes
             spawnOnlyFromPrimary: true // make sure that only one master process is created
@@ -91,15 +103,18 @@ class Service {
     }
 
     private async initialize_master() {
-        // initialize the node manager
+        // initialize the master and all the services
         log(`[${this.name}] > Service > Initializing node manager`);
+        // get the port for the service
+        if(this.port === 0) this.port = await getPort({host: this.host});
+        // if we have a peer discovery service we will try to connect to it
+        if(this.peerDiscoveryAddress !== undefined) await this.handle_peer_discovery();
+        // initialize the node manager
         await this.initlize_node_manager();
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
         this.network = new Network({name: this.name + '_service_network'});
-        // get the port for the service
-        if(this.port === 0) this.port = await getPort({host: this.host});
         // list the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
             // add out handle request function to the listener
@@ -111,7 +126,9 @@ class Service {
         this.network.createServer(this.name, this.host, this.port, listeners);
         // initilze the process balancer
         this.initialize_process_balancer();
-                // connect to the services
+        // remover self address from the peer addresses by name
+        this.peerAddresses = this.peerAddresses.filter((p: ServiceAddress) => p.name !== this.name);
+        // connect to the services
         let connections = await this.network.connectAll(this.peerAddresses);
         // create a service client for the services
         let services = connections.map( (c: Connection) => {
@@ -179,7 +196,7 @@ class Service {
             this.requestQueue = new RequestQueue({
                 // we pass the functions that the request queue will use
                 get_slave: this.nodes.getIdle.bind(this.nodes),
-                process_request: 
+                process_request:
                     async (node: Node, request: Request) => await node.run(request.method, request.parameters)
             });
     }
@@ -224,7 +241,7 @@ class Service {
             event: '_select',
             params: ['node_num'],
             callback: async (node_num: number) => {
-                // get the idle nodes 
+                // get the idle nodes
                 let nodes = this.nodes?.getNodes().map((n: Node) => n.id);
                 if(nodes === undefined) return { isError: true, error: serializeError(new Error('Nodes are undefined')) }
                 // if the number of nodes is greater than the number of nodes we have
@@ -270,6 +287,13 @@ class Service {
             event: '_turn_over_ratio',
             callback: () => ({ result: this.requestQueue?.getTurnoverRatio() })
         },{
+            event: 'new_service',
+            params: ['service_address'],
+            callback: async (service_address: ServiceAddress) => {
+                if(this.network === undefined) throw new Error('Network is not defined');
+                await this.network?.connect(service_address);
+            }
+        },{
             event: 'exit',
             callback: () => ({ result: this.exit() })
         }];
@@ -303,6 +327,23 @@ class Service {
         }
     }
 
+    private async handle_peer_discovery() {
+        if(this.peerDiscoveryAddress === undefined) throw new Error('Peer Discovery Address is not defined');
+        if(this.cluster === undefined) throw new Error('Cluster is not defined');
+        // check if the peer discovery service is active
+        log(`[${this.name}] > Service > Checking if Peer Discovery Service is active`);
+        log(`[${this.name}] > Service > Peer Discovery Address: ${this.peerDiscoveryAddress.host}:${this.peerDiscoveryAddress.port}`);
+        if(await isServerActive(this.peerDiscoveryAddress) === false)
+            throw new Error('Peer Discovery Service is not active');
+        // if it is active we will register to it
+        this.peerDiscovery = new PeerDiscoveryClient(this.peerDiscoveryAddress);
+        await this.peerDiscovery.connect();
+        // register the service to the peer discovery service
+        this.peerDiscovery.register({ name: this.name, host: this.host, port: this.port });
+        // get the services that we will connect to
+        this.peerAddresses = await this.peerDiscovery.getServices();
+    }
+
     public exit(){
         //log(`[${this.name}] will exit in 1 seconds`);
         setTimeout(() => {
@@ -310,6 +351,8 @@ class Service {
             if(this.processBalancer) this.processBalancer.exit();
             // request queue will be closed
             if(this.requestQueue) this.requestQueue.exit();
+            // if peer discovery is defined we will close it
+            if(this.peerDiscovery) this.peerDiscovery.exit();
             // then we close the nodes Manager
             if(this.nodes) this.nodes.exit();
             // then we close the connections we have,
@@ -320,13 +363,11 @@ class Service {
         return true
     }
 
-    public set = async (key: any, value: any = null) => {
+    public set = async (key: any, value: any = null) =>
         await this.stash.set(key, value);
-    }
 
     public get = async (key: string = '') =>
         await this.stash.get(key);
-    
 }
 
 

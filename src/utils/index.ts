@@ -4,8 +4,9 @@ import log from './log';
 import uuid from './uuids';
 import await_interval from './await_interval';
 import toListeners from './toListeners';
-import { findLocalIpOnSameNetwork, getPort, isActive } from './IpAndPort';
+import { findLocalIpOnSameNetwork, getPort } from './ipAndPort';
+import isServerActive from './isServerActive';
 
 export { Pool, Queue, log, uuid, getPort, 
     findLocalIpOnSameNetwork, await_interval,
-    toListeners, isActive };
+    toListeners, isServerActive };

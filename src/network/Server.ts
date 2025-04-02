@@ -53,13 +53,11 @@ class NetworkServer {
                 }
                 this.isReady = true;
                 this.port = address.port
-                log(`server ${name} is running on ${host}:${port}`);
             });
         }else{ // if we are in localhost
             this.io = new Server(this.port, this.ioOptions);
             // get the port number
             this.port = (this.io as any).httpServer.address().port;
-            log(`server ${name} is running on ${host}:${this.port}`);
         }
         // create a new socket.io client instance
         this.io.on("connection", this.handleConnection.bind(this));
@@ -136,6 +134,11 @@ class NetworkServer {
         this.listeners = listeners;
         // broadcast the new listeners to all clients
         this.io.emit('_set_listeners', this.listeners);
+    }
+
+    public broadcast(event: string, data: any) {
+        // broadcast an event to all clients
+        this.io.emit(event, data);
     }
 
     public addListeners(listeners: Listener[]) {
