@@ -160,6 +160,8 @@ class Service {
         await node.setServices(this.peerAddresses);
         // read the methods to be used
         node.addMethods(this.slaveMethods)
+        // run _startup method
+        await node._startup();
     }
 
     private async initlize_node_manager() {

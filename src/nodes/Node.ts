@@ -200,12 +200,13 @@ class Node {
         // set the listeners which we will us on the and the master can call on
         this.listeners = [
             { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
+            { event: '_exec', parameters: ['parameter'], callback: this.exec_client.bind(this) },
             { event: '_set_services', parameters: ['services'], callback: this.setServices_client.bind(this) },
             { event: '_is_idle', parameters: [], callback: this.isIdle.bind(this) },
             { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
             { event: '_has_done', parameters: ['method'], callback: this.hasDone.bind(this) },
             { event: '_ping', parameters: [], callback: () => 'pong' },
-            { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
+                { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
@@ -243,6 +244,47 @@ class Node {
         }
     }
 
+    private async exec_client(code: string){
+        /* this function will execute some passed albitrary code */
+        // wait until services are connected, with timeout of 10 seconds
+        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+            throw new Error(`[Node][${this.id}] Could not connect to the services`);
+        })
+        try {
+            // set the status to working
+            this.updateStatus('working');
+            // get the services that we have connected to
+            let services = this.services.map(
+                (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
+            ).reduce((acc: any, s: ServiceClient) => {
+                acc[s.name] = s;
+                return acc;
+            }, {})
+            // function to run the code on            // run the arbitrary code
+            let sandBox = async ( services: object ) => { return await eval(code).bind(services)() }
+            // run the code in the sandbox
+            const result = await sandBox({ ...services, slave: this, self: this })
+            // return the result
+            return { result, isError: false };
+        } catch(error){ // serilize the error
+            this.updateStatus('error');
+            // return the error
+            return { error: serializeError(error), isError: true };
+        } finally {
+            // set the status to idle
+            this.updateStatus('idle');
+        }
+    }
+
+    public async _startup(){
+        // this function should not be here, and Node class should be self contained
+        // thus this class need an outside class to call it, after it has set up its
+        // addMethods and setServices and connectToMaster functions have run.
+        if(this.methods['_startup'] !== undefined)
+            await this.run_client({ method: '_startup', parameter: null });
+    }
+
+    
     // this function will communicate with the master node and set the stash in that moment
     public setStash = async (key: any, value: any = null) => await this.send('_set_stash', { key, value });
     public getStash = async (key: string = '') => await this.send('_get_stash', key);
@@ -291,7 +333,10 @@ class Node {
 
     private async exit_client(){
         // before we bail we must be nice enough to close our connections
-        setTimeout(() => {
+        setTimeout(async () => {
+            // if there is a _cleanup method defined
+            if(this.methods['_cleanup'] !== undefined)
+                await this.run_client({ method: '_cleanup', parameter: null });
             // we close the connections we have,
             if(this.network !== undefined) this.network.close();
             // then we exit the process

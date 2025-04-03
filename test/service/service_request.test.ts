@@ -55,28 +55,24 @@ let awaiter_service = new Service({
         { name: 'tester', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
-        'setup': (params: any , slave: any) => {
+        'setup': (params: any , { slave }) => {
             // function to count sum of numbers, purely for the porpuse of processing
-            let wait_function = 
-                (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+            let wait_function = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
             slave['wait_function'] = wait_function 
             log(`[test][slave][slave ${slave.id}] was setup`);
             return true;
         }, 
-        'wait': async (wating_time: number, slave: any) => {
-            let wait_function = 
-                (s: number) : Promise<number> => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+        'wait': async (wating_time: number, { slave }) => {
             // count sum of numbers
-            let s = await wait_function(wating_time)
+            let s = await slave['wait_function'](wating_time)
             // run some code
             if( s > 7 ) return `waited for ${s} seconds, 😡`
             else if( s > 5 ) return `waited for ${s} seconds, 😐`
             else if( s > 2  ) return `waited for ${s} seconds, 😃` 
             else return `waited for ${s} seconds, 😄`
         }, 
-        'clean up': async (params: any, salve: any) => {
-            salve['wait_function'] = undefined
-        }
+        'clean up': async (params: any, salve: any) => delete salve['wait_function']
+        
     },
     options: {
         host: 'localhost',
