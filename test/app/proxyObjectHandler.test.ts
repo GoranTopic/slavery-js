@@ -14,20 +14,20 @@ const po = makeProxyObject( (function_name: string, fn: string, options: any) =>
     const service_names = ['master', 'slave', 'logger']
     expect(function_name).to.be.oneOf(service_names)
     if(function_name === 'master') {
-        expect(fn).to.be.equal('async()=>{log("hello form master")}')
+        expect(fn.toString()).to.be.equal('async()=>{log("hello form master")}')
         expect(options).to.be.equal(undefined)
         functions_passed.master = true
     } else if(function_name === 'slave') {
-        expect(fn).to.be.equal('async()=>{1+1}')
+        expect(fn.toString()).to.be.equal('async()=>{1+1}')
         expect(options).to.be.deep.equal({ 
             port: 3000, 
             host: 'localhost',
-            number_of_nodes: 1,
+           number_of_nodes: 1,
             number_of_replicas: 1
         })
         functions_passed.slave = true
     } else if(function_name === 'logger') {
-        expect(fn).to.be.equal('async()=>{log("logger")}')
+        expect(fn.toString()).to.be.equal('async()=>{log("logger")}')
         expect(options).to.be.equal(undefined)
         functions_passed.logger = true
     }

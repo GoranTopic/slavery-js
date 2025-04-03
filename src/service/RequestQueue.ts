@@ -60,7 +60,7 @@ class RequestQueue {
                     request.result = result;
                     // Track the time taken for this request
                     const timeTaken = endTime - startTime;
-                    log(`[RequestQueue] Request completed in ${timeTaken}ms`);
+                    //log(`[RequestQueue] Request completed in ${timeTaken}ms`);
                     this.turnover_times.push(timeTaken);
                     // Keep only the last 500 entries
                     if (this.turnover_times.length > this.MAX_TURNOVER_ENTRIES) 

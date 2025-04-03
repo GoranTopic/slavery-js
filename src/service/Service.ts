@@ -104,11 +104,11 @@ class Service {
 
     private async initialize_master() {
         // initialize the master and all the services
-        log(`[${this.name}] > Service > Initializing node manager`);
         // get the port for the service
         if(this.port === 0) this.port = await getPort({host: this.host});
         // if we have a peer discovery service we will try to connect to it
         if(this.peerDiscoveryAddress !== undefined) await this.handle_peer_discovery();
+        log('peer addresses', this.peerAddresses);
         // initialize the node manager
         await this.initlize_node_manager();
         // initialize the request queue

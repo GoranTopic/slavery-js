@@ -15,7 +15,7 @@ class PeerDiscoveryClient {
     public port: number;
     public network?: Network = new Network({ name: 'peer_discovery' });
     // the time we give every service to register, before we get the services
-    public windowTime = 500; // 500ms
+    public windowTime = 2000; // 2 seconds
     // get the network from the connection
     constructor({ host, port, name }: params) {
         this.name = name || 'peer_discovery';

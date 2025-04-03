@@ -1,10 +1,12 @@
-import PeerDiscoveryServer from '../peerDiscovery';
+import PeerDiscoveryServer from './peerDiscovery';
 import makeProxyObject from './makeProxyObject';
-import extractFunctions from './extractFunctions';
-import Service from '../service';
+import Service, { SlaveMethods, Options as ServiceOptions } from '../service';
+import { isSlaveMethods, isMasterCallback } from './typeGuards'
 //import type { 
 
-type callableFunction = (...args: any[]) => any;
+type CallableFunction = (...args: any[]) => any;
+
+type MasterCallback = Function | CallableFunction;
 
 type EntryOptions = {
     host: string;
@@ -26,29 +28,57 @@ const entry = (entryOptions: EntryOptions) => {
     return proxyObject; // <--- the proxy obj will return itself in perpituity
 }
 
-const handleProxyCall = (globalOptions: EntryOptions) => 
-(function_name: string, fn: string, options: any) => {
-    // get the service name and the functions
-    const service_name = function_name;
-    const paresed = extractFunctions(fn);
-    const mastercallback = paresed.outer_function;
-    const slaveMethods = paresed.inner_functions
-    .reduce((acc: any, curr: any) => {
-        acc[curr.name] = curr.fn;
-        return acc;
-    }, {});
-    // get the port and the host
-    const port = globalOptions.port;
-    const host = globalOptions.host;
-    // make a new service
-    let service = new Service({
-        service_name,
-        peerDiscoveryAddress: { name: 'peer-discovery-service', host, port },
-        mastercallback: mastercallback as callableFunction,
+
+const handleProxyCall = (globalOptions: EntryOptions) => (
+    // this are all of the possible input to service now the question is who to know 
+    // which one wa passed
+    method: string,
+    param1: MasterCallback | SlaveMethods,
+    param2?: SlaveMethods | ServiceOptions, 
+    param3?: ServiceOptions) => {
+        // first we check which function where passed
+        const { mastercallback, slaveMethods, options } = paramertesDiscermination(param1, param2, param3);
+        if(mastercallback === undefined) throw new Error('Master callback is undefined');
+        // get the service name and the functions
+        const service_name = method;
+        // get the port and the host
+        const port = globalOptions.port;
+        const host = globalOptions.host;
+        // make a new service
+        let service = new Service({
+            service_name,
+            peerDiscoveryAddress: { host, port },
+            mastercallback: mastercallback as CallableFunction,
+            slaveMethods,
+            options,
+        })
+        service.start()
+    }
+
+
+const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?: SlaveMethods | ServiceOptions, param3?: ServiceOptions) => {
+    let mastercallback, slaveMethods, options;
+    // check if the first paramet is either a MasterCallback or SlaveMethods
+    if( isMasterCallback(param1) ) {
+        mastercallback = param1;
+        // check what the second paramter is
+        if( isSlaveMethods(param2) ) {
+            slaveMethods = param2;
+            options = param3 || {};
+        }
+    } else if( isSlaveMethods(param1) ) {
+        mastercallback = () => {};
+        slaveMethods = param1;
+        // check what the second paramter is
+        options = param2 || {};
+    } else { 
+        throw new Error('Invalid first parameter. Must be either a funcition or an object');
+    }
+    return { 
+        mastercallback,
         slaveMethods,
-        options,
-    })
-    service.start()
+        options
+    }
 }
 
 

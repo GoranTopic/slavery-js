@@ -82,7 +82,6 @@ class Pool<T> {
         if( this.enabled.indexOf(id) !== -1 ) return true;
         // if it is in the disabled list, remove it
         if( this.disabled.indexOf(id) !== -1 ){
-            log('[pool] enabling', id);
             // remove the slave from the disable list
             this.disabled = this.disabled.filter( e => e !== id );
             // add the slave to the queue
