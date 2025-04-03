@@ -31,7 +31,7 @@ test_service.start()
 // this is the service we will use to throw an error
 let error_service = new Service({
     service_name: 'errorer',
-    peerServicesAddresses: [],
+    peerServicesAddresses: [ { name: 'error_test', host: 'localhost', port: 3002 } ],
     slaveMethods: {
         'throw_error': async () => { throw new Error('this is an error') }
     }, // the methods that the slaves will

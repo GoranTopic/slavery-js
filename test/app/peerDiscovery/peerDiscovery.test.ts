@@ -1,7 +1,7 @@
 import { expect } from 'chai'
-import Service from '../../src/service'
-import PeerDiscovery from '../../src/peerDiscovery'
-import { log, isServerActive } from '../../src/utils'
+import Service from '../../../src/service'
+import PeerDiscovery from '../../../src/app/peerDiscovery'
+import { log, isServerActive } from '../../../src/utils'
 process.env.debug = 'false';
 
 /* *

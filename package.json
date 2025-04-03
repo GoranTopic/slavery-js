@@ -6,8 +6,7 @@
     "type": "module",
     "scripts": {
         "start": "ts-node main.ts",
-        "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 tsx",
-        "test:watch": "nodemon --exec 'mocha -r ts-node/register -r source-map-support/register --full-trace' 'test/**/*.test.ts'"
+        "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 tsx"
     },
     "repository": {
         "type": "git",

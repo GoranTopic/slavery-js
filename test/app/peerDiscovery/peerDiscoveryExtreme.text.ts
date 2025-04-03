@@ -1,12 +1,15 @@
 import { expect } from 'chai'
-import Service from '../../src/service'
-import PeerDiscovery from '../../src/peerDiscovery'
-import { log, isServerActive } from '../../src/utils'
+import Service from '../../../src/service'
+import PeerDiscovery from '../../../src/app/peerDiscovery'
+import { log, isServerActive } from '../../../src/utils'
 process.env.debug = 'false';
 
 /* *
- * This test will check if the peer discovery work correcly
+ * This test will check if the peer discovery work correcly, but put to the extreme
  * */
+
+// change this to add to the extreme
+const number_of_services = 30
 
 // lets make a peer disvoery service
 let peer_discovery = new PeerDiscovery({
@@ -40,7 +43,8 @@ let test_service = new Service({
 })
 test_service.start()
 
-for (let i = 0; i < 50; i++) {
+
+for (let i = 0; i < number_of_services; i++) {
     let service = new Service({
         service_name: `service${i}`,
         peerDiscoveryAddress: { host: 'localhost', port: 3005 },
