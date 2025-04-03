@@ -1,7 +1,7 @@
-import Network, { Listener, Connection } from '../network';
-import Cluster from '../cluster';
-import { log } from '../utils';
-import type { ServiceAddress } from '../service'
+import Network, { Listener, Connection } from '../../network';
+import Cluster from '../../cluster';
+import { log } from '../../utils';
+import type { ServiceAddress } from '../../service'
 
 type Parameters = {
     host: string,

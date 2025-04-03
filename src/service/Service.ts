@@ -1,7 +1,7 @@
 import Network, { Listener, Connection } from '../network';
 import Node, { NodeManager } from '../nodes';
 import Cluster from '../cluster';
-import { PeerDiscoveryClient } from '../peerDiscovery';
+import { PeerDiscoveryClient } from '../app/peerDiscovery';
 import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
@@ -66,7 +66,7 @@ class Service {
         this.peerDiscovery = undefined;
         // if both the peerAddresses and the peerDiscoveryServiceAddress are not defined,
         // we will throw an error
-        if(this.peerAddresses.length === 0 && this.peerDiscoveryAddress === undefined)
+        if(this.peerAddresses === undefined && this.peerDiscoveryAddress === undefined)
             throw new Error('Peer Addresses or Peer Discovery Service Address must be defined');
         // the options that will be passed to the service
         this.options = params.options || {};

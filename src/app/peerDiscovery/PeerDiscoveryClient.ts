@@ -1,5 +1,5 @@
-import Network from '../network';
-import { log } from '../utils';
+import Network from '../../network';
+import { log } from '../../utils';
 
 type params = {
     name?: string,
