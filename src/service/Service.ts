@@ -6,7 +6,7 @@ import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
 import Stash from './Stash';
-import { toListeners, log, getPort, isServerActive, execAsyncCode } from '../utils';
+import { toListeners, log, getPort, isServerActive, execAsyncCode, await_interval } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import { serializeError } from 'serialize-error';
 
@@ -46,6 +46,7 @@ class Service {
     private cluster?: Cluster;
     private network?: Network;
     private options: Options;
+    private servicesConnected: boolean = false;
 
     constructor(params: Parameters) {
         this.name = params.service_name;
@@ -118,12 +119,12 @@ class Service {
         // list the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
             // add out handle request function to the listener
-            l => ({ ...l, callback: this.handle_request(l) })
+            l => ({ ...l, callback: this.handle_request(l, 'run') })
         );
-        // add the _exec listner, we have to add it here as the listners in this.getServiceListeners
-        // strip the selector
+        // add the _exec listner, we have to add it here as the listners in 
+        // this.getServiceListeners strips the selector
         let exec_listener : Listener = { event: '_exec', callback: ()=>{} };
-        listeners.push({ ...exec_listener, callback: this.handle_request(exec_listener) });
+        listeners.push({ ...exec_listener, callback: this.handle_request(exec_listener, 'exec') });
         // add the local service listener
         listeners = listeners.concat(this.getServiceListeners());
         // create the server
@@ -143,6 +144,8 @@ class Service {
             acc[s.name] = s;
             return acc;
         }, {})
+        // set service as connected
+        this.servicesConnected = true;
         // run the callback for the master process
         if(this.masterCallback !== undefined)
             this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
@@ -203,7 +206,8 @@ class Service {
                 // we pass the functions that the request queue will use
                 get_slave: this.nodes.getIdle.bind(this.nodes),
                 process_request:
-                    async (node: Node, request: Request) => await node.run(request.method, request.parameters)
+                    async (node: Node, request: Request) => await node[request.type](request.method, request.parameters)
+                
             });
     }
 
@@ -293,13 +297,16 @@ class Service {
             event: '_turn_over_ratio',
             callback: () => ({ result: this.requestQueue?.getTurnoverRatio() })
         },{
-
             event: '_exec_master',
             params: ['code_string'],
             callback: async (code_string: any) => {
                 // check if the code_string is a string
                 if(typeof code_string !== 'string')
                     return { isError: true, error: serializeError(new Error('Code string is not a string')) }
+                // await until service is connected
+                await await_interval(() => this.servicesConnected, 10000).catch(() => {
+                    throw new Error(`[Service] Could not connect to the services`);
+                })
                 let service = this.getServices();
                 let parameter = { ...service, master: this, self: this };
                 try {
@@ -327,19 +334,22 @@ class Service {
         });
     }
 
-    private handle_request(l: Listener): Function {
+    private handle_request(l: Listener, type: 'run' | 'exec'): Function {
         /* this function will take a listener triggered by another a request
          * it will set the request in the  request queue, and return a promise
          * which resolves once the request is processed.
          * the queue will processs the request when it finds an idle node
          * and the node returns the result. */
         return async (data: any) => {
+            if(this.slaveMethods === undefined) throw new Error('Slave Methods are not defined');
             if(this.requestQueue === null)
                 throw new Error('Request Queue is not defined');
+            console.log('[Service] > handle_request', l.event, data)
             let promise = this.requestQueue.addRequest({
                 method: l.event,
+                type: type,
                 parameters: data.parameters,
-                selector: data.selector,
+                selector: data.selection,
                 completed: false,
                 result: null
             });

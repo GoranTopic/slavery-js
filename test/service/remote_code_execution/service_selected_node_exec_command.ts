@@ -1,22 +1,60 @@
-import Service from '../../src/service'
+import Service from '../../../src/service'
 import { expect } from 'chai'
-import { log } from '../../src/utils'
+import { log } from '../../../src/utils'
 process.env.debug = 'false';
 
-/* this will test the feature if _startup and _cleanup functions are called */
+/* this will test test if the execution of remote abitrary code works correctly on a selected node */
 
 
 let main_service = new Service({
     service_name: 'tester',
     peerServicesAddresses: [ 
-        { name: 'awaiter', host: 'localhost', port: 3003 } 
+        { name: 'remote_executioner', host: 'localhost', port: 3003 },
+        { name: 'awaiter', host: 'localhost', port: 3004 }
     ], 
-    mastercallback: async ({ awaiter, self }) => {
-        console.log(`[${process.argv[1].split('/').pop()}] testing if the _startup function is called automatically`)
-        let res = await awaiter.wait(2)
+    mastercallback: async ({ remote_executioner, awaiter, self}) => {
+        console.log(`[${process.argv[1].split('/').pop()}] testing remote master execution`)
+        // select a node
+        const node = await remote_executioner.select(1)
+        let { id, res } = await node.exec( ({ self }: any) => {
+            return { id: self.id, res: 1 + 1 }
+        })
+        const node_id = id;
+        expect(res).to.be.equal(2);
+        expect(typeof node_id).to.be.equal('string');
+        // remote code service call
+        ({ id, res } = await node.exec( async ({ awaiter, self }: any) => {
+            self['hidden_value'] = 2;
+            return { id: self.id, res: 1 + 1 }
+        }))
+        expect(id).to.be.equal(node_id)
+        expect(res).to.be.equal('waited for 1000ms') // get hidden value
+        ({ id, res } = await node.exec( async ({ self }: any) => {
+            return { id: self.id, res: self['hidden_value'] }
+        }))
+        expect(id).to.be.equal(node_id)
         expect(res).to.be.equal(2)
-        console.log(`[${process.argv[1].split('/').pop()}] ✅ the _startup function was called`)
+        // test normal not callable code
+        ({ id, res } = await node.exec(`
+            self['hidden_value'] = 3
+            return { id: self.id, res: 1 + 1 }
+        `))
+        expect(id).to.be.equal(node_id)
+        expect(res).to.be.equal(2)
+        ({ id, res } = await node.exec(`
+            return { id: self.id, res: self['hidden_value'] }
+        `))
+        expect(id).to.be.equal(node_id)
+        expect(res).to.be.equal(3)
+        // test remote code execution
+        ({ id, res } = await node.exec(`
+                return { id: self.id, res: awaiter.wait(1000) }
+        `))
+        expect(id).to.be.equal(node_id)
+        expect(res).to.be.equal('waited for 1000ms')
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ test remote node execution done`)
         // exit
+        await remote_executioner.exit()
         await awaiter.exit()
         await self.exit()
     },
@@ -27,30 +65,39 @@ let main_service = new Service({
 })
 main_service.start()
 
-
-//process.env.debug = 'false'
-let awaiter_service = new Service({
-    service_name: 'awaiter',
+let exec_service = new Service({
+    service_name: 'remote_executioner',
     peerServicesAddresses: [
-        { name: 'tester', host: 'localhost', port: 3002 }
+        { name: 'tester', host: 'localhost', port: 3002 },
+        { name: 'awaiter', host: 'localhost', port: 3004 }
     ],
+    mastercallback: async ({}) => { },
     slaveMethods: {
-        '_startup': (params: any , { slave }) => {
-            slave['wait_function'] = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
-        },
-        // will be called when the service is started
-        'wait': async (wating_time: number, { slave }) => {
-            // count sum of numbers
-            return await slave['wait_function'](wating_time)
-        }, 
-        '_cleanup': async (params: any, salve: any) => {
-            console.log(`[${process.argv[1].split('/').pop()}] ✅ the _cleanup function was called`)
-            delete salve['wait_function']
+        'some_method': async (a: number, b: number) => {
+            return a + b
         }
     },
     options: {
         host: 'localhost',
         port: 3003,
+        number_of_nodes: 9,
+    }
+})
+exec_service.start()
+
+let awaiter_service = new Service({
+    service_name: 'awaiter',
+    peerServicesAddresses: [],
+    slaveMethods: {
+        wait: async (ms: number) => {
+           await new Promise((resolve) => setTimeout(() => resolve(true), ms) )
+           return 'waited for ' + ms + 'ms'
+        }
+        
+    },
+        options: {
+        host: 'localhost',
+        port: 3004,
     }
 })
 awaiter_service.start()

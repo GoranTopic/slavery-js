@@ -1,7 +1,7 @@
 import Network, { Listener, Connection } from '../network';
 import { ServiceClient } from '../service';
 import type { ServiceAddress } from './types';
-import { await_interval, log } from '../utils';
+import { await_interval, execAsyncCode, log } from '../utils';
 import { serializeError, deserializeError } from 'serialize-error';
 
 /*
@@ -61,7 +61,7 @@ class Node {
         else throw new Error('The mode has not been set');
     }
 
-    public exec = async (code: string) => {
+    public exec = async (method: string, code: string) => {
         if(this.mode === 'client') return await this.exec_client(code);
         else if(this.mode === 'server') return await this.exec_server(code);
         else throw new Error('The mode has not been set');
@@ -196,11 +196,11 @@ class Node {
         if(this.mode === undefined) throw new Error('The mode has not been set');
         // get the connection of which we will send the method
         let connection: Connection | undefined = undefined;
-        if(this.mode === 'server') 
+        if(this.mode === 'server')
             connection = this.network.getNode(this.id);
-        else if(this.mode === 'client') 
+        else if(this.mode === 'client')
             connection = this.network.getService('master');
-        if(connection === undefined) 
+        if(connection === undefined)
             throw new Error('Could not get the conenction from the network');
         // send the method to the node
         return await connection.send(method, parameter);
@@ -268,17 +268,28 @@ class Node {
     private async exec_client(code_string: string){
         /* this function will execute some passed albitrary code */
         // check if the code_string is a string
-        let service = this.getServices();
-        let parameter = { ...service, master: this, self: this };
-        let code = new Function('services', code_string);
-        return await new Promise(resolve => code(parameter).then((r: any) => {
-            if(r.isError === true)
-                resolve({ isError: true, error: serializeError(r.error) })
-            else
-                resolve({ result: r })
-        }))
+        if(typeof code_string !== 'string')
+            return { isError: true, error: serializeError(new Error('Code string is not a string')) }
+        // await until service is connected
+        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+            throw new Error(`[Service] Could not connect to the services`);
+        })
+        let services = this.services.map(
+            (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
+        ).reduce((acc: any, s: ServiceClient) => {
+            acc[s.name] = s;
+            return acc;
+        }, {})
+        let parameter = { ...services, master: this, self: this };
+        try {
+            // run the albitrary code
+            let result = await execAsyncCode(code_string, parameter);
+            return { result: result, isError: false };
+        } catch(e)  {
+            return { isError: true, error: serializeError(e) }
+        }
     }
-    
+
     public async _startup(){
         // this function should not be here, and Node class should be self contained
         // thus this class need an outside class to call it, after it has set up its
@@ -287,7 +298,6 @@ class Node {
             await this.run_client({ method: '_startup', parameter: null });
     }
 
-    
     // this function will communicate with the master node and set the stash in that moment
     public setStash = async (key: any, value: any = null) => await this.send('_set_stash', { key, value });
     public getStash = async (key: string = '') => await this.send('_get_stash', key);
@@ -300,19 +310,6 @@ class Node {
             this.doneMethods[method] = false;
     }
 
-    private getServices(): { [serviceName: string]: ServiceClient } {
-        // get the service from the network
-        if(this.network === undefined) throw new Error('Network is not defined');
-        let services = this.network.getServices()
-        return services.map( (c: Connection) => {
-            let name = c.getTargetName();
-            if(name === undefined) throw new Error('Service name is undefined');
-            return new ServiceClient(name, this.network as Network);
-        }).reduce((acc: any, s: ServiceClient) => {
-            acc[s.name] = s;
-            return acc;
-        }, {})
-    }
 
     private async setServices_client(services: ServiceAddress[]){
         // we get the list of services that we need to connect to
@@ -322,7 +319,7 @@ class Node {
             let res = await this.connectService(service);
             if(!res)
                 console.error('Could not connect to the service, ', service.name);
-            else 
+            else
                 log(`[Node][${this.id}] Connected to the service, ${service.name}`);
         }
         this.servicesConnected = true;
@@ -340,7 +337,7 @@ class Node {
             throw new Error('The network has not been set');
         return await this.network.connect({name, host, port});
     }
-    
+
     private async ping_client(){
         // this function will ping the master node
         let res = await this.send('_ping');
@@ -373,7 +370,7 @@ class Node {
         }else if(this.mode === 'client'){
             connection = this.network.getNode('master');
             listeners = connection.getListeners();
-            if(connection === undefined) 
+            if(connection === undefined)
                 throw new Error('Could not get the conenction from the network');
         }
         return listeners;

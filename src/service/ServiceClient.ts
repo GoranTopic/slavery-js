@@ -41,7 +41,7 @@ class ServiceClient {
         // get the connection
         let connection = this.network.getService(this.name);
         // and send the data
-        if (connection === null) throw new Error(`Service ${name} not found`);
+        if (connection === null) throw new Error(`Service ${this.name} not found`);
         let response = await connection.send(event, data);
         // check if we got an error and handle it
         if (response.isError === true) 
@@ -61,9 +61,11 @@ class ServiceClient {
 
     // We define a seperate method selecting 
     // a one or a group of nodes in a service
-    public async select(num: number = 1) {
+    public async select(num: number | 'all'| undefined = 1) {
+        // undefined selects all nodes
+        if(num === 0 || num === 'all') num = undefined;
         // send server to select a node
-        let selection = await this.sendRequest('_select', num);
+        let selection = await this.sendRequest('_select', { parameters: num });
         if(selection === null) return;
         // set the selection
         this.selection = selection;
@@ -72,34 +74,44 @@ class ServiceClient {
         this.listeners.forEach((listener: Listener) => {
             (this as any)[listener.event] = 
                 // if we have a selection we send a request to every node on the selection
-                async (parameters: any) => await Promise.all(
+                async (parameters: any) => {
+                let results = await Promise.all(
                     this.selection.map(
                         async (nodeId: string) => await this.sendRequest(
                             listener.event, { parameters, selection: nodeId }
                         )
                     )
-            )
+                )
+                // if we only have one node we return the result
+                if(results.length === 1) return results[0];
+                else return results;
+            }
         });
         // add exec method to the selected
-        (this as any)._exec = async (code: string) => await Promise.all(
-            this.selection.map(
-                async (nodeId: string) => await this.sendRequest(
-                    '_exec', { parameters: code, selection: nodeId }
+        (this as any).exec = async (code: string) => {
+            let results = await Promise.all(
+                this.selection.map(
+                    async (nodeId: string) => await this.sendRequest(
+                        '_exec', { parameters: code, selection: nodeId }
+                    )
                 )
-            )
-        );
+            );
+            // if we only have one node we return the result
+            if(results.length === 1) return results[0];
+            else return results;
+        }
         // return this same object
         return this
     }
 
     public async exec(code: string) {
         // execute albitrary code on the a node
-        await this.sendRequest('_exec', { parameters: code.toString() });
+        return await this.sendRequest('_exec', { parameters: code.toString() });
     }
 
     public async exec_master(code: string) {
         // execute albitrary code on the master node
-        await this.sendRequest('_exec_master', { parameters: code.toString() });
+        return await this.sendRequest('_exec_master', { parameters: code.toString() });
     }
     
 }

@@ -14,20 +14,27 @@ let test_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3003 },
     ],
     mastercallback: async ({ awaiter, self }) => {
-        console.log(`[${process.argv[1].split('/').pop()}] starting test, to select and control a single nodes`)
+        console.log(`[${process.argv[1].split('/').pop()}] starting test, to select and control a single, or multiple nodes`)
         await awaiter._number_of_nodes_connected(3);
         // select a single node
-        let node = await awaiter.select(1);
-        const node_id = await node.getId();
-        console.log('id of the node:', node_id);
-        let id = await node.getId();
-        expect(id).to.equal(node_id);
+        let node = await awaiter.select(1)
         // make a simple request
-        let res = await node.setup();
-        expect(res).to.equal('setup done, id: ' + node_id)
+        let [ res ] = await node.setup()
+        expect(res).to.equal('setup done')
+        // select all nodes 
+        let nodes = await awaiter.select()
         // make a simple request
-        res = await node.wait(3)
-        expect(res).to.equal('waited for 3 seconds, 😐, id: ' + node_id)
+        let responces = await nodes.setup(3)
+        expect(responces).to.have.length(3)
+        // check the all 3 reponses
+        expect(responces[0]).to.equal('setup done')
+        expect(responces[1]).to.equal('setup done')
+        expect(responces[2]).to.equal('setup done')
+        responces = await nodes.wait(3)
+        expect(responces).to.have.length(3)
+        expect(responces[0]).to.equal('waited for 3 seconds, 😐')
+        expect(responces[1]).to.equal('waited for 3 seconds, 😐')
+        expect(responces[2]).to.equal('waited for 3 seconds, 😐')
         // pass test
         console.log(`[${process.argv[1].split('/').pop()}] ✅ control of single and multiple nodes passed`)
         // close the node
@@ -48,17 +55,20 @@ let awaiter_service = new Service({
         { name: 'test', host: 'localhost', port: 3002 },
     ],
     slaveMethods: {
-        'getId': async (params, {self}) => {
-            return self.id;
-        },
         'setup': async (params, {slave}) => {
             slave.wait = async (s: number) : Promise<number> => new Promise( r => setTimeout( () => r(s), s * 1000))
-            return 'setup done, id: ' + slave.id
+            return 'setup done'
         },
         'wait': async (wating_time: number, { slave }) => {
             let s = await slave.wait(wating_time)
-            return 'waited for ' + s + ' seconds, 😐, id: ' + slave.id
-           
+            if( s > 7 )
+                return `waited for ${s} seconds, 😡`
+            else if( s > 5 )
+                return `waited for ${s} seconds, 😢`
+            else if( s > 2  )
+                return `waited for ${s} seconds, 😐`
+            else
+                return `waited for ${s} seconds, 😄`
         },
         'close': async ({}, {slave}) => slave['wait'] = undefined
     },

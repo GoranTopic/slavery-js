@@ -44,6 +44,7 @@ class RequestQueue {
             let request = this.queue.pop();
             if(request === false) throw new Error('Request is null... is the request queue empty?');
             // get a slave to process the request
+            console.log('[RequestQueue] Processing request:', request);
             const slave = await this.get_slave(request.selector);
             // process the request
             let startTime = Date.now();
