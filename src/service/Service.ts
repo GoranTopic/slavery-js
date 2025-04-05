@@ -6,7 +6,7 @@ import RequestQueue from './RequestQueue';
 import ProcessBalancer from './ProcessBalancer';
 import ServiceClient from './ServiceClient';
 import Stash from './Stash';
-import { toListeners, log, getPort, isServerActive } from '../utils';
+import { toListeners, log, getPort, isServerActive, execAsyncCode } from '../utils';
 import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
 import { serializeError } from 'serialize-error';
 
@@ -120,6 +120,10 @@ class Service {
             // add out handle request function to the listener
             l => ({ ...l, callback: this.handle_request(l) })
         );
+        // add the _exec listner, we have to add it here as the listners in this.getServiceListeners
+        // strip the selector
+        let exec_listener : Listener = { event: '_exec', callback: ()=>{} };
+        listeners.push({ ...exec_listener, callback: this.handle_request(exec_listener) });
         // add the local service listener
         listeners = listeners.concat(this.getServiceListeners());
         // create the server
@@ -289,6 +293,24 @@ class Service {
             event: '_turn_over_ratio',
             callback: () => ({ result: this.requestQueue?.getTurnoverRatio() })
         },{
+
+            event: '_exec_master',
+            params: ['code_string'],
+            callback: async (code_string: any) => {
+                // check if the code_string is a string
+                if(typeof code_string !== 'string')
+                    return { isError: true, error: serializeError(new Error('Code string is not a string')) }
+                let service = this.getServices();
+                let parameter = { ...service, master: this, self: this };
+                try {
+                    // run the albitrary code
+                    let result = await execAsyncCode(code_string, parameter);
+                    return { result: result }
+                } catch(e)  {
+                    return { isError: true, error: serializeError(e) }
+                }
+            }
+        },{
             event: 'new_service',
             params: ['service_address'],
             callback: async (service_address: ServiceAddress) => {
@@ -344,6 +366,20 @@ class Service {
         this.peerDiscovery.register({ name: this.name, host: this.host, port: this.port });
         // get the services that we will connect to
         this.peerAddresses = await this.peerDiscovery.getServices();
+    }
+
+    private getServices(): { [serviceName: string]: ServiceClient } {
+        // get the service from the network
+        if(this.network === undefined) throw new Error('Network is not defined');
+        let services = this.network.getServices()
+        return services.map( (c: Connection) => {
+            let name = c.getTargetName();
+            if(name === undefined) throw new Error('Service name is undefined');
+            return new ServiceClient(name, this.network as Network, this.options);
+        }).reduce((acc: any, s: ServiceClient) => {
+            acc[s.name] = s;
+            return acc;
+        }, {})
     }
 
     public exit(){

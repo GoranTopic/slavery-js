@@ -80,8 +80,26 @@ class ServiceClient {
                     )
             )
         });
+        // add exec method to the selected
+        (this as any)._exec = async (code: string) => await Promise.all(
+            this.selection.map(
+                async (nodeId: string) => await this.sendRequest(
+                    '_exec', { parameters: code, selection: nodeId }
+                )
+            )
+        );
         // return this same object
         return this
+    }
+
+    public async exec(code: string) {
+        // execute albitrary code on the a node
+        await this.sendRequest('_exec', { parameters: code.toString() });
+    }
+
+    public async exec_master(code: string) {
+        // execute albitrary code on the master node
+        await this.sendRequest('_exec_master', { parameters: code.toString() });
     }
     
 }

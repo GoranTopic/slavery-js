@@ -61,6 +61,12 @@ class Node {
         else throw new Error('The mode has not been set');
     }
 
+    public exec = async (code: string) => {
+        if(this.mode === 'client') return await this.exec_client(code);
+        else if(this.mode === 'server') return await this.exec_server(code);
+        else throw new Error('The mode has not been set');
+    }
+
     public setServices = async (services: ServiceAddress[]) => {
         if(this.mode === 'client') return await this.setServices_client(services);
         else if(this.mode === 'server') return await this.setServices_server(services);
@@ -138,6 +144,20 @@ class Node {
         return res
     }
 
+    private async exec_server(code: string){
+        // this function will send the node a code to be run in the client
+        // set the status to working
+        this.handleStatusChange('working');
+        let res = await this.send('_exec', code);
+        // set the status to idle
+        this.handleStatusChange('idle');
+        // if there is an error
+        if(res.isError === true)
+            res.error = deserializeError(res.error);
+        // return the result
+        return res
+    }
+
     private async setServices_server(services: ServiceAddress[]){
         // this function will send send a list of services to the client node
         let res = await this.send('_set_services', services);
@@ -200,7 +220,7 @@ class Node {
         // set the listeners which we will us on the and the master can call on
         this.listeners = [
             { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
-            { event: '_exec', parameters: ['parameter'], callback: this.exec_client.bind(this) },
+            { event: '_exec', parameters: ['code_string'], callback: this.exec_client.bind(this) },
             { event: '_set_services', parameters: ['services'], callback: this.setServices_client.bind(this) },
             { event: '_is_idle', parameters: [], callback: this.isIdle.bind(this) },
             { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
@@ -244,38 +264,21 @@ class Node {
         }
     }
 
-    private async exec_client(code: string){
-        /* this function will execute some passed albitrary code */
-        // wait until services are connected, with timeout of 10 seconds
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
-            throw new Error(`[Node][${this.id}] Could not connect to the services`);
-        })
-        try {
-            // set the status to working
-            this.updateStatus('working');
-            // get the services that we have connected to
-            let services = this.services.map(
-                (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
-            ).reduce((acc: any, s: ServiceClient) => {
-                acc[s.name] = s;
-                return acc;
-            }, {})
-            // function to run the code on            // run the arbitrary code
-            let sandBox = async ( services: object ) => { return await eval(code).bind(services)() }
-            // run the code in the sandbox
-            const result = await sandBox({ ...services, slave: this, self: this })
-            // return the result
-            return { result, isError: false };
-        } catch(error){ // serilize the error
-            this.updateStatus('error');
-            // return the error
-            return { error: serializeError(error), isError: true };
-        } finally {
-            // set the status to idle
-            this.updateStatus('idle');
-        }
-    }
 
+    private async exec_client(code_string: string){
+        /* this function will execute some passed albitrary code */
+        // check if the code_string is a string
+        let service = this.getServices();
+        let parameter = { ...service, master: this, self: this };
+        let code = new Function('services', code_string);
+        return await new Promise(resolve => code(parameter).then((r: any) => {
+            if(r.isError === true)
+                resolve({ isError: true, error: serializeError(r.error) })
+            else
+                resolve({ result: r })
+        }))
+    }
+    
     public async _startup(){
         // this function should not be here, and Node class should be self contained
         // thus this class need an outside class to call it, after it has set up its
@@ -295,6 +298,20 @@ class Node {
         // populate methods done
         for(let method in methods)
             this.doneMethods[method] = false;
+    }
+
+    private getServices(): { [serviceName: string]: ServiceClient } {
+        // get the service from the network
+        if(this.network === undefined) throw new Error('Network is not defined');
+        let services = this.network.getServices()
+        return services.map( (c: Connection) => {
+            let name = c.getTargetName();
+            if(name === undefined) throw new Error('Service name is undefined');
+            return new ServiceClient(name, this.network as Network);
+        }).reduce((acc: any, s: ServiceClient) => {
+            acc[s.name] = s;
+            return acc;
+        }, {})
     }
 
     private async setServices_client(services: ServiceAddress[]){
@@ -360,11 +377,6 @@ class Node {
                 throw new Error('Could not get the conenction from the network');
         }
         return listeners;
-    }
-
-    public getServices(){
-        // return the service that we have conencted to
-        return this.services;
     }
 
     public hasDone(method: string){
