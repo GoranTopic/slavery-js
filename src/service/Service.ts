@@ -251,13 +251,20 @@ class Service {
             event: '_select',
             params: ['node_num'],
             callback: async (node_num: number) => {
+                if(this.nodes === undefined) throw new Error('Nodes are undefined');
                 // get the idle nodes
-                let nodes = this.nodes?.getNodes().map((n: Node) => n.id);
-                if(nodes === undefined) return { isError: true, error: serializeError(new Error('Nodes are undefined')) }
+                let count = this.nodes?.getNodeCount();
+                if(count === undefined) return { isError: true, error: serializeError(new Error('Nodes are undefined')) }
                 // if the number of nodes is greater than the number of nodes we have
-                if(node_num > nodes.length) return { isError: true, error: serializeError(new Error('Not enough nodes')) }
+                if(node_num > count) return { isError: true, error: serializeError(new Error('Not enough nodes')) }
+                if(node_num === 0) node_num = count;
                 // select the nodes
-                let selected_nodes = nodes.slice(0, node_num);
+                let selected_nodes = [];
+                for(let i = 0; i < node_num; i++){
+                    let node = this.nodes?.nextNode();
+                    if(node === null) throw new Error('could not get node');
+                    selected_nodes.push(node.id);
+                }
                 // return the selected nodes
                 return { result: selected_nodes }
             }
@@ -344,7 +351,6 @@ class Service {
             if(this.slaveMethods === undefined) throw new Error('Slave Methods are not defined');
             if(this.requestQueue === null)
                 throw new Error('Request Queue is not defined');
-            console.log('[Service] > handle_request', l.event, data)
             let promise = this.requestQueue.addRequest({
                 method: l.event,
                 type: type,

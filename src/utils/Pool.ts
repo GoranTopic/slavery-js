@@ -10,6 +10,7 @@ class Pool<T> {
     private enabled: Queue<string>;
     private disabled: string[];
     private items: { [key: string]: T };
+
     constructor() {
         this.enabled = new Queue();
         this.disabled = [];
@@ -102,7 +103,8 @@ class Pool<T> {
         return id;
     }
 
-    rotate() : T | null { // dequeue and enqueue
+    rotate() : T | null { 
+        // dequeue and enqueue
         if(this.size() === 0) return null
         const id = this.enabled.dequeue()
         if(!id) return null

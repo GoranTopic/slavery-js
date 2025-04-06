@@ -7,7 +7,6 @@ process.env.debug = 'false';
  * from the service, it communcates with it directly 
  * */
 
-
 let test_service = new Service({
     service_name: 'test',
     peerServicesAddresses: [
@@ -19,7 +18,6 @@ let test_service = new Service({
         // select a single node
         let node = await awaiter.select(1);
         const node_id = await node.getId();
-        console.log('id of the node:', node_id);
         let id = await node.getId();
         expect(id).to.equal(node_id);
         // make a simple request

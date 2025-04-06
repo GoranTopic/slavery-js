@@ -109,16 +109,12 @@ class NodeManager {
 
   public async getIdle(node_id: string = '') : Promise<Node> {
       /* this function return a node that is idle */
-      console.log('[node manager] getting node_id: ', node_id);
       if(node_id !== '') { // we are looking for a specific node on the pool
-          console.log('[node manager] looking for node', node_id);
           let node = this.getNode(node_id);
-          console.log('[node manager] waiting for node', node.id, 'to be idle');
           // await for seelcted node to be idle
           await await_interval(() => node.isIdle(), 60 * 60 * 60 * 1000).catch(() => {
               throw new Error(`timeout of one hour, node ${node_id} is not idle`);
           });
-          console.log('[node manager] returning node', node.id);
           return node;
       }
       // check if there are nodes in the pool
@@ -212,6 +208,10 @@ class NodeManager {
   public getNodes() {
       // get all nodes
       return this.nodes.toArray();
+  }
+
+  public nextNode() {
+      return this.nodes.next();
   }
 
   public getNodeCount() {
