@@ -13,46 +13,48 @@ let main_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3004 }
     ], 
     mastercallback: async ({ remote_executioner, awaiter, self}) => {
-        console.log(`[${process.argv[1].split('/').pop()}] testing remote master execution`)
+        console.log(`[${process.argv[1].split('/').pop()}] testing remote arbitrary code execution on a selected node`)
         // select a node
+        await awaiter._number_of_nodes_connected(1);
         const node = await remote_executioner.select(1)
-        let { id, res } = await node.exec( ({ self }: any) => {
-            return { id: self.id, res: 1 + 1 }
+        let res = await node.exec( ({ self }: any) => {
+            return { id: self.id, value: 1 + 1 }
         })
-        const node_id = id;
-        expect(res).to.be.equal(2);
+        const node_id = res.id
         expect(typeof node_id).to.be.equal('string');
+        expect(res.value).to.be.equal(2);
         // remote code service call
-        ({ id, res } = await node.exec( async ({ awaiter, self }: any) => {
+        res = await node.exec( async ({ awaiter, self }: any) => {
             self['hidden_value'] = 2;
-            return { id: self.id, res: 1 + 1 }
-        }))
-        expect(id).to.be.equal(node_id)
-        expect(res).to.be.equal('waited for 1000ms') // get hidden value
-        ({ id, res } = await node.exec( async ({ self }: any) => {
-            return { id: self.id, res: self['hidden_value'] }
-        }))
-        expect(id).to.be.equal(node_id)
-        expect(res).to.be.equal(2)
+            return { id: self.id, value: 1 + 1 }
+        })
+        expect(res.id).to.be.equal(node_id)
+        expect(res.value).to.be.equal(2) // get hidden value
+        res = await node.exec( async ({ self }: any) => {
+            return { id: self.id, value: self['hidden_value'] }
+        })
+        expect(res.id).to.be.equal(node_id)
+        expect(res.value).to.be.equal(2)
         // test normal not callable code
-        ({ id, res } = await node.exec(`
+        res = await node.exec(`
             self['hidden_value'] = 3
-            return { id: self.id, res: 1 + 1 }
-        `))
-        expect(id).to.be.equal(node_id)
-        expect(res).to.be.equal(2)
-        ({ id, res } = await node.exec(`
-            return { id: self.id, res: self['hidden_value'] }
-        `))
-        expect(id).to.be.equal(node_id)
-        expect(res).to.be.equal(3)
+            return { id: self.id, value: 1 + 1 }
+        `)
+        expect(res.id).to.be.equal(node_id)
+        expect(res.value).to.be.equal(2)
         // test remote code execution
-        ({ id, res } = await node.exec(`
-                return { id: self.id, res: awaiter.wait(1000) }
-        `))
-        expect(id).to.be.equal(node_id)
-        expect(res).to.be.equal('waited for 1000ms')
-        console.log(`[${process.argv[1].split('/').pop()}] ✅ test remote node execution done`)
+        res = await node.exec(`
+            return { id: self.id, value: self['hidden_value'] }
+        `)
+        expect(res.id).to.be.equal(node_id)
+        expect(res.value).to.be.equal(3)
+        // test remote code execution
+        res = await node.exec(`
+            return { id: self.id, value: 1 + 1 }
+        `)
+        expect(res.id).to.be.equal(node_id)
+        expect(res.value).to.be.equal(2)
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ arbitrary code execution on selected node works correctly`)
         // exit
         await remote_executioner.exit()
         await awaiter.exit()

@@ -1,7 +1,7 @@
 import { execAsyncCode } from '../../../src/utils'
 import { expect } from 'chai';
 
-console.log(`[${process.argv[1].split('/').pop()}] Testing code execution function which take code and callbacks as string and execute them in the context of the given callbacks`);
+console.log(`[${process.argv[1].split('/').pop()}] testing code execution function which take code and callbacks as string and execute them in the context of the given callbacks`);
 
 const randomer = {
   getNum: async () =>  ({ value: Math.random() })

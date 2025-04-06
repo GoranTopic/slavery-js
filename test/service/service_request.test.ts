@@ -8,6 +8,8 @@ process.env.debug = 'false';
 // they will try to comunicate with each other such that one will send 
 // a query to run to the other one and expect the correct a response
 
+let wait_function = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+
 
 let main_service = new Service({
     service_name: 'tester',
@@ -55,15 +57,9 @@ let awaiter_service = new Service({
         { name: 'tester', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
-        'setup': (params: any , { slave }) => {
-            // function to count sum of numbers, purely for the porpuse of processing
-            let wait_function = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
-            slave['wait_function'] = wait_function 
-            log(`[test][slave][slave ${slave.id}] was setup`);
-            return true;
-        }, 
         'wait': async (wating_time: number, { slave }) => {
             // count sum of numbers
+            slave['wait_function'] = wait_function
             let s = await slave['wait_function'](wating_time)
             // run some code
             if( s > 7 ) return `waited for ${s} seconds, 😡`

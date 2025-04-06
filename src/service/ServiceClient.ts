@@ -95,7 +95,7 @@ class ServiceClient {
            let results = await Promise.all(
                 this.selection.map(
                     async (nodeId: string) => await this.sendRequest(
-                        '_exec', { parameters: code, selection: nodeId }
+                        '_exec', { parameters: code.toString(), selection: nodeId }
                     )
                 )
             );
