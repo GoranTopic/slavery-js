@@ -2,13 +2,13 @@
     "name": "slavery-js",
     "version": "2.0.4",
     "description": "A simple clustering app that allows you to scale an application on multiple thread, containers or machines ",
-    "main": "dist/index.js",
+    "main": "dist/index.cjs",
     "module": "dist/index.js",
     "types": "dist/types/index.d.ts",
     "type": "module",
     "exports": {
         ".": {
-            "require": "./dist/index.js",
+            "require": "./dist/index.cjs",
             "import": "./dist/index.js",
             "types": "./dist/types/index.d.ts"
         }
@@ -16,7 +16,8 @@
     "scripts": {
         "start": "tsx ./src/index.ts",
         "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 tsx",
-        "build": "tsc"
+        "build": "tsup",
+        "dev": "tsup --watch"
     },
     "files": [
         "dist",
@@ -56,6 +57,7 @@
         "@types/ip": "^1.1.3",
         "chai": "^4.5.0",
         "ts-node": "^10.9.2",
+        "tsup": "^8.4.0",
         "tsx": "^4.19.3",
         "typescript": "^5.8.2"
     }

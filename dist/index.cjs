@@ -1,9 +1,46 @@
+"use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
+// src/index.ts
+var index_exports = {};
+__export(index_exports, {
+  Node: () => nodes_default,
+  PeerDiscoverer: () => peerDiscovery_default,
+  Service: () => service_default,
+  default: () => index_default
+});
+module.exports = __toCommonJS(index_exports);
+
 // src/network/Connection.ts
-import { io } from "socket.io-client";
+var import_socket = require("socket.io-client");
 var Connection = class {
   /*
    * @param Node: Node
@@ -74,7 +111,7 @@ var Connection = class {
       this.type = "client";
       this.targetType = "server";
       this.id = id;
-      this.socket = io(`ws://${host}:${port}`, {
+      this.socket = (0, import_socket.io)(`ws://${host}:${port}`, {
         auth: { id },
         timeout: timeout || 1e3 * 60
         // 1 minute
@@ -521,9 +558,9 @@ var log = (...args) => {
 var log_default = log;
 
 // src/utils/uuids.ts
-import { v4 as uuidv4 } from "uuid";
+var import_uuid = require("uuid");
 var generateUUID = () => {
-  return uuidv4();
+  return (0, import_uuid.v4)();
 };
 var uuids_default = generateUUID;
 
@@ -563,8 +600,8 @@ function toListeners(slaveMethods) {
 var toListeners_default = toListeners;
 
 // src/utils/ipAndPort.ts
-import * as ip from "ip";
-import getPort from "get-port";
+var ip = __toESM(require("ip"), 1);
+var import_get_port = __toESM(require("get-port"), 1);
 
 // src/utils/isServerActive.ts
 async function isServerActive({ name, host, port, timeout }) {
@@ -632,8 +669,8 @@ function isCallbackString(code) {
 var execAsyncCode_default = runAsyncCode;
 
 // src/network/Server.ts
-import { Server } from "socket.io";
-import { createServer } from "http";
+var import_socket2 = require("socket.io");
+var import_http = require("http");
 var NetworkServer = class {
   constructor({ name, host, port, listeners }, options) {
     /* this class will handle the logic managing the server conenctions with clilent, 
@@ -665,8 +702,8 @@ var NetworkServer = class {
       maxHttpBufferSize: this.maxTransferSize
     };
     if (this.isLan) {
-      this.httpServer = createServer();
-      this.io = new Server(this.httpServer, this.ioOptions);
+      this.httpServer = (0, import_http.createServer)();
+      this.io = new import_socket2.Server(this.httpServer, this.ioOptions);
       this.httpServer.listen(this.port, this.host, () => {
         let address = this.httpServer?.address();
         if (!address || typeof address === "string") {
@@ -677,7 +714,7 @@ var NetworkServer = class {
         this.port = address.port;
       });
     } else {
-      this.io = new Server(this.port, this.ioOptions);
+      this.io = new import_socket2.Server(this.port, this.ioOptions);
       this.port = this.io.httpServer.address().port;
     }
     this.io.on("connection", this.handleConnection.bind(this));
@@ -925,8 +962,8 @@ var Network_default = Network;
 var network_default = Network_default;
 
 // src/cluster/ProcessCluster.ts
-import { fork } from "child_process";
-import process2 from "node:process";
+var import_child_process = require("child_process");
+var import_node_process = __toESM(require("process"), 1);
 var Cluster = class {
   constructor(options) {
     __publicField(this, "numberOfProcesses");
@@ -942,10 +979,10 @@ var Cluster = class {
     this.process_timeout = options.process_timeout || null;
     this.crash_on_error = options.crash_on_error || false;
     this.debugging = options.debugging || false;
-    this.type = process2.env.type || "primary";
-    this.allowedToSpawn = process2.env.allowedToSpawn === "true" || false;
+    this.type = import_node_process.default.env.type || "primary";
+    this.allowedToSpawn = import_node_process.default.env.allowedToSpawn === "true" || false;
     this.spawnOnlyFromPrimary = false;
-    this.thisProcess = process2;
+    this.thisProcess = import_node_process.default;
     this.processes = [];
   }
   spawn(process_type, {
@@ -965,8 +1002,8 @@ var Cluster = class {
     if (this.isProcessAllowedToSpawn() === false) return;
     let curProcess;
     for (let i = 0; i < numberOfSpawns; i++) {
-      curProcess = fork(
-        process2.argv[1],
+      curProcess = (0, import_child_process.fork)(
+        import_node_process.default.argv[1],
         [],
         {
           env: {
@@ -1002,7 +1039,7 @@ var Cluster = class {
   is(process_type) {
     this.log(`checking if is process ${process_type}`);
     if (process_type === "primary") return this.amIThePrimaryProcess();
-    return process2.env.type === process_type;
+    return import_node_process.default.env.type === process_type;
   }
   amIThePrimaryProcess() {
     if (this.thisProcess.env.is_child === void 0)
@@ -1017,13 +1054,13 @@ var Cluster = class {
     return this.amIThePrimaryProcess();
   }
   amIChildProcess() {
-    return process2.env.is_child === "true";
+    return import_node_process.default.env.is_child === "true";
   }
   log(message) {
-    this.debugging && console.log(`[${process2.pid}][${this.type}] ${message}`);
+    this.debugging && console.log(`[${import_node_process.default.pid}][${this.type}] ${message}`);
   }
   getMetadata() {
-    return process2.env.metadata;
+    return import_node_process.default.env.metadata;
   }
 };
 var ProcessCluster_default = Cluster;
@@ -1186,7 +1223,7 @@ var makeProxyObjecHandler = (callback) => ({
 var makeProxyObject_default = makeProxyObject;
 
 // src/nodes/Node.ts
-import { serializeError, deserializeError } from "serialize-error";
+var import_serialize_error = require("serialize-error");
 var Node = class {
   constructor() {
     __publicField(this, "mode");
@@ -1296,7 +1333,7 @@ var Node = class {
     let res = await this.send("_run", { method, parameter });
     this.handleStatusChange("idle");
     if (res.isError === true)
-      res.error = deserializeError(res.error);
+      res.error = (0, import_serialize_error.deserializeError)(res.error);
     return res;
   }
   async exec_server(code2) {
@@ -1304,7 +1341,7 @@ var Node = class {
     let res = await this.send("_exec", code2);
     this.handleStatusChange("idle");
     if (res.isError === true)
-      res.error = deserializeError(res.error);
+      res.error = (0, import_serialize_error.deserializeError)(res.error);
     return res;
   }
   async setServices_server(services) {
@@ -1378,14 +1415,14 @@ var Node = class {
       return { result: result2, isError: false };
     } catch (error) {
       this.updateStatus("error");
-      return { error: serializeError(error), isError: true };
+      return { error: (0, import_serialize_error.serializeError)(error), isError: true };
     } finally {
       this.updateStatus("idle");
     }
   }
   async exec_client(code_string) {
     if (typeof code_string !== "string")
-      return { isError: true, error: serializeError(new Error("Code string is not a string")) };
+      return { isError: true, error: (0, import_serialize_error.serializeError)(new Error("Code string is not a string")) };
     await await_interval_default(() => this.servicesConnected, 1e4).catch(() => {
       throw new Error(`[Service] Could not connect to the services`);
     });
@@ -1400,7 +1437,7 @@ var Node = class {
       let result2 = await execAsyncCode_default(code_string, parameter);
       return { result: result2, isError: false };
     } catch (e) {
-      return { isError: true, error: serializeError(e) };
+      return { isError: true, error: (0, import_serialize_error.serializeError)(e) };
     }
   }
   async _startup() {
@@ -1718,7 +1755,7 @@ var RequestQueue = class {
 var RequestQueue_default = RequestQueue;
 
 // src/service/ProcessBalancer.ts
-import os from "os";
+var import_os = __toESM(require("os"), 1);
 var ProcessBalancer = class {
   constructor(config) {
     __publicField(this, "prevQueueSize", 0);
@@ -1749,7 +1786,7 @@ var ProcessBalancer = class {
     this.interval = this.startMonitoring();
   }
   getCpuUsage() {
-    let cpus = os.cpus();
+    let cpus = import_os.default.cpus();
     let totalLoad = cpus.reduce((acc, cpu) => {
       let total = Object.values(cpu.times).reduce((t, v) => t + v, 0);
       return acc + cpu.times.user / total * 100;
@@ -1757,7 +1794,7 @@ var ProcessBalancer = class {
     return totalLoad / cpus.length;
   }
   getMemoryUsage() {
-    return (os.totalmem() - os.freemem()) / os.totalmem() * 100;
+    return (import_os.default.totalmem() - import_os.default.freemem()) / import_os.default.totalmem() * 100;
   }
   monitorSystem() {
     if (this.checkQueueSize === void 0) throw Error("checkQueueSize is undefined");
@@ -1815,7 +1852,7 @@ var ProcessBalancer = class {
 var ProcessBalancer_default = ProcessBalancer;
 
 // src/service/ServiceClient.ts
-import { deserializeError as deserializeError2 } from "serialize-error";
+var import_serialize_error2 = require("serialize-error");
 var ServiceClient = class _ServiceClient {
   // get the network from the connection
   constructor(name, network, options = {}, selection) {
@@ -1896,7 +1933,7 @@ var ServiceClient = class _ServiceClient {
     return await this.sendRequest("_exec_master", { parameters: code2.toString() });
   }
   handleErrors(error_obj) {
-    let error = deserializeError2(error_obj);
+    let error = (0, import_serialize_error2.deserializeError)(error_obj);
     if (this.options.throwError) throw error;
     if (this.options.logError) console.error(error);
     if (this.options.returnError) return error;
@@ -1980,7 +2017,7 @@ var Stash = class {
 var Stash_default = Stash;
 
 // src/service/Service.ts
-import { serializeError as serializeError2 } from "serialize-error";
+var import_serialize_error3 = require("serialize-error");
 var Service = class {
   constructor(params) {
     /* This will be the based class for the service which salvery will call to create proceses */
@@ -2044,7 +2081,7 @@ var Service = class {
     }
   }
   async initialize_master() {
-    if (this.port === 0) this.port = await getPort({ host: this.host });
+    if (this.port === 0) this.port = await (0, import_get_port.default)({ host: this.host });
     if (this.peerDiscoveryAddress !== void 0) await this.handle_peer_discovery();
     log_default("peer addresses", this.peerAddresses);
     await this.initlize_node_manager();
@@ -2088,7 +2125,7 @@ var Service = class {
   async initlize_node_manager() {
     if (Object.keys(this.slaveMethods).length === 0) return null;
     if (this.nm_port === 0)
-      this.nm_port = await getPort({ host: this.nm_host });
+      this.nm_port = await (0, import_get_port.default)({ host: this.nm_host });
     this.nodes = new NodeManager_default({
       name: this.name,
       host: this.nm_host,
@@ -2150,8 +2187,8 @@ var Service = class {
       callback: async (node_num) => {
         if (this.nodes === void 0) throw new Error("Nodes are undefined");
         let count = this.nodes?.getNodeCount();
-        if (count === void 0) return { isError: true, error: serializeError2(new Error("Nodes are undefined")) };
-        if (node_num > count) return { isError: true, error: serializeError2(new Error("Not enough nodes")) };
+        if (count === void 0) return { isError: true, error: (0, import_serialize_error3.serializeError)(new Error("Nodes are undefined")) };
+        if (node_num > count) return { isError: true, error: (0, import_serialize_error3.serializeError)(new Error("Not enough nodes")) };
         if (node_num === 0) node_num = count;
         let selected_nodes = [];
         for (let i = 0; i < node_num; i++) {
@@ -2187,7 +2224,7 @@ var Service = class {
         } else if (node_ids.length >= 1) {
           res = await this.nodes?.killNodes(node_ids);
         } else {
-          return { isError: true, error: serializeError2(new Error("Invalid node id")) };
+          return { isError: true, error: (0, import_serialize_error3.serializeError)(new Error("Invalid node id")) };
         }
         return { result: res };
       }
@@ -2203,7 +2240,7 @@ var Service = class {
       params: ["code_string"],
       callback: async (code_string) => {
         if (typeof code_string !== "string")
-          return { isError: true, error: serializeError2(new Error("Code string is not a string")) };
+          return { isError: true, error: (0, import_serialize_error3.serializeError)(new Error("Code string is not a string")) };
         await await_interval_default(() => this.servicesConnected, 1e4).catch(() => {
           throw new Error(`[Service] Could not connect to the services`);
         });
@@ -2213,7 +2250,7 @@ var Service = class {
           let result2 = await execAsyncCode_default(code_string, parameter);
           return { result: result2 };
         } catch (e) {
-          return { isError: true, error: serializeError2(e) };
+          return { isError: true, error: (0, import_serialize_error3.serializeError)(e) };
         }
       }
     }, {
@@ -2246,7 +2283,7 @@ var Service = class {
       });
       let result2 = await promise;
       if (result2.isError === true)
-        result2.error = serializeError2(result2.error);
+        result2.error = (0, import_serialize_error3.serializeError)(result2.error);
       return result2;
     };
   }
@@ -2352,17 +2389,17 @@ var paramertesDiscermination = (param1, param2, param3) => {
 var entry_default = entry;
 
 // src/app/extractFunctions.ts
-import * as esprima from "esprima";
+var esprima = __toESM(require("esprima"), 1);
 
 // src/app/index.ts
 var app_default = entry_default;
 
 // src/index.ts
 var index_default = app_default;
-export {
-  nodes_default as Node,
-  peerDiscovery_default as PeerDiscoverer,
-  service_default as Service,
-  index_default as default
-};
-//# sourceMappingURL=index.js.map
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  Node,
+  PeerDiscoverer,
+  Service
+});
+//# sourceMappingURL=index.cjs.map
