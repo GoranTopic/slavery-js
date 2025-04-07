@@ -16,7 +16,7 @@
     "scripts": {
         "start": "tsx ./src/index.ts",
         "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 tsx",
-        "build": "tsc"
+        "build": "t
     },
     "files": [
         "dist",
@@ -57,4 +57,5 @@
         "tsx": "^4.19.3",
         "typescript": "^5.8.2"
     }
+
 }
