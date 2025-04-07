@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/network/types/Listener.ts"],"sourcesContent":["interface Listener {\n    event: string;\n    parameters?: Array<any>;\n    callback: Function;\n}\n\nexport default Listener;\n"],"mappings":";;;;;;;;;;;;;;AAAA;AAAA;","names":[]}

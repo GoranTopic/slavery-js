@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/cluster/index.ts"],"sourcesContent":["import Cluster from './ProcessCluster.js'\nexport default Cluster\n\n"],"mappings":";AAAA,OAAO,aAAa;AACpB,IAAO,kBAAQ;","names":[]}

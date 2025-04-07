@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/service/types/SlaveMethods.ts"],"sourcesContent":["type SlaveMethods = {\n  [key: string]: (...args: any[]) => any;\n};\n\nexport default SlaveMethods;\n"],"mappings":";;;;;;;;;;;;;;AAAA;AAAA;","names":[]}

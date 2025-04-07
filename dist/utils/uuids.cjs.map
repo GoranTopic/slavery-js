@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/utils/uuids.ts"],"sourcesContent":["import { v4 as uuidv4 } from 'uuid';\n\nconst generateUUID = () => {\n    return uuidv4();\n}\n\n export default generateUUID;\n"],"mappings":";;;;;;;;;;;;;;;;;;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA,kBAA6B;AAE7B,MAAM,eAAe,MAAM;AACvB,aAAO,YAAAA,IAAO;AAClB;AAEC,IAAO,gBAAQ;","names":["uuidv4"]}

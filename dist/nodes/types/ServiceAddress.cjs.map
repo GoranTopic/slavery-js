@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/nodes/types/ServiceAddress.ts"],"sourcesContent":["type ServiceAddress = {\n    name: string,\n    host?: string,\n    port?: number,\n}\n\nexport default ServiceAddress;\n"],"mappings":";;;;;;;;;;;;;;AAAA;AAAA;","names":[]}

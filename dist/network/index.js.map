@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../src/network/index.ts"],"sourcesContent":["import Network from './Network.js';\nimport Connection from './Connection.js';\nimport type { Listener } from './types/index.js';\n\nexport default Network;\n\nexport { Listener, Connection };\n"],"mappings":";AAAA,OAAO,aAAa;AACpB,OAAO,gBAAgB;AAGvB,IAAO,kBAAQ;","names":[]}
