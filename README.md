@@ -2,6 +2,21 @@ slavery-js
 =======
 #### A simple lib to manage multiple processes on nodejs. It makes horizontal scaling easy on multiple machines over HTTP traffic.
 
+```javascript
+
+slavery()
+   .master( () => {
+
+            // master code
+
+   })
+   .slave( () => {
+ 
+            // slave code
+
+   })
+```
+
 ## Installation
 ```
 npm install slavery-js
