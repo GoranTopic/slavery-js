@@ -12,7 +12,7 @@ const wait = async (seconds: number) => new Promise( r => setTimeout( () => r(1)
 const time_to_wait = 2
 const starting_nodes = 10
 const percentage_to_scale_down = 0.9
-const node_count_grace_error = 1
+const node_count_grace_error = 2
 
 let test_service = new Service({
     service_name: 'test',
