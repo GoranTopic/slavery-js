@@ -1,4 +1,4 @@
-import { log } from '../../src/utils/index.js';
+import { log } from './index.js';
 import { Connection } from '../network/index.js';
 
 /**
