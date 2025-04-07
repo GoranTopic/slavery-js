@@ -1,4 +1,4 @@
-import Network from '../../network';
+import Network from '../../network/index.js';
 type params = {
     name?: string;
     host: string;

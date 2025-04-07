@@ -1,5 +1,5 @@
 import { Socket } from 'socket.io';
-import Listener from './types/Listener';
+import type Listener from './types/Listener.js';
 declare class Connection {
     private socket;
     private request_id;

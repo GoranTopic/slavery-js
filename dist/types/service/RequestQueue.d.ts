@@ -1,4 +1,4 @@
-import { Request } from './types';
+import type { Request } from './types';
 declare class RequestQueue {
     private queue;
     private process_request;

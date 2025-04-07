@@ -1,5 +1,5 @@
-import Network from '../../network';
-import { log } from '../../utils';
+import Network from '../../network/index.js';
+import { log } from '../../utils/index.js';
 
 type params = {
     name?: string,

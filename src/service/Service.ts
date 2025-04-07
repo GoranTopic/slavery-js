@@ -1,13 +1,13 @@
-import Network, { Listener, Connection } from '../network';
-import Node, { NodeManager } from '../nodes';
-import Cluster from '../cluster';
-import { PeerDiscoveryClient } from '../app/peerDiscovery';
-import RequestQueue from './RequestQueue';
-import ProcessBalancer from './ProcessBalancer';
-import ServiceClient from './ServiceClient';
-import Stash from './Stash';
-import { toListeners, log, getPort, isServerActive, execAsyncCode, await_interval } from '../utils';
-import type { ServiceAddress, SlaveMethods, Request, Options } from './types';
+import Network, { Listener, Connection } from '../network/index.js';
+import Node, { NodeManager } from '../nodes/index.js';
+import Cluster from '../cluster/index.js';
+import { PeerDiscoveryClient } from '../app/peerDiscovery/index.js';
+import RequestQueue from './RequestQueue.js';
+import ProcessBalancer from './ProcessBalancer.js';
+import ServiceClient from './ServiceClient.js';
+import Stash from './Stash.js';
+import { toListeners, log, getPort, isServerActive, execAsyncCode, await_interval } from '../utils/index.js';
+import type { ServiceAddress, SlaveMethods, Request, Options } from './types/index.js';
 import { serializeError } from 'serialize-error';
 
 // the paramer the service will take

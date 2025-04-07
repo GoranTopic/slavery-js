@@ -1,5 +1,5 @@
-import PeerDiscoveryServer from './PeerDiscoveryServer';
-import PeerDiscoveryClient from './PeerDiscoveryClient';
+import PeerDiscoveryServer from './PeerDiscoveryServer.js';
+import PeerDiscoveryClient from './PeerDiscoveryClient.js';
 
 export default PeerDiscoveryServer;
 

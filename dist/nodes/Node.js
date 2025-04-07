@@ -1,7 +1,12 @@
-import Network from '../network';
-import { ServiceClient } from '../service';
-import { await_interval, execAsyncCode, log } from '../utils';
-import { serializeError, deserializeError } from 'serialize-error';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const network_1 = __importDefault(require("../network"));
+const service_1 = require("../service");
+const utils_1 = require("../utils");
+const serialize_error_1 = require("serialize-error");
 class Node {
     mode = undefined;
     id = undefined;
@@ -30,7 +35,7 @@ class Node {
     updateLastHeardOf = () => this.lastUpdateAt = Date.now();
     updateStatus = (status) => this.status = status;
     untilFinish = async () => {
-        await await_interval(() => this.isIdle(), 1000)
+        await (0, utils_1.await_interval)(() => this.isIdle(), 1000)
             .catch(() => { throw new Error('The node is not idle'); });
         return true;
     };
@@ -123,7 +128,7 @@ class Node {
         this.handleStatusChange('idle');
         // if there is an error
         if (res.isError === true)
-            res.error = deserializeError(res.error);
+            res.error = (0, serialize_error_1.deserializeError)(res.error);
         // return the result
         return res;
     }
@@ -136,7 +141,7 @@ class Node {
         this.handleStatusChange('idle');
         // if there is an error
         if (res.isError === true)
-            res.error = deserializeError(res.error);
+            res.error = (0, serialize_error_1.deserializeError)(res.error);
         // return the result
         return res;
     }
@@ -195,7 +200,7 @@ class Node {
         // conenct the master process which will tell us what to do
         // create an id for the node
         this.id = this.id || Math.random().toString(36).substring(4);
-        this.network = new Network({ name: 'node', id: this.id });
+        this.network = new network_1.default({ name: 'node', id: this.id });
         // form the conenction with the master
         this.network.connect({ host, port, as: 'master' });
         // set the mode as a client
@@ -217,14 +222,14 @@ class Node {
     async run_client({ method, parameter }) {
         // this function will be called by the a service or another node to run a function
         // wait until services are connected, with timeout of 10 seconds
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+        await (0, utils_1.await_interval)(() => this.servicesConnected, 10000).catch(() => {
             throw new Error(`[Node][${this.id}] Could not connect to the services`);
         });
         try {
             // set the status to working
             this.updateStatus('working');
             // get the services that we have connected to
-            let services = this.services.map((s) => new ServiceClient(s.name, this.network)).reduce((acc, s) => {
+            let services = this.services.map((s) => new service_1.ServiceClient(s.name, this.network)).reduce((acc, s) => {
                 acc[s.name] = s;
                 return acc;
             }, {});
@@ -238,7 +243,7 @@ class Node {
         catch (error) { // serilize the error
             this.updateStatus('error');
             // return the error
-            return { error: serializeError(error), isError: true };
+            return { error: (0, serialize_error_1.serializeError)(error), isError: true };
         }
         finally {
             // set the status to idle
@@ -249,23 +254,23 @@ class Node {
         /* this function will execute some passed albitrary code */
         // check if the code_string is a string
         if (typeof code_string !== 'string')
-            return { isError: true, error: serializeError(new Error('Code string is not a string')) };
+            return { isError: true, error: (0, serialize_error_1.serializeError)(new Error('Code string is not a string')) };
         // await until service is connected
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+        await (0, utils_1.await_interval)(() => this.servicesConnected, 10000).catch(() => {
             throw new Error(`[Service] Could not connect to the services`);
         });
-        let services = this.services.map((s) => new ServiceClient(s.name, this.network)).reduce((acc, s) => {
+        let services = this.services.map((s) => new service_1.ServiceClient(s.name, this.network)).reduce((acc, s) => {
             acc[s.name] = s;
             return acc;
         }, {});
         let parameter = { ...services, master: this, self: this };
         try {
             // run the albitrary code
-            let result = await execAsyncCode(code_string, parameter);
+            let result = await (0, utils_1.execAsyncCode)(code_string, parameter);
             return { result: result, isError: false };
         }
         catch (e) {
-            return { isError: true, error: serializeError(e) };
+            return { isError: true, error: (0, serialize_error_1.serializeError)(e) };
         }
     }
     async _startup() {
@@ -294,7 +299,7 @@ class Node {
             if (!res)
                 console.error('Could not connect to the service, ', service.name);
             else
-                log(`[Node][${this.id}] Connected to the service, ${service.name}`);
+                (0, utils_1.log)(`[Node][${this.id}] Connected to the service, ${service.name}`);
         }
         this.servicesConnected = true;
         return true;
@@ -363,5 +368,5 @@ class Node {
     stash = this.setStash;
     unstash = this.getStash;
 }
-export default Node;
+exports.default = Node;
 //# sourceMappingURL=Node.js.map

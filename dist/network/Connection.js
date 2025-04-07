@@ -1,4 +1,6 @@
-import { io } from "socket.io-client";
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const socket_io_client_1 = require("socket.io-client");
 class Connection {
     /*
      * this class is manager for the socket instance
@@ -65,7 +67,7 @@ class Connection {
             this.targetType = 'server';
             // use the id
             this.id = id;
-            this.socket = io(`ws://${host}:${port}`, {
+            this.socket = (0, socket_io_client_1.io)(`ws://${host}:${port}`, {
                 auth: { id },
                 timeout: timeout || 1000 * 60 // 1 minute
             });
@@ -264,5 +266,5 @@ class Connection {
         this.socket.disconnect();
     }
 }
-export default Connection;
+exports.default = Connection;
 //# sourceMappingURL=Connection.js.map

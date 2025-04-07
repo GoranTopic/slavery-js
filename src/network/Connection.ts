@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 import { Socket } from 'socket.io';
-import log from '../utils/log'
-import Listener from './types/Listener';
+import log from '../utils/log.js';
+import type Listener from './types/Listener.js';
 
 class Connection {
     /*

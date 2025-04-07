@@ -1,10 +1,15 @@
-import Network from '../../network';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_js_1 = __importDefault(require("../../network/index.js"));
 class PeerDiscoveryClient {
     /* this class will be used to connect to a the peer discovery server */
     name = 'peer_discovery';
     host;
     port;
-    network = new Network({ name: 'peer_discovery' });
+    network = new index_js_1.default({ name: 'peer_discovery' });
     // the time we give every service to register, before we get the services
     windowTime = 2000; // 2 seconds
     // get the network from the connection
@@ -51,5 +56,5 @@ class PeerDiscoveryClient {
         return await connection.send('exit');
     }
 }
-export default PeerDiscoveryClient;
+exports.default = PeerDiscoveryClient;
 //# sourceMappingURL=PeerDiscoveryClient.js.map

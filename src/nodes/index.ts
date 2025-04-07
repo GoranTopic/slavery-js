@@ -1,5 +1,5 @@
-import Node from './Node';
-import NodeManager from './NodeManager';
+import Node from './Node.js';
+import NodeManager from './NodeManager.js';
 
 export default Node 
 

@@ -1,4 +1,6 @@
-import { deserializeError } from 'serialize-error';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const serialize_error_1 = require("serialize-error");
 class ServiceClient {
     /* this class will be used to connect to a diffrent service,
      * it will convert the class into a client handler for other services
@@ -97,7 +99,7 @@ class ServiceClient {
     }
     handleErrors(error_obj) {
         // deserialize the error, handle according to the options
-        let error = deserializeError(error_obj);
+        let error = (0, serialize_error_1.deserializeError)(error_obj);
         if (this.options.throwError)
             throw error;
         if (this.options.logError)
@@ -108,5 +110,5 @@ class ServiceClient {
             return null;
     }
 }
-export default ServiceClient;
+exports.default = ServiceClient;
 //# sourceMappingURL=ServiceClient.js.map

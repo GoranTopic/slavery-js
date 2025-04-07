@@ -1,5 +1,10 @@
-import os from 'os';
-import { log } from '../utils';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const os_1 = __importDefault(require("os"));
+const index_js_1 = require("../utils/index.js");
 class ProcessBalancer {
     prevQueueSize = 0;
     interval;
@@ -39,7 +44,7 @@ class ProcessBalancer {
         this.interval = this.startMonitoring();
     }
     getCpuUsage() {
-        let cpus = os.cpus();
+        let cpus = os_1.default.cpus();
         let totalLoad = cpus.reduce((acc, cpu) => {
             let total = Object.values(cpu.times).reduce((t, v) => t + v, 0);
             return acc + (cpu.times.user / total) * 100;
@@ -47,7 +52,7 @@ class ProcessBalancer {
         return totalLoad / cpus.length;
     }
     getMemoryUsage() {
-        return ((os.totalmem() - os.freemem()) / os.totalmem()) * 100;
+        return ((os_1.default.totalmem() - os_1.default.freemem()) / os_1.default.totalmem()) * 100;
     }
     monitorSystem() {
         if (this.checkQueueSize === undefined)
@@ -86,7 +91,7 @@ class ProcessBalancer {
             avgMem < this.memThreshold &&
             // and the ratio of idle slaves to working slaves is greater than than threshold
             idleRate < this.maxIdleRateThreshold) {
-            log('Scaling up, adding a node');
+            (0, index_js_1.log)('Scaling up, adding a node');
             //@ts-ignore
             this.addSlave();
         }
@@ -98,7 +103,7 @@ class ProcessBalancer {
             queueGrowth <= 0 &&
             // if the idle rate is low
             idleRate > this.minIdleRateThreshold) {
-            log('Scaling down, removing a node');
+            (0, index_js_1.log)('Scaling down, removing a node');
             //@ts-ignore
             this.removeSlave();
         }
@@ -123,5 +128,5 @@ class ProcessBalancer {
         clearInterval(this.interval);
     }
 }
-export default ProcessBalancer;
+exports.default = ProcessBalancer;
 //# sourceMappingURL=ProcessBalancer.js.map

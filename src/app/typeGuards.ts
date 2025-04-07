@@ -1,4 +1,4 @@
-import { SlaveMethods, Options as ServiceOptions } from '../service';
+import type { SlaveMethods, Options as ServiceOptions } from '../service/types/index.js';
 
 type callableFunction = (...args: any[]) => any;
 

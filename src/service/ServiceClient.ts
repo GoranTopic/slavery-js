@@ -1,4 +1,4 @@
-import Network, { Listener } from '../network';
+import Network, { Listener } from '../network/index.js';
 import { deserializeError } from 'serialize-error';
 
 type Options = {

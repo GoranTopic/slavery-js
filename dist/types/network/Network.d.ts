@@ -1,7 +1,7 @@
-import Connection from './Connection';
-import { Pool } from '../utils';
-import type Listener from './types/Listener';
-import Server from './Server';
+import Connection from './Connection.js';
+import { Pool } from '../utils/index.js';
+import type Listener from './types/Listener.js';
+import Server from './Server.js';
 declare class Network {
     id: string;
     server: Server | null;

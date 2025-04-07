@@ -1,7 +1,7 @@
-import PeerDiscoveryServer from './peerDiscovery';
-import makeProxyObject from './makeProxyObject';
-import Service, { SlaveMethods, Options as ServiceOptions } from '../service';
-import { isSlaveMethods, isMasterCallback } from './typeGuards'
+import PeerDiscoveryServer from './peerDiscovery/index.js';
+import makeProxyObject from './makeProxyObject.js';
+import Service, { SlaveMethods, Options as ServiceOptions } from '../service/index.js';
+import { isSlaveMethods, isMasterCallback } from './typeGuards.js';
 //import type { 
 
 type CallableFunction = (...args: any[]) => any;

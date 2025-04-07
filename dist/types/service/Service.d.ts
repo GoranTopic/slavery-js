@@ -1,4 +1,4 @@
-import type { ServiceAddress, SlaveMethods, Options } from './types';
+import type { ServiceAddress, SlaveMethods, Options } from './types/index.js';
 type Parameters = {
     service_name: string;
     peerServicesAddresses?: ServiceAddress[];

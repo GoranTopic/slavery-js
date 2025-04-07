@@ -1,5 +1,4 @@
-import Service from '../service';
-import { ServiceAddress } from '../service';
+import Service, { ServiceAddress } from '../service/index.js';
 
 
 /* 

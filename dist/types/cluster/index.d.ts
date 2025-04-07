@@ -1,2 +1,2 @@
-import Cluster from './ProcessCluster';
+import Cluster from './ProcessCluster.js';
 export default Cluster;

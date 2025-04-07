@@ -1,5 +1,4 @@
-import Queue from './Queue'
-import log from './log'
+import Queue from './Queue.js'
 
 class Pool<T> {
     /* *

@@ -1,3 +1,19 @@
+"use strict";
+/*
+ * this code will serve as the entry point for the applacation
+ * it allows the api to have a syntax of:
+ *
+ * proxy
+ *  .master( (master) => {
+ *      console.log(master)
+ *      console.log('some function')
+ *  })
+ *  .slave( slave => {
+ *      console.log('something else', slave)
+ *  }, 9090, 'someArgString')
+ *  .yetAnotherMethod();
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
 let proxy;
 const makeProxyObject = (callback) => {
     // Create a proxy object handler the given callbakcs
@@ -27,5 +43,5 @@ const makeProxyObjecHandler = (callback) => ({
         };
     }
 });
-export default makeProxyObject;
+exports.default = makeProxyObject;
 //# sourceMappingURL=makeProxyObject.js.map

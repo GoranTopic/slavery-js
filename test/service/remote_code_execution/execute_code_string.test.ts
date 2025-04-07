@@ -48,31 +48,33 @@ async function callback3({ waiter } : any) {
     });
 }
 
-let result = null;
-// Test randomer
-result = await execAsyncCode(code_line_1, { randomer, greeter, waiter })
-expect(result).to.have.property('value');
-expect(result.value).to.be.a('number');
-// Test greeter
-result = await execAsyncCode(code_line_2, { randomer, greeter, waiter })
-expect(result).to.be.a('string');
-expect(result).to.equal("Hello, world!");
-// Test waiter
-result = await execAsyncCode(code_line_3, { randomer, greeter, waiter })
-expect(result).to.be.a('string');
-expect(result).to.equal("Waited 1 second!");
-// test callble funstion, callbacks
-result = await execAsyncCode(callback1.toString(), { randomer, greeter, waiter })
-expect(result).to.have.property('value');
-expect(result.value).to.be.a('number');
-// Test greeter
-result = await execAsyncCode(callback2.toString(), { randomer, greeter, waiter })
-expect(result).to.be.a('string');
-expect(result).to.equal("Hello, world!");
-// Test waiter
-result = await execAsyncCode(callback3.toString(), { randomer, greeter, waiter })
-expect(result).to.be.a('string');
-console.log(`[${process.argv[1].split('/').pop()}] ✅ code execution working correctly!`);
+(async () => {
+    let result: any;
+    // Test randomer
+    result = await execAsyncCode(code_line_1, { randomer, greeter, waiter })
+    expect(result).to.have.property('value');
+    expect(result.value).to.be.a('number');
+    // Test greeter
+    result = await execAsyncCode(code_line_2, { randomer, greeter, waiter })
+    expect(result).to.be.a('string');
+    expect(result).to.equal("Hello, world!");
+    // Test waiter
+    result = await execAsyncCode(code_line_3, { randomer, greeter, waiter })
+    expect(result).to.be.a('string');
+    expect(result).to.equal("Waited 1 second!");
+    // test callble funstion, callbacks
+    result = await execAsyncCode(callback1.toString(), { randomer, greeter, waiter })
+    expect(result).to.have.property('value');
+    expect(result.value).to.be.a('number');
+    // Test greeter
+    result = await execAsyncCode(callback2.toString(), { randomer, greeter, waiter })
+    expect(result).to.be.a('string');
+    expect(result).to.equal("Hello, world!");
+    // Test waiter
+    result = await execAsyncCode(callback3.toString(), { randomer, greeter, waiter })
+    expect(result).to.be.a('string');
+    console.log(`[${process.argv[1].split('/').pop()}] ✅ code execution working correctly!`);
+})()
 
 
 

@@ -1,8 +1,8 @@
-import Cluster from '../cluster';
-import Network, { Connection } from '../network';
-import Node from './Node';
-import { ServiceAddress, Stash } from '../service';
-import { Pool, await_interval, log } from '../utils';
+import Cluster from '../cluster/index.js';
+import Network, { Connection } from '../network/index.js';
+import Node from './Node.js';
+import { ServiceAddress, Stash } from '../service/index.js';
+import { Pool, await_interval, log } from '../utils/index.js';
 
 /* this class is created to manage the nodes socket conenctions on a service,
  * it will handle new conenction fron node, and will remove them when they are disconnected

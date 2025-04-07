@@ -1,14 +1,19 @@
-import PeerDiscoveryServer from './peerDiscovery';
-import makeProxyObject from './makeProxyObject';
-import Service from '../service';
-import { isSlaveMethods, isMasterCallback } from './typeGuards';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_js_1 = __importDefault(require("./peerDiscovery/index.js"));
+const makeProxyObject_js_1 = __importDefault(require("./makeProxyObject.js"));
+const index_js_2 = __importDefault(require("../service/index.js"));
+const typeGuards_js_1 = require("./typeGuards.js");
 const entry = (entryOptions) => {
     // this function is use to set up the options for the servies
     let options = entryOptions;
     // make a proxy object will take of xreating each service
-    let proxyObject = makeProxyObject(handleProxyCall(options));
+    let proxyObject = (0, makeProxyObject_js_1.default)(handleProxyCall(options));
     // make the peer discovery server
-    let peerDiscoveryServer = new PeerDiscoveryServer({
+    let peerDiscoveryServer = new index_js_1.default({
         host: options.host,
         port: options.port,
     });
@@ -30,7 +35,7 @@ method, param1, param2, param3) => {
     const port = globalOptions.port;
     const host = globalOptions.host;
     // make a new service
-    let service = new Service({
+    let service = new index_js_2.default({
         service_name,
         peerDiscoveryAddress: { host, port },
         mastercallback: mastercallback,
@@ -42,15 +47,15 @@ method, param1, param2, param3) => {
 const paramertesDiscermination = (param1, param2, param3) => {
     let mastercallback, slaveMethods, options;
     // check if the first paramet is either a MasterCallback or SlaveMethods
-    if (isMasterCallback(param1)) {
+    if ((0, typeGuards_js_1.isMasterCallback)(param1)) {
         mastercallback = param1;
         // check what the second paramter is
-        if (isSlaveMethods(param2)) {
+        if ((0, typeGuards_js_1.isSlaveMethods)(param2)) {
             slaveMethods = param2;
             options = param3 || {};
         }
     }
-    else if (isSlaveMethods(param1)) {
+    else if ((0, typeGuards_js_1.isSlaveMethods)(param1)) {
         mastercallback = () => { };
         slaveMethods = param1;
         // check what the second paramter is
@@ -65,5 +70,5 @@ const paramertesDiscermination = (param1, param2, param3) => {
         options
     };
 };
-export default entry;
+exports.default = entry;
 //# sourceMappingURL=entry.js.map

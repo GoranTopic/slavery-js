@@ -1,6 +1,6 @@
 import http from "http";
-import Listener from './types/Listener';
-import Connection from "./Connection";
+import type Listener from './types/Listener.js';
+import Connection from "./Connection.js";
 declare class NetworkServer {
     private io;
     private host;

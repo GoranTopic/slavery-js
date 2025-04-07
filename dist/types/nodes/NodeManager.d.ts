@@ -1,5 +1,5 @@
-import Node from './Node';
-import { ServiceAddress, Stash } from '../service';
+import Node from './Node.js';
+import { ServiceAddress, Stash } from '../service/index.js';
 type Options = {
     name: string;
     host: string;

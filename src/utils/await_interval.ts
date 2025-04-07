@@ -1,4 +1,3 @@
-
 /* this function is used to await a condition to be met with a certain interval and timeout
  * until the condition is met or the timeout is reached */
 async function interval_await(condition: () => any, 

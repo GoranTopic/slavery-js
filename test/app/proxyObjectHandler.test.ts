@@ -1,6 +1,5 @@
 import { expect } from 'chai'
 import makeProxyObject from '../../src/app/makeProxyObject'
-import { log } from '../../src/utils'
 process.env.debug = 'false';
 
 /* *
@@ -14,7 +13,7 @@ const po = makeProxyObject( (function_name: string, fn: string, options: any) =>
     const service_names = ['master', 'slave', 'logger']
     expect(function_name).to.be.oneOf(service_names)
     if(function_name === 'master') {
-        expect(fn.toString()).to.be.equal('async()=>{log("hello form master")}')
+        expect(fn.toString()).to.be.equal('async()=>{console.log("hello form master")}')
         expect(options).to.be.equal(undefined)
         functions_passed.master = true
     } else if(function_name === 'slave') {
@@ -27,7 +26,7 @@ const po = makeProxyObject( (function_name: string, fn: string, options: any) =>
         })
         functions_passed.slave = true
     } else if(function_name === 'logger') {
-        expect(fn.toString()).to.be.equal('async()=>{log("logger")}')
+        expect(fn.toString()).to.be.equal('async()=>{console.log("logger")}')
         expect(options).to.be.equal(undefined)
         functions_passed.logger = true
     }
@@ -37,7 +36,7 @@ console.log(`[${process.argv[1].split('/').pop()}] starting test for proxyObject
 // run the proxy object
 //@ts-ignore
 po.master(async () => {
-    log('hello form master')
+    console.log('hello form master')
 }).slave(async () => {
     1 + 1;
 }, { 
@@ -46,7 +45,7 @@ po.master(async () => {
     number_of_nodes: 1,
     number_of_replicas: 1
 }).logger(async () => {
-    log('logger')
+    console.log('logger')
 });
 
 if(functions_passed.master && functions_passed.slave && functions_passed.logger) 

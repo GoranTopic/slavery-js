@@ -1,20 +1,58 @@
-import Network from '../network';
-import Node, { NodeManager } from '../nodes';
-import Cluster from '../cluster';
-import { PeerDiscoveryClient } from '../app/peerDiscovery';
-import RequestQueue from './RequestQueue';
-import ProcessBalancer from './ProcessBalancer';
-import ServiceClient from './ServiceClient';
-import Stash from './Stash';
-import { toListeners, log, getPort, isServerActive, execAsyncCode, await_interval } from '../utils';
-import { serializeError } from 'serialize-error';
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_js_1 = __importDefault(require("../network/index.js"));
+const index_js_2 = __importStar(require("../nodes/index.js"));
+const index_js_3 = __importDefault(require("../cluster/index.js"));
+const index_js_4 = require("../app/peerDiscovery/index.js");
+const RequestQueue_js_1 = __importDefault(require("./RequestQueue.js"));
+const ProcessBalancer_js_1 = __importDefault(require("./ProcessBalancer.js"));
+const ServiceClient_js_1 = __importDefault(require("./ServiceClient.js"));
+const Stash_js_1 = __importDefault(require("./Stash.js"));
+const index_js_5 = require("../utils/index.js");
+const serialize_error_1 = require("serialize-error");
 class Service {
     /* This will be the based class for the service which salvery will call to create proceses */
     name;
     host;
     port;
     nodes;
-    stash = new Stash();
+    stash = new Stash_js_1.default();
     processBalancer = null;
     requestQueue = null;
     nm_host;
@@ -67,7 +105,7 @@ class Service {
     }
     async start() {
         // let initlize the cluster so that we can start the service
-        this.cluster = new Cluster(this.options);
+        this.cluster = new index_js_3.default(this.options);
         // create a new process for the master process
         this.cluster.spawn('master_' + this.name, {
             allowedToSpawn: true, // give the ability to spawn new processes
@@ -87,19 +125,19 @@ class Service {
         // initialize the master and all the services
         // get the port for the service
         if (this.port === 0)
-            this.port = await getPort({ host: this.host });
+            this.port = await (0, index_js_5.getPort)({ host: this.host });
         // if we have a peer discovery service we will try to connect to it
         if (this.peerDiscoveryAddress !== undefined)
             await this.handle_peer_discovery();
-        log('peer addresses', this.peerAddresses);
+        (0, index_js_5.log)('peer addresses', this.peerAddresses);
         // initialize the node manager
         await this.initlize_node_manager();
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({ name: this.name + '_service_network' });
+        this.network = new index_js_1.default({ name: this.name + '_service_network' });
         // list the listeners we have for the other services to request
-        let listeners = toListeners(this.slaveMethods).map(
+        let listeners = (0, index_js_5.toListeners)(this.slaveMethods).map(
         // add out handle request function to the listener
         l => ({ ...l, callback: this.handle_request(l, 'run') }));
         // add the _exec listner, we have to add it here as the listners in 
@@ -121,7 +159,7 @@ class Service {
             let name = c.getTargetName();
             if (name === undefined)
                 throw new Error('Service name is undefined');
-            return new ServiceClient(name, this.network, this.options);
+            return new ServiceClient_js_1.default(name, this.network, this.options);
         }).reduce((acc, s) => {
             acc[s.name] = s;
             return acc;
@@ -133,7 +171,7 @@ class Service {
             this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
     }
     async initialize_slaves() {
-        let node = new Node();
+        let node = new index_js_2.default();
         // TODO: Need to find a better way to pass the host and port
         // to the slave process, so far I am only able to pass it through
         // the metadata in the cluster
@@ -158,9 +196,9 @@ class Service {
             return null;
         // get the port for the node manager
         if (this.nm_port === 0)
-            this.nm_port = await getPort({ host: this.nm_host });
+            this.nm_port = await (0, index_js_5.getPort)({ host: this.nm_host });
         // make a node manager
-        this.nodes = new NodeManager({
+        this.nodes = new index_js_2.NodeManager({
             name: this.name,
             host: this.nm_host,
             port: this.nm_port,
@@ -184,7 +222,7 @@ class Service {
         if (this.nodes === undefined)
             throw new Error('Node Manager is not defined');
         // create a new request queue
-        this.requestQueue = new RequestQueue({
+        this.requestQueue = new RequestQueue_js_1.default({
             // we pass the functions that the request queue will use
             get_slave: this.nodes.getIdle.bind(this.nodes),
             process_request: async (node, request) => await node[request.type](request.method, request.parameters)
@@ -196,7 +234,7 @@ class Service {
             return null;
         // if the auto scale is true we will create a process balancer
         if (this.options.auto_scale === true) {
-            this.processBalancer = new ProcessBalancer({
+            this.processBalancer = new ProcessBalancer_js_1.default({
                 // pass the functions need for the balancer to know the hwo to balance
                 checkQueueSize: this.requestQueue?.queueSize.bind(this.requestQueue),
                 checkSlaves: () => ({ idleCount: this.nodes?.getIdleCount(), workingCount: this.nodes?.getBusyCount() }),
@@ -234,10 +272,10 @@ class Service {
                     // get the idle nodes
                     let count = this.nodes?.getNodeCount();
                     if (count === undefined)
-                        return { isError: true, error: serializeError(new Error('Nodes are undefined')) };
+                        return { isError: true, error: (0, serialize_error_1.serializeError)(new Error('Nodes are undefined')) };
                     // if the number of nodes is greater than the number of nodes we have
                     if (node_num > count)
-                        return { isError: true, error: serializeError(new Error('Not enough nodes')) };
+                        return { isError: true, error: (0, serialize_error_1.serializeError)(new Error('Not enough nodes')) };
                     if (node_num === 0)
                         node_num = count;
                     // select the nodes
@@ -277,7 +315,7 @@ class Service {
                         res = await this.nodes?.killNodes(node_ids);
                     }
                     else {
-                        return { isError: true, error: serializeError(new Error('Invalid node id')) };
+                        return { isError: true, error: (0, serialize_error_1.serializeError)(new Error('Invalid node id')) };
                     }
                     return ({ result: res });
                 }
@@ -293,20 +331,20 @@ class Service {
                 callback: async (code_string) => {
                     // check if the code_string is a string
                     if (typeof code_string !== 'string')
-                        return { isError: true, error: serializeError(new Error('Code string is not a string')) };
+                        return { isError: true, error: (0, serialize_error_1.serializeError)(new Error('Code string is not a string')) };
                     // await until service is connected
-                    await await_interval(() => this.servicesConnected, 10000).catch(() => {
+                    await (0, index_js_5.await_interval)(() => this.servicesConnected, 10000).catch(() => {
                         throw new Error(`[Service] Could not connect to the services`);
                     });
                     let service = this.getServices();
                     let parameter = { ...service, master: this, self: this };
                     try {
                         // run the albitrary code
-                        let result = await execAsyncCode(code_string, parameter);
+                        let result = await (0, index_js_5.execAsyncCode)(code_string, parameter);
                         return { result: result };
                     }
                     catch (e) {
-                        return { isError: true, error: serializeError(e) };
+                        return { isError: true, error: (0, serialize_error_1.serializeError)(e) };
                     }
                 }
             }, {
@@ -348,7 +386,7 @@ class Service {
             // wait until the request is processed
             let result = await promise;
             if (result.isError === true) // if there is an error serialize it
-                result.error = serializeError(result.error);
+                result.error = (0, serialize_error_1.serializeError)(result.error);
             return result;
         };
     }
@@ -358,12 +396,12 @@ class Service {
         if (this.cluster === undefined)
             throw new Error('Cluster is not defined');
         // check if the peer discovery service is active
-        log(`[${this.name}] > Service > Checking if Peer Discovery Service is active`);
-        log(`[${this.name}] > Service > Peer Discovery Address: ${this.peerDiscoveryAddress.host}:${this.peerDiscoveryAddress.port}`);
-        if (await isServerActive(this.peerDiscoveryAddress) === false)
+        (0, index_js_5.log)(`[${this.name}] > Service > Checking if Peer Discovery Service is active`);
+        (0, index_js_5.log)(`[${this.name}] > Service > Peer Discovery Address: ${this.peerDiscoveryAddress.host}:${this.peerDiscoveryAddress.port}`);
+        if (await (0, index_js_5.isServerActive)(this.peerDiscoveryAddress) === false)
             throw new Error('Peer Discovery Service is not active');
         // if it is active we will register to it
-        this.peerDiscovery = new PeerDiscoveryClient(this.peerDiscoveryAddress);
+        this.peerDiscovery = new index_js_4.PeerDiscoveryClient(this.peerDiscoveryAddress);
         await this.peerDiscovery.connect();
         // register the service to the peer discovery service
         this.peerDiscovery.register({ name: this.name, host: this.host, port: this.port });
@@ -379,7 +417,7 @@ class Service {
             let name = c.getTargetName();
             if (name === undefined)
                 throw new Error('Service name is undefined');
-            return new ServiceClient(name, this.network, this.options);
+            return new ServiceClient_js_1.default(name, this.network, this.options);
         }).reduce((acc, s) => {
             acc[s.name] = s;
             return acc;
@@ -411,5 +449,5 @@ class Service {
     set = async (key, value = null) => await this.stash.set(key, value);
     get = async (key = '') => await this.stash.get(key);
 }
-export default Service;
+exports.default = Service;
 //# sourceMappingURL=Service.js.map

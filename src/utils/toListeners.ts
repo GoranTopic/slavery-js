@@ -1,5 +1,5 @@
-import { SlaveMethods } from '../service'
-import { Listener } from '../network'
+import { SlaveMethods } from '../service/index.js'
+import { Listener } from '../network/index.js'
 
 /* this function will take a type slaveMethods passed to a Service and return a type Listener */
 function toListeners(slaveMethods: SlaveMethods): Listener[] {

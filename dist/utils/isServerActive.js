@@ -1,5 +1,7 @@
-import { log } from '../../src/utils';
-import { Connection } from '../network';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const index_js_1 = require("../../src/utils/index.js");
+const index_js_2 = require("../network/index.js");
 /**
  * Checks if a Socket.IO server is running at the specified host and port.
  * @param host - The hostname or IP address of the server.
@@ -9,7 +11,7 @@ import { Connection } from '../network';
  */
 async function isServerActive({ name, host, port, timeout }) {
     return new Promise((resolve) => {
-        const connection = new Connection({
+        const connection = new index_js_2.Connection({
             host,
             port,
             id: 'connection_test' + Math.random(),
@@ -20,10 +22,10 @@ async function isServerActive({ name, host, port, timeout }) {
             }
         });
         connection.on('connect_error', () => {
-            log(`Connection error to ${name} at ${host}:${port}`);
+            (0, index_js_1.log)(`Connection error to ${name} at ${host}:${port}`);
         });
         connection.on('connect_timeout', () => {
-            log(`Connection timeout to ${name} at ${host}:${port}`);
+            (0, index_js_1.log)(`Connection timeout to ${name} at ${host}:${port}`);
             resolve(false);
             connection.close();
         });
@@ -35,5 +37,5 @@ async function isServerActive({ name, host, port, timeout }) {
         }, 12000); // fallback timeout longer than socket timeout
     });
 }
-export default isServerActive;
+exports.default = isServerActive;
 //# sourceMappingURL=isServerActive.js.map

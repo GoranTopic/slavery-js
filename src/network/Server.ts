@@ -2,9 +2,9 @@ import { Server } from "socket.io";
 import http from "http";
 import { createServer } from "http";
 import { Socket } from "socket.io";
-import { log, Pool } from '../utils';
-import Listener from './types/Listener';
-import Connection from "./Connection";
+import { log, Pool } from '../utils/index.js';
+import type Listener from './types/Listener.js';
+import Connection from "./Connection.js";
 
 
 class NetworkServer {

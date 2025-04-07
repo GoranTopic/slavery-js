@@ -1,5 +1,5 @@
 import os from 'os';
-import { log } from '../utils';
+import { log } from '../utils/index.js';
 
 interface balancerConfig {
     minSlaves?: number;

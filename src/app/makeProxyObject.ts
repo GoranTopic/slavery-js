@@ -1,4 +1,3 @@
-import { SlaveMethods, Options as ServiceOptions } from '../service';
 /* 
  * this code will serve as the entry point for the applacation
  * it allows the api to have a syntax of:

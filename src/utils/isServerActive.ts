@@ -1,5 +1,5 @@
-import { log } from '../../src/utils';
-import { Connection } from '../network';
+import { log } from '../../src/utils/index.js';
+import { Connection } from '../network/index.js';
 
 /**
  * Checks if a Socket.IO server is running at the specified host and port.

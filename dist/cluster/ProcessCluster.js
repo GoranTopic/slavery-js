@@ -1,5 +1,10 @@
-import { fork } from 'child_process';
-import process from 'node:process';
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const child_process_1 = require("child_process");
+const node_process_1 = __importDefault(require("node:process"));
 class Cluster {
     numberOfProcesses;
     process_timeout;
@@ -15,10 +20,10 @@ class Cluster {
         this.process_timeout = options.process_timeout || null;
         this.crash_on_error = options.crash_on_error || false;
         this.debugging = options.debugging || false;
-        this.type = process.env.type || 'primary';
-        this.allowedToSpawn = process.env.allowedToSpawn === 'true' || false;
+        this.type = node_process_1.default.env.type || 'primary';
+        this.allowedToSpawn = node_process_1.default.env.allowedToSpawn === 'true' || false;
         this.spawnOnlyFromPrimary = false;
-        this.thisProcess = process;
+        this.thisProcess = node_process_1.default;
         this.processes = [];
     }
     spawn(process_type, { numberOfSpawns, allowedToSpawn, spawnOnlyFromPrimary, metadata } = {}) {
@@ -40,7 +45,7 @@ class Cluster {
             return;
         let curProcess;
         for (let i = 0; i < numberOfSpawns; i++) {
-            curProcess = fork(process.argv[1], [], {
+            curProcess = (0, child_process_1.fork)(node_process_1.default.argv[1], [], {
                 env: {
                     is_child: 'true',
                     type: process_type,
@@ -78,7 +83,7 @@ class Cluster {
         this.log(`checking if is process ${process_type}`);
         if (process_type === 'primary')
             return this.amIThePrimaryProcess();
-        return process.env.type === process_type;
+        return node_process_1.default.env.type === process_type;
     }
     amIThePrimaryProcess() {
         if (this.thisProcess.env.is_child === undefined)
@@ -93,14 +98,14 @@ class Cluster {
         return this.amIThePrimaryProcess();
     }
     amIChildProcess() {
-        return process.env.is_child === 'true';
+        return node_process_1.default.env.is_child === 'true';
     }
     log(message) {
-        this.debugging && console.log(`[${process.pid}][${this.type}] ${message}`);
+        this.debugging && console.log(`[${node_process_1.default.pid}][${this.type}] ${message}`);
     }
     getMetadata() {
-        return process.env.metadata;
+        return node_process_1.default.env.metadata;
     }
 }
-export default Cluster;
+exports.default = Cluster;
 //# sourceMappingURL=ProcessCluster.js.map
