@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 /* this function is used to await a condition to be met with a certain interval and timeout
  * until the condition is met or the timeout is reached */
 async function interval_await(condition, timeout = 10000, interval = 100) {
@@ -27,5 +25,5 @@ async function interval_await(condition, timeout = 10000, interval = 100) {
         throw error;
     });
 }
-exports.default = interval_await;
+export default interval_await;
 //# sourceMappingURL=await_interval.js.map

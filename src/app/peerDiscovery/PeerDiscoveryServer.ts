@@ -1,7 +1,7 @@
-import Network, { Listener, Connection } from '../../network/index.js';
+import Network, { Listener } from '../../network/index.js';
 import Cluster from '../../cluster/index.js';
-import type { ServiceAddress } from '../../service'
-import { log } from '../../utils/index.js';
+import type { ServiceAddress } from '../../service/index.js';
+//import { log } from '../../utils/index.js';
 
 type Parameters = {
     host: string,

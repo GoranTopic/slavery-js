@@ -1,8 +1,6 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const uuid_1 = require("uuid");
+import { v4 as uuidv4 } from 'uuid';
 const generateUUID = () => {
-    return (0, uuid_1.v4)();
+    return uuidv4();
 };
-exports.default = generateUUID;
+export default generateUUID;
 //# sourceMappingURL=uuids.js.map

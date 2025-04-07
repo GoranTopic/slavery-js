@@ -1,24 +1,19 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_js_1 = __importDefault(require("../cluster/index.js"));
-const index_js_2 = __importDefault(require("../network/index.js"));
-const Node_js_1 = __importDefault(require("./Node.js"));
-const index_js_3 = require("../utils/index.js");
+import Cluster from '../cluster/index.js';
+import Network from '../network/index.js';
+import Node from './Node.js';
+import { Pool, await_interval, log } from '../utils/index.js';
 class NodeManager {
     name;
     network;
     //private heartBeat: number = 1000;
-    nodes = new index_js_3.Pool();
+    nodes = new Pool();
     options;
-    cluster = new index_js_1.default({});
+    cluster = new Cluster({});
     stash;
     constructor(options) {
         this.name = options.name;
         this.options = options;
-        this.network = new index_js_2.default({ name: this.name + '_node_manager' });
+        this.network = new Network({ name: this.name + '_node_manager' });
         // create server
         this.network.createServer(this.name + '_node_manager', this.options.host, this.options.port);
         // handle when new node is connected
@@ -30,9 +25,9 @@ class NodeManager {
     }
     handleNewNode(connection) {
         /* this function is called when a new node is connected to the master */
-        (0, index_js_3.log)('[Node manager] Got a new connectection from a node');
+        log('[Node manager] Got a new connectection from a node');
         // create a new node
-        let node = new Node_js_1.default();
+        let node = new Node();
         // set the functions for the stash of objects
         node.setStashFunctions({
             get: async (key) => await this.stash?.get(key),
@@ -79,17 +74,17 @@ class NodeManager {
         if (node_id !== '') { // we are looking for a specific node on the pool
             let node = this.getNode(node_id);
             // await for seelcted node to be idle
-            await (0, index_js_3.await_interval)(() => node.isIdle(), 60 * 60 * 60 * 1000).catch(() => {
+            await await_interval(() => node.isIdle(), 60 * 60 * 60 * 1000).catch(() => {
                 throw new Error(`timeout of one hour, node ${node_id} is not idle`);
             });
             return node;
         }
         // check if there are nodes in the pool
         if (this.nodes.isEmpty())
-            (0, index_js_3.log)('[node manager] (WARNING) no nodes found');
+            log('[node manager] (WARNING) no nodes found');
         // await until we get a node which is idle
         // 0 will make it wait for every for a idle node
-        await (0, index_js_3.await_interval)(() => this.nodes.hasEnabled(), 0)
+        await await_interval(() => this.nodes.hasEnabled(), 0)
             .catch(() => { throw new Error('timeout of 10 seconds, no idle node found'); });
         //log('[node manager] got idle node');
         // get the next node
@@ -130,7 +125,7 @@ class NodeManager {
         /* spawn new nodes */
         if (name === '')
             name = 'node_' + this.name;
-        (0, index_js_3.log)('[nodeManager][spawnNodes] spawning nodes', name, count);
+        log('[nodeManager][spawnNodes] spawning nodes', name, count);
         this.cluster.spawn(name, {
             numberOfSpawns: count,
             metadata: metadata
@@ -186,7 +181,7 @@ class NodeManager {
     }
     async numberOfNodesConnected(count) {
         let timeout = 100000;
-        await (0, index_js_3.await_interval)(() => this.nodes.size() >= count, timeout)
+        await await_interval(() => this.nodes.size() >= count, timeout)
             .catch(() => { throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`); });
         return true;
     }
@@ -209,5 +204,5 @@ class NodeManager {
     removeNode = this.killNodes;
     getNumberOfNodes = this.getNodeCount;
 }
-exports.default = NodeManager;
+export default NodeManager;
 //# sourceMappingURL=NodeManager.js.map

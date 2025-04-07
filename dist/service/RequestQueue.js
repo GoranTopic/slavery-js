@@ -1,6 +1,4 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_js_1 = require("../utils/index.js");
+import { await_interval, Queue, log } from '../utils/index.js';
 class RequestQueue {
     /* This class will keep track of all the requests that are made to the service,
      * how long each request takes to be processed,
@@ -8,7 +6,7 @@ class RequestQueue {
      * when the requests are being processed, and
      * request individually.
      */
-    queue = new index_js_1.Queue();
+    queue = new Queue();
     process_request;
     get_slave;
     isRunning = false;
@@ -80,8 +78,8 @@ class RequestQueue {
         return new Promise(async (resolve, reject) => {
             this.queue.push(request);
             // Wait until the request is completed, or 60 minutes
-            await (0, index_js_1.await_interval)(() => {
-                (0, index_js_1.log)(request);
+            await await_interval(() => {
+                log(request);
                 return request.completed === true;
             }, 60 * 60 * 1000, this.heartbeat)
                 .catch(err => {
@@ -107,5 +105,5 @@ class RequestQueue {
         clearInterval(this.interval);
     }
 }
-exports.default = RequestQueue;
+export default RequestQueue;
 //# sourceMappingURL=RequestQueue.js.map

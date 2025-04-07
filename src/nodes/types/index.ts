@@ -1,5 +1,5 @@
-import ServiceAddress from './ServiceAddress';
-import Address from './Address';
+import type ServiceAddress from './ServiceAddress.js'
+import type Address from './Address.js'
 
 
-export { ServiceAddress, Address };
+export type { ServiceAddress, Address };

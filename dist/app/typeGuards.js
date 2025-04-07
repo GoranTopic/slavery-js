@@ -1,8 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.isSlaveMethods = isSlaveMethods;
-exports.isServiceOptions = isServiceOptions;
-exports.isMasterCallback = isMasterCallback;
 function isSlaveMethods(obj) {
     if (obj === null || obj === undefined)
         return false;
@@ -22,4 +17,5 @@ function isMasterCallback(value) {
         return false;
     return typeof value === 'function';
 }
+export { isSlaveMethods, isServiceOptions, isMasterCallback };
 //# sourceMappingURL=typeGuards.js.map

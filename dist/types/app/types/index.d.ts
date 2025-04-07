@@ -1,2 +1,2 @@
-import type Options from './Options';
+import type Options from './Options.js';
 export { Options };

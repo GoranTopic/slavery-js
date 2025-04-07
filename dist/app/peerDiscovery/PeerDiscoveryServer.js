@@ -1,10 +1,5 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_js_1 = __importDefault(require("../../network/index.js"));
-const index_js_2 = __importDefault(require("../../cluster/index.js"));
+import Network from '../../network/index.js';
+import Cluster from '../../cluster/index.js';
 class PeerDicoveryServer {
     /* This will be the based class for the service which salvery will call to create proceses */
     name;
@@ -21,7 +16,7 @@ class PeerDicoveryServer {
     }
     async start() {
         // let initlize the cluster
-        this.cluster = new index_js_2.default({ name: this.name });
+        this.cluster = new Cluster({ name: this.name });
         this.cluster.spawn(this.name, {
             spawnOnlyFromPrimary: true // make sure that only one the primary process can spawn this service
         });
@@ -29,7 +24,7 @@ class PeerDicoveryServer {
         if (this.cluster.is('peer_discovery')) {
             //log(`starting peer discovery service...`);
             // now we will create the network
-            this.network = new index_js_1.default({ name: this.name + '_network' });
+            this.network = new Network({ name: this.name + '_network' });
             // get the listneres
             let listeners = this.getListeners();
             // create the server
@@ -101,5 +96,5 @@ class PeerDicoveryServer {
         return true;
     }
 }
-exports.default = PeerDicoveryServer;
+export default PeerDicoveryServer;
 //# sourceMappingURL=PeerDiscoveryServer.js.map

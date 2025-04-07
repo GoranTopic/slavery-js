@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 class Stash {
     store = new Map();
     queue = Promise.resolve();
@@ -74,5 +72,5 @@ class Stash {
         });
     }
 }
-exports.default = Stash;
+export default Stash;
 //# sourceMappingURL=Stash.js.map

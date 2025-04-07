@@ -1,4 +1,4 @@
-import entrypoint from './entry'
+import entrypoint from './entry.js'
 import { isSlaveMethods, isServiceOptions, isMasterCallback } from './typeGuards.js'
 import makeProxyObject from './makeProxyObject.js'
 import extractFunctions from './extractFunctions.js'

@@ -1,5 +1,5 @@
-import type ServiceAddress from './ServiceAddress';
-import type SlaveMethods from './SlaveMethods';
-import type Request from './Request';
-import type Options from './Options';
-export { SlaveMethods, ServiceAddress, Request, Options };
+import type ServiceAddress from './ServiceAddress.js';
+import type SlaveMethods from './SlaveMethods.js';
+import type Request from './Request.js';
+import type Options from './Options.js';
+export type { SlaveMethods, ServiceAddress, Request, Options };

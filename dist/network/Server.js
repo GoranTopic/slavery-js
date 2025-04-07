@@ -1,12 +1,7 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const socket_io_1 = require("socket.io");
-const http_1 = require("http");
-const index_js_1 = require("../utils/index.js");
-const Connection_js_1 = __importDefault(require("./Connection.js"));
+import { Server } from "socket.io";
+import { createServer } from "http";
+import { log, Pool } from '../utils/index.js';
+import Connection from "./Connection.js";
 class NetworkServer {
     /* this class will handle the logic managing the server conenctions with clilent,
      * it will keep track of the node id and it will handle connection and dicoections */
@@ -32,7 +27,7 @@ class NetworkServer {
         this.name = name ? name : "server";
         this.connectionCallback = null;
         this.disconnectCallback = null;
-        this.clients = new index_js_1.Pool();
+        this.clients = new Pool();
         this.listeners = listeners || [];
         this.ioOptions = {
             maxHttpBufferSize: this.maxTransferSize,
@@ -40,8 +35,8 @@ class NetworkServer {
         // initiate with the server
         if (this.isLan) { // if we are in a over lan
             // create a http server
-            this.httpServer = (0, http_1.createServer)();
-            this.io = new socket_io_1.Server(this.httpServer, this.ioOptions);
+            this.httpServer = createServer();
+            this.io = new Server(this.httpServer, this.ioOptions);
             this.httpServer.listen(this.port, this.host, () => {
                 let address = this.httpServer?.address();
                 if (!address || typeof address === "string") {
@@ -53,28 +48,28 @@ class NetworkServer {
             });
         }
         else { // if we are in localhost
-            this.io = new socket_io_1.Server(this.port, this.ioOptions);
+            this.io = new Server(this.port, this.ioOptions);
             // get the port number
             this.port = this.io.httpServer.address().port;
         }
         // create a new socket.io client instance
         this.io.on("connection", this.handleConnection.bind(this));
-        this.io.on("reconnect", () => (0, index_js_1.log)("[Server] on reconnect triggered"));
+        this.io.on("reconnect", () => log("[Server] on reconnect triggered"));
         this.io.on("disconnect", this.handleDisconnection.bind(this));
         // set the listener on the server socket
         this.setListeners(this.listeners);
     }
     async handleConnection(socket) {
-        (0, index_js_1.log)("[Server] got new connection");
+        log("[Server] got new connection");
         // make a new connectection instance
-        let connection = new Connection_js_1.default({
+        let connection = new Connection({
             socket, name: this.name, listeners: this.listeners
         });
         // await fo connection to be established
         await connection.connected();
         // get the id of the connection
         let id = connection.getTargetId();
-        (0, index_js_1.log)("[Server] connection id: ", id);
+        log("[Server] connection id: ", id);
         // check if id is null
         if (id == null)
             throw new Error("Connection id is null");
@@ -170,5 +165,5 @@ class NetworkServer {
         this.io.close();
     }
 }
-exports.default = NetworkServer;
+export default NetworkServer;
 //# sourceMappingURL=Server.js.map

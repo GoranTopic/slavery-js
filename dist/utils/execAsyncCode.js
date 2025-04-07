@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 const AsyncFunction = Object.getPrototypeOf(async function () { }).constructor;
 async function runAsyncCode(codeString, context = {}) {
     let userFunc;
@@ -33,5 +31,5 @@ function isCallbackString(code) {
         return false;
     }
 }
-exports.default = runAsyncCode;
+export default runAsyncCode;
 //# sourceMappingURL=execAsyncCode.js.map

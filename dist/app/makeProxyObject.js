@@ -1,4 +1,3 @@
-"use strict";
 /*
  * this code will serve as the entry point for the applacation
  * it allows the api to have a syntax of:
@@ -13,7 +12,6 @@
  *  }, 9090, 'someArgString')
  *  .yetAnotherMethod();
  */
-Object.defineProperty(exports, "__esModule", { value: true });
 let proxy;
 const makeProxyObject = (callback) => {
     // Create a proxy object handler the given callbakcs
@@ -43,5 +41,5 @@ const makeProxyObjecHandler = (callback) => ({
         };
     }
 });
-exports.default = makeProxyObject;
+export default makeProxyObject;
 //# sourceMappingURL=makeProxyObject.js.map

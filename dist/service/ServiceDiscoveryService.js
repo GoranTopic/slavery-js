@@ -1,9 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const index_js_1 = __importDefault(require("../service/index.js"));
+import Service from '../service/index.js';
 /*
  * @param {string} ip - the ip of the service discovery service
  * @param {string} host - the host of the service discovery service
@@ -13,7 +8,7 @@ const ServiceDiscoveryService = (host, port) => {
     // This function will return the service object of the service discovery service
     // this will have the logic for registering services and disvoring them on the network 
     // by other services peers
-    return new index_js_1.default({
+    return new Service({
         service_name: 'ServiceDiscoveryService',
         peerServicesAddresses: [],
         mastercallback,
@@ -42,5 +37,5 @@ const registerService = async (service, { self }) => {
 const getServices = async (params, { self }) => {
     return await self.get();
 };
-exports.default = ServiceDiscoveryService;
+export default ServiceDiscoveryService;
 //# sourceMappingURL=ServiceDiscoveryService.js.map

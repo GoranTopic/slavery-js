@@ -1,4 +1,4 @@
-import type { Request } from './types';
+import type { Request } from './types/index.js';
 declare class RequestQueue {
     private queue;
     private process_request;

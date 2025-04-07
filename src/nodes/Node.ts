@@ -1,7 +1,7 @@
-import Network, { Listener, Connection } from '../network';
-import { ServiceClient } from '../service';
-import type { ServiceAddress } from './types';
-import { await_interval, execAsyncCode, log } from '../utils';
+import Network, { Listener, Connection } from '../network/index.js';
+import { ServiceClient } from '../service/index.js';
+import type { ServiceAddress } from './types/index.js';
+import { await_interval, execAsyncCode, log } from '../utils/index.js';
 import { serializeError, deserializeError } from 'serialize-error';
 
 /*

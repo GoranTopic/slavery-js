@@ -1,7 +1,7 @@
 /* this class the slavery entry point */
-import entry, { PeerDiscoverer }  from './app'
-import Node from './nodes'
-import  Service from './service'
+import entry, { PeerDiscoverer }  from './app/index.js'
+import Node from './nodes/index.js'
+import  Service from './service/index.js'
 
 export default entry
 

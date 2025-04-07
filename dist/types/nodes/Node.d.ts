@@ -1,5 +1,5 @@
-import Network, { Listener, Connection } from '../network';
-import type { ServiceAddress } from './types';
+import Network, { Listener, Connection } from '../network/index.js';
+import type { ServiceAddress } from './types/index.js';
 type NodeStatus = 'idle' | 'working' | 'error';
 declare class Node {
     mode: 'client' | 'server' | undefined;

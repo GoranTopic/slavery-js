@@ -1,5 +1,5 @@
 import { await_interval, Queue, log } from '../utils/index.js';
-import type { Request } from './types';
+import type { Request } from './types/index.js';
 
 class RequestQueue {
     /* This class will keep track of all the requests that are made to the service,

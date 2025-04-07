@@ -1,9 +1,4 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const Queue_js_1 = __importDefault(require("./Queue.js"));
+import Queue from './Queue.js';
 class Pool {
     /* *
      * this class handle the socket connectd
@@ -13,7 +8,7 @@ class Pool {
     disabled;
     items;
     constructor() {
-        this.enabled = new Queue_js_1.default();
+        this.enabled = new Queue();
         this.disabled = [];
         this.items = {};
     }
@@ -239,5 +234,5 @@ class Pool {
     removeAt = this.remove;
     removeItem = this.remove;
 }
-exports.default = Pool;
+export default Pool;
 //# sourceMappingURL=Pool.js.map

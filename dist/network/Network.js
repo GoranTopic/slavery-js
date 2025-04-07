@@ -1,11 +1,6 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const Connection_js_1 = __importDefault(require("./Connection.js"));
-const index_js_1 = require("../utils/index.js");
-const Server_js_1 = __importDefault(require("./Server.js"));
+import Connection from './Connection.js';
+import { uuid, log, Pool } from '../utils/index.js';
+import Server from './Server.js';
 class Network {
     /* *
      * this class will handle the connections of a node in the network.
@@ -32,9 +27,9 @@ class Network {
         //log(`[Network][${name}] netowrk created`);
         this.name = name;
         this.listeners = [];
-        this.id = id || (0, index_js_1.uuid)();
+        this.id = id || uuid();
         this.server = null;
-        this.connections = new index_js_1.Pool();
+        this.connections = new Pool();
         this.serviceConnectionCallback = undefined;
         this.serviceDisconnectCallback = undefined;
         this.newListenersCallback = undefined;
@@ -44,7 +39,7 @@ class Network {
          * and it keeps track of the conenction by adding it to a pool of server connection
          * it uses the name as the key in the pool
          * then run the callback */
-        const connection = new Connection_js_1.default({
+        const connection = new Connection({
             name: this.name, host, port, id: this.id,
             onSetListeners: this.newListenersCallback
         });
@@ -75,14 +70,14 @@ class Network {
         return connection;
     }
     async connectAll(services) {
-        (0, index_js_1.log)(`[Network][${this.name}] connecting to all services`, services);
+        log(`[Network][${this.name}] connecting to all services`, services);
         // connect to all the services
         let connections = await Promise.all(services.map(async (service) => await this.connect({
             name: service.name,
             host: service.host,
             port: service.port
         }))).catch((err) => {
-            (0, index_js_1.log)(`[Network][${this.name}] error connecting to services:`, err);
+            log(`[Network][${this.name}] error connecting to services:`, err);
             return [];
         });
         //log(`[Network][${this.name}] returning connections:`, connections);
@@ -90,7 +85,7 @@ class Network {
     }
     createServer(name, host, port, listeners = []) {
         // the server keeps track of it client connections
-        this.server = new Server_js_1.default({ name, host, port, listeners });
+        this.server = new Server({ name, host, port, listeners });
     }
     close() {
         // if we have a server we close it
@@ -179,7 +174,7 @@ class Network {
         // get the listeners from the server
         let server_listeners = this.server?.getListeners() || [];
         let connections_listeners = this.connections.toArray().map((connection) => {
-            (0, index_js_1.log)('inside loop conenction:', connection);
+            log('inside loop conenction:', connection);
             return { id: connection.id, listeners: connection.getListeners() };
         });
         // return the listeners
@@ -207,5 +202,5 @@ class Network {
         this.newListenersCallback = callback;
     }
 }
-exports.default = Network;
+export default Network;
 //# sourceMappingURL=Network.js.map
