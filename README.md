@@ -21,10 +21,20 @@ slavery()
 ```
 npm install slavery-js
 ```
-## Usage
+
+### import 
 ```javascript
+// es module
 import slavery from 'slaveryr-js';
 
+// commonjs
+const { slavery } = require('slavery-js')['default']['default'];
+```
+
+## Usage
+
+```javascript
+import slavery from 'slaveryr-js';
 //Make different timeouts
 let make_timeout = s =>
     new Promise( resolve => {
