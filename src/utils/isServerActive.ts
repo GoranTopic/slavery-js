@@ -11,12 +11,15 @@ import { Connection } from '../network/index.js';
 async function isServerActive({ name, host, port, timeout }: { 
     name?: string, host: string, port: number, timeout?: number
 }): Promise<boolean> {
+    if(timeout === undefined) {
+        timeout = 5000; // Default timeout of 5 seconds
+    }
     return new Promise((resolve) => {
         const connection = new Connection({
             host,
             port,
             id: 'connection_test' + Math.random(),
-            timeout: 10000, // Increased timeout (e.g. 10 seconds)
+            timeout: 10000, // Increased timeout (e.g. 10 second
             onConnect: (connection: Connection) => {
                 resolve(true);
                 connection.close();
@@ -24,20 +27,21 @@ async function isServerActive({ name, host, port, timeout }: {
 
         });
         connection.on('connect_error', () => {
-            log(`Connection error to ${name} at ${host}:${port}`);
+            console.log(`Connection error to ${name} at ${host}:${port}`);
         });
 
         connection.on('connect_timeout', () => {
-            log(`Connection timeout to ${name} at ${host}:${port}`);
+            console.log(`Connection timeout to ${name} at ${host}:${port}`);
             resolve(false);
             connection.close();
         });
         connection.connected();
         // Optional: set a manual timeout fallback, in case events fail to fire
         setTimeout(() => {
-            resolve(false);
+            console.log(`Timeout waiting for ${name} at ${host}:${port}`);
             connection.close();
-        }, 12000); // fallback timeout longer than socket timeout
+            resolve(false);
+        }, timeout);
     });
 }
 

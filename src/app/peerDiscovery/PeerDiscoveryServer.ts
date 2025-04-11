@@ -1,7 +1,7 @@
 import Network, { Listener } from '../../network/index.js';
 import Cluster from '../../cluster/index.js';
 import type { ServiceAddress } from '../../service/index.js';
-//import { log } from '../../utils/index.js';
+import { log } from '../../utils/index.js';
 
 type Parameters = {
     host: string,
@@ -30,15 +30,23 @@ class PeerDicoveryServer {
         this.cluster.spawn(this.name, {
             spawnOnlyFromPrimary: true // make sure that only one the primary process can spawn this service
         });
+
         // run the peer discovery service
         if(this.cluster.is('peer_discovery')){
             //log(`starting peer discovery service...`);
             // now we will create the network
-            this.network = new Network({name: this.name + '_network'});
-            // get the listneres
+            this.network = new Network({ name: this.name + '_network' });
             let listeners = this.getListeners();
             // create the server
-            this.network.createServer(this.name, this.host, this.port, listeners);
+            try {
+                this.network.createServer(this.name, this.host, this.port, listeners);
+            } catch (error: any) {
+                // if error is of the kind Error: listen EADDRINUSE: address already in us
+                if(error instanceof Error && error.message.includes("Host and port already in use or invalid")){
+                    log(`Port ${this.port} is already in use. Exiting...`);
+                    process.exit(0);
+                }else throw error;
+            }
         }
         return;
     }

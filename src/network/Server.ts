@@ -45,6 +45,9 @@ class NetworkServer {
             // create a http server
             this.httpServer = createServer();
             this.io = new Server(this.httpServer, this.ioOptions);
+            // check if io server was created
+            if(this.io.httpServer.address() === null) 
+                throw new Error("Host and port already in use or invalid");
             this.httpServer.listen(this.port, this.host, () => {
                 let address = this.httpServer?.address();
                 if(!address || typeof address === "string") {
@@ -56,6 +59,9 @@ class NetworkServer {
             });
         }else{ // if we are in localhost
             this.io = new Server(this.port, this.ioOptions);
+            // check is io server was created
+            if(this.io.httpServer.address() === null) 
+                throw new Error("Host and port already in use or invalid");
             // get the port number
             this.port = (this.io as any).httpServer.address().port;
         }

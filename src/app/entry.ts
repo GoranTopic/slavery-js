@@ -2,7 +2,6 @@ import PeerDiscoveryServer from './peerDiscovery/index.js';
 import makeProxyObject from './makeProxyObject.js';
 import Service, { SlaveMethods, Options as ServiceOptions } from '../service/index.js';
 import { isSlaveMethods, isMasterCallback } from './typeGuards.js';
-//import type { 
 
 type CallableFunction = (...args: any[]) => any;
 
@@ -57,7 +56,9 @@ const handleProxyCall = (globalOptions: EntryOptions) => (
 
 
 const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?: SlaveMethods | ServiceOptions, param3?: ServiceOptions) => {
-    let mastercallback, slaveMethods, options;
+    let mastercallback: MasterCallback;
+    let slaveMethods: SlaveMethods;
+    let options: ServiceOptions;
     // check if the first paramet is either a MasterCallback or SlaveMethods
     if( isMasterCallback(param1) ) {
         mastercallback = param1;
