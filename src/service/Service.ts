@@ -373,7 +373,8 @@ class Service {
         // check if the peer discovery service is active
         log(`[${this.name}] > Service > Checking if Peer Discovery Service is active`);
         log(`[${this.name}] > Service > Peer Discovery Address: ${this.peerDiscoveryAddress.host}:${this.peerDiscoveryAddress.port}`);
-        if(await isServerActive(this.peerDiscoveryAddress) === false)
+        let serverIsActive = await isServerActive(this.peerDiscoveryAddress);
+        if(serverIsActive === false)
             throw new Error('Peer Discovery Service is not active');
         // if it is active we will register to it
         this.peerDiscovery = new PeerDiscoveryClient(this.peerDiscoveryAddress);
