@@ -3,6 +3,7 @@ import {
 } from "../../chunk-V6TY7KAL.js";
 import Network from "../../network/index.js";
 import Cluster from "../../cluster/index.js";
+import { log } from "../../utils/index.js";
 class PeerDicoveryServer {
   constructor(params) {
     /* This will be the based class for the service which salvery will call to create proceses */
@@ -25,7 +26,14 @@ class PeerDicoveryServer {
     if (this.cluster.is("peer_discovery")) {
       this.network = new Network({ name: this.name + "_network" });
       let listeners = this.getListeners();
-      this.network.createServer(this.name, this.host, this.port, listeners);
+      try {
+        this.network.createServer(this.name, this.host, this.port, listeners);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Host and port already in use or invalid")) {
+          log(`Port ${this.port} is already in use. Exiting...`);
+          process.exit(0);
+        } else throw error;
+      }
     }
     return;
   }

@@ -1,32 +1,42 @@
 import "../chunk-V6TY7KAL.js";
-import { log } from "./index.js";
 import { Connection } from "../network/index.js";
+const resolve_timout_pointer = (timeout_pointer) => {
+  if (timeout_pointer) {
+    clearTimeout(timeout_pointer);
+    timeout_pointer = null;
+  }
+};
 async function isServerActive({ name, host, port, timeout }) {
+  if (timeout === void 0) {
+    timeout = 5e3;
+  }
   return new Promise((resolve) => {
+    let timeout_pointer = null;
     const connection = new Connection({
       host,
       port,
       id: "connection_test" + Math.random(),
       timeout: 1e4,
-      // Increased timeout (e.g. 10 seconds)
+      // Increased timeout (e.g. 10 second
       onConnect: (connection2) => {
-        resolve(true);
         connection2.close();
+        resolve_timout_pointer(timeout_pointer);
+        resolve(true);
       }
     });
     connection.on("connect_error", () => {
-      log(`Connection error to ${name} at ${host}:${port}`);
     });
     connection.on("connect_timeout", () => {
-      log(`Connection timeout to ${name} at ${host}:${port}`);
       resolve(false);
       connection.close();
+      resolve_timout_pointer(timeout_pointer);
     });
     connection.connected();
-    setTimeout(() => {
-      resolve(false);
+    timeout_pointer = setTimeout(() => {
+      console.error(`Timeout waiting for ${name} at ${host}:${port}`);
       connection.close();
-    }, 12e3);
+      resolve(false);
+    }, timeout);
   });
 }
 var isServerActive_default = isServerActive;

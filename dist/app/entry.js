@@ -29,7 +29,9 @@ const handleProxyCall = (globalOptions) => (method, param1, param2, param3) => {
   service.start();
 };
 const paramertesDiscermination = (param1, param2, param3) => {
-  let mastercallback, slaveMethods, options;
+  let mastercallback;
+  let slaveMethods;
+  let options;
   if (isMasterCallback(param1)) {
     mastercallback = param1;
     if (isSlaveMethods(param2)) {

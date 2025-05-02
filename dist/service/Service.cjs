@@ -137,15 +137,12 @@ class Service {
       this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
   }
   async initialize_slaves() {
-    let node = new import_nodes.default();
+    let node = new import_nodes.default({ methods: this.slaveMethods });
     let metadata = process.env.metadata;
     if (metadata === void 0)
       throw new Error("could not get post and host of the node manager, metadata is undefined");
     let { host, port } = JSON.parse(metadata)["metadata"];
     await node.connectToMaster(host, port);
-    await node.setServices(this.peerAddresses);
-    node.addMethods(this.slaveMethods);
-    await node._startup();
   }
   async initlize_node_manager() {
     if (Object.keys(this.slaveMethods).length === 0) return null;
@@ -161,7 +158,7 @@ class Service {
     await this.nodes.spawnNodes("slave_" + this.name, this.number_of_nodes, {
       metadata: { host: this.nm_host, port: this.nm_port }
     });
-    await this.nodes.registerServices(this.peerAddresses);
+    await this.nodes.setServices(this.peerAddresses);
     return this.nodes;
   }
   initialize_request_queue() {
@@ -317,7 +314,8 @@ class Service {
     if (this.cluster === void 0) throw new Error("Cluster is not defined");
     (0, import_utils.log)(`[${this.name}] > Service > Checking if Peer Discovery Service is active`);
     (0, import_utils.log)(`[${this.name}] > Service > Peer Discovery Address: ${this.peerDiscoveryAddress.host}:${this.peerDiscoveryAddress.port}`);
-    if (await (0, import_utils.isServerActive)(this.peerDiscoveryAddress) === false)
+    let serverIsActive = await (0, import_utils.isServerActive)(this.peerDiscoveryAddress);
+    if (serverIsActive === false)
       throw new Error("Peer Discovery Service is not active");
     this.peerDiscovery = new import_peerDiscovery.PeerDiscoveryClient(this.peerDiscoveryAddress);
     await this.peerDiscovery.connect();

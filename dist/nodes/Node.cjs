@@ -38,7 +38,8 @@ var import_service = require("../service/index.js");
 var import_utils = require("../utils/index.js");
 var import_serialize_error = require("serialize-error");
 class Node {
-  constructor() {
+  // takes and empty parameter or a object with the propertie methods
+  constructor(input) {
     __publicField(this, "mode");
     __publicField(this, "id");
     __publicField(this, "status", "idle");
@@ -46,6 +47,7 @@ class Node {
     __publicField(this, "lastUpdateAt", Date.now());
     __publicField(this, "network");
     __publicField(this, "servicesConnected", false);
+    __publicField(this, "hasStartupFinished", false);
     // fields when the class is client handler on a service
     __publicField(this, "statusChangeCallback", null);
     // stash changes functions
@@ -107,6 +109,8 @@ class Node {
     __publicField(this, "get", this.getStash);
     __publicField(this, "stash", this.setStash);
     __publicField(this, "unstash", this.getStash);
+    if (input && input.methods)
+      this.addMethods(input.methods);
   }
   /* this functions will set the Node.ts as a client handler for the server */
   setNodeConnection(connection, network) {
@@ -158,8 +162,7 @@ class Node {
     return res;
   }
   async setServices_server(services) {
-    let res = await this.send("_set_services", services);
-    return res;
+    return await this.send("_set_services", services);
   }
   async ping_server() {
     let res = await this.send("_ping");
@@ -172,13 +175,6 @@ class Node {
       else throw error;
     });
     return res;
-  }
-  async registerServices(service) {
-    let services = service.map((service2) => new Promise(async (resolve) => {
-      let result = await this.send("_connect_service", service2);
-      resolve(result);
-    }));
-    return await Promise.all(services);
   }
   async send(method, parameter = null) {
     if (this.network === void 0) throw new Error("The network has not been set");
@@ -210,20 +206,23 @@ class Node {
       { event: "_exit", parameters: [], callback: this.exit_client.bind(this) }
     ];
     this.network.registerListeners(this.listeners);
+    await this.run_startup();
   }
   async run_client({ method, parameter }) {
-    await (0, import_utils.await_interval)(() => this.servicesConnected, 1e4).catch(() => {
+    await (0, import_utils.await_interval)(() => this.servicesConnected, 1e4, 1).catch(() => {
       throw new Error(`[Node][${this.id}] Could not connect to the services`);
+    });
+    await (0, import_utils.await_interval)(() => this.hasStartupFinished, 60 * 1e3, 1).catch(() => {
+      throw new Error(`[Node][${this.id}] Could not run startup method`);
+    });
+    await (0, import_utils.await_interval)(() => this.isIdle(), 60 * 1e3, 1).catch(() => {
+      throw new Error(`[Node][${this.id}] The node is not idle`);
     });
     try {
       this.updateStatus("working");
-      let services = this.services.map(
-        (s) => new import_service.ServiceClient(s.name, this.network)
-      ).reduce((acc, s) => {
-        acc[s.name] = s;
-        return acc;
-      }, {});
-      const result = await this.methods[method](parameter, { ...services, slave: this, self: this });
+      let services = await this.get_services();
+      let services_params = { ...services, slave: this, self: this };
+      const result = await this.methods[method](parameter, services_params);
       this.doneMethods[method] = true;
       return { result, isError: false };
     } catch (error) {
@@ -239,13 +238,8 @@ class Node {
     await (0, import_utils.await_interval)(() => this.servicesConnected, 1e4).catch(() => {
       throw new Error(`[Service] Could not connect to the services`);
     });
-    let services = this.services.map(
-      (s) => new import_service.ServiceClient(s.name, this.network)
-    ).reduce((acc, s) => {
-      acc[s.name] = s;
-      return acc;
-    }, {});
-    let parameter = { ...services, master: this, self: this };
+    let services = await this.get_services();
+    let parameter = { ...services, slave: this, self: this };
     try {
       let result = await (0, import_utils.execAsyncCode)(code_string, parameter);
       return { result, isError: false };
@@ -253,9 +247,34 @@ class Node {
       return { isError: true, error: (0, import_serialize_error.serializeError)(e) };
     }
   }
-  async _startup() {
-    if (this.methods["_startup"] !== void 0)
-      await this.run_client({ method: "_startup", parameter: null });
+  async run_startup() {
+    await (0, import_utils.await_interval)(() => this.servicesConnected, 1e4).catch(() => {
+      throw new Error(`[Node][${this.id}] Could not connect to the services`);
+    });
+    if (this.methods["_startup"] === void 0) {
+      this.hasStartupFinished = true;
+      return true;
+    }
+    try {
+      let services = await this.get_services();
+      let parameter = { ...services, slave: this, self: this };
+      const result = await this.methods["_startup"](null, parameter);
+      this.doneMethods["_startup"] = true;
+      this.hasStartupFinished = true;
+      return { result, isError: false };
+    } catch (error) {
+      this.updateStatus("error");
+      throw new Error(`[Node][${this.id}] Could not run startup method: ${error}`);
+    }
+  }
+  async get_services() {
+    let services = this.services.map(
+      (s) => new import_service.ServiceClient(s.name, this.network)
+    ).reduce((acc, s) => {
+      acc[s.name] = s;
+      return acc;
+    }, {});
+    return services;
   }
   addMethods(methods) {
     this.methods = methods;

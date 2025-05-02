@@ -70,6 +70,8 @@ class NetworkServer {
     if (this.isLan) {
       this.httpServer = (0, import_http2.createServer)();
       this.io = new import_socket.Server(this.httpServer, this.ioOptions);
+      if (this.io.httpServer.address() === null)
+        throw new Error("Host and port already in use or invalid");
       this.httpServer.listen(this.port, this.host, () => {
         let address = this.httpServer?.address();
         if (!address || typeof address === "string") {
@@ -81,6 +83,8 @@ class NetworkServer {
       });
     } else {
       this.io = new import_socket.Server(this.port, this.ioOptions);
+      if (this.io.httpServer.address() === null)
+        throw new Error("Host and port already in use or invalid");
       this.port = this.io.httpServer.address().port;
     }
     this.io.on("connection", this.handleConnection.bind(this));

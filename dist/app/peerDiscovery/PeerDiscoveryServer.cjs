@@ -35,6 +35,7 @@ __export(PeerDiscoveryServer_exports, {
 module.exports = __toCommonJS(PeerDiscoveryServer_exports);
 var import_network = __toESM(require("../../network/index.js"), 1);
 var import_cluster = __toESM(require("../../cluster/index.js"), 1);
+var import_utils = require("../../utils/index.js");
 class PeerDicoveryServer {
   constructor(params) {
     /* This will be the based class for the service which salvery will call to create proceses */
@@ -57,7 +58,14 @@ class PeerDicoveryServer {
     if (this.cluster.is("peer_discovery")) {
       this.network = new import_network.default({ name: this.name + "_network" });
       let listeners = this.getListeners();
-      this.network.createServer(this.name, this.host, this.port, listeners);
+      try {
+        this.network.createServer(this.name, this.host, this.port, listeners);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Host and port already in use or invalid")) {
+          (0, import_utils.log)(`Port ${this.port} is already in use. Exiting...`);
+          process.exit(0);
+        } else throw error;
+      }
     }
     return;
   }

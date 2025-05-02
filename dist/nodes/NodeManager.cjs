@@ -45,6 +45,7 @@ class NodeManager {
     __publicField(this, "nodes", new import_utils.Pool());
     __publicField(this, "options");
     __publicField(this, "cluster", new import_cluster.default({}));
+    __publicField(this, "services", []);
     __publicField(this, "stash");
     __publicField(this, "setIdle", (NodeId) => this.nodes.enable(NodeId));
     __publicField(this, "setBusy", (NodeId) => this.nodes.disable(NodeId));
@@ -72,6 +73,7 @@ class NodeManager {
       set: async (key, value) => await this.stash?.set(key, value)
     });
     node.setNodeConnection(connection, this.network);
+    node.setServices(this.services);
     node.setStatusChangeCallback(this.handleStatusChange.bind(this));
     let id = node.getId();
     if (id === void 0) throw new Error("node id is undefined");
@@ -128,10 +130,12 @@ class NodeManager {
     });
     return Promise.all(promises);
   }
-  async registerServices(services) {
-    return this.broadcast(
-      async (node) => await node.registerServices(services)
-    );
+  async setServices(services) {
+    this.services = services;
+    if (this.nodes.size() > 0)
+      await this.broadcast(async (node) => {
+        await node.setServices(services);
+      });
   }
   async spawnNodes(name = "", count = 1, metadata = {}) {
     if (name === "") name = "node_" + this.name;
