@@ -37,6 +37,11 @@ const paramertesDiscermination = (param1, param2, param3) => {
     if (isSlaveMethods(param2)) {
       slaveMethods = param2;
       options = param3 || {};
+    } else if (typeof param2 === "object") {
+      options = param2;
+      slaveMethods = {};
+    } else {
+      throw new Error("Invalid second parameter. Must be either a function or an object");
     }
   } else if (isSlaveMethods(param1)) {
     mastercallback = () => {
