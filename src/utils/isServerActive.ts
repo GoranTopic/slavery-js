@@ -37,18 +37,19 @@ async function isServerActive({ name, host, port, timeout }: {
 
         });
         connection.on('connect_error', () => {
-            console.log(`Connection error to ${name} at ${host}:${port}`);
+            //console.log(`Connection error to ${name} at ${host}:${port}`);
         });
 
         connection.on('connect_timeout', () => {
-            console.log(`Connection timeout to ${name} at ${host}:${port}`);
+            //console.log(`Connection timeout to ${name} at ${host}:${port}`);
             resolve(false);
             connection.close();
+            resolve_timout_pointer(timeout_pointer);
         });
         connection.connected();
         // Optional: set a manual timeout fallback, in case events fail to fire
         timeout_pointer = setTimeout(() => {
-            console.log(`Timeout waiting for ${name} at ${host}:${port}`);
+            console.error(`Timeout waiting for ${name} at ${host}:${port}`);
             connection.close();
             resolve(false);
         }, timeout);

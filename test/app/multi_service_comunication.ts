@@ -1,4 +1,4 @@
-import slavery from '../../index';
+import slavery from '../../src/index'
 import { expect } from 'chai'
 import { log } from '../../src/utils'
 process.env.debug = 'false';
@@ -14,7 +14,11 @@ slavery({
     host: 'localhost',
     port: 3000,
 })
+//@ts-ignore
 .counter_even({
+    '_startup': async (input, { logger }) => {
+        await logger.log('counter_even service started')
+    },
     'next': async (input, { self, logger, awaiter }) => {
         await awaiter.wait(1)
         if(self.number === undefined) self.number = 0
@@ -26,6 +30,9 @@ slavery({
 })
 
 .counter_odd({
+    '_startup': async (input, { logger }) => {
+        await logger.log('counter_odd service started')
+    },
     'next': async (input, { logger, counter_even, awaiter }) => {
         await awaiter.wait(1)
         let number = await counter_even.next()
@@ -37,6 +44,7 @@ slavery({
 
 .awaiter({
     'wait': async (wating_time: number) => {
+        console.log(`waiting for ${wating_time} seconds`)
         // count sum of numbers
         let s = await wait_function(wating_time)
         return `waited for ${s} seconds, 😄`

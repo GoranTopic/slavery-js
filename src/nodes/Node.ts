@@ -27,6 +27,7 @@ class Node {
     public lastUpdateAt: number = Date.now();
     public network: Network | undefined = undefined;
     public servicesConnected: boolean = false;
+    public hasStartupFinished: boolean = false;
     // fields when the class is client handler on a service
     public statusChangeCallback: ((status: NodeStatus, node: Node) => void) | null = null;
     // stash changes functions
@@ -37,7 +38,12 @@ class Node {
     public doneMethods: { [key: string]: boolean } = {};
     public methods: { [key: string]: (parameter?: any, self?: Node) => any } = {};
 
-    constructor(){}
+    // takes and empty parameter or a object with the propertie methods
+    constructor(input?: { methods?: Record<string, (parameter: any) => any> }){
+        // if the methods are passed we add them to the class
+        if(input && input.methods)
+            this.addMethods(input.methods);
+    }
 
     /* this function will work on any mode the class is on */
 
@@ -105,8 +111,8 @@ class Node {
             { event: '_set_stash', parameters: ['key', 'value'], callback: this.stashSetFunction },
             { event: '_get_stash', parameters: ['key'], callback: this.stashGetFunction },
         ]
-            // register the listeners on the connection
-            connection.setListeners(this.listeners);
+        // register the listeners on the connection
+        connection.setListeners(this.listeners);
     }
 
     public setStatusChangeCallback(callback: (status: NodeStatus, node: Node) => void){
@@ -160,8 +166,7 @@ class Node {
 
     private async setServices_server(services: ServiceAddress[]){
         // this function will send send a list of services to the client node
-        let res = await this.send('_set_services', services);
-        return res;
+        return await this.send('_set_services', services);
     }
 
     public async ping_server(){
@@ -177,16 +182,6 @@ class Node {
         // we catch the timeout erro scince the client node will exit
         .catch((error) => { if(error === 'timeout') return true; else throw error; });
         return res
-    }
-
-    public async registerServices(service: ServiceAddress[]){
-        // for every service we need to send the service address to the client node
-        let services = service.map(service => new Promise(async (resolve) => {
-            let result = await this.send('_connect_service', service);
-            resolve(result);
-        }));
-        // await until they are all connected
-        return await Promise.all(services);
     }
 
     public async send(method: string, parameter: any = null){
@@ -226,30 +221,41 @@ class Node {
             { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
             { event: '_has_done', parameters: ['method'], callback: this.hasDone.bind(this) },
             { event: '_ping', parameters: [], callback: () => 'pong' },
-                { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
+            { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
+        // run startup method
+        await this.run_startup();
     }
 
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
         // wait until services are connected, with timeout of 10 seconds
+        //console.log(`[Node][${this.id}] Running method ${method} with parameter ${parameter}`);
+        //console.log(`[Node][${this.id}] waiting for services to be connected`);
         await await_interval(() => this.servicesConnected, 10000).catch(() => {
             throw new Error(`[Node][${this.id}] Could not connect to the services`);
         })
+        //console.log(`[Node][${this.id}] services connected`);
+        //console.log(`[Node][${this.id}] waiting for startup to finish`);
+        await await_interval(() => this.hasStartupFinished, 60 * 1000).catch(() => {
+            throw new Error(`[Node][${this.id}] Could not run startup method`);
+        });
+        //console.log(`[Node][${this.id}] startup finished`);
+        //console.log(`[Node][${this.id}] waiting for the node to be idle, is it Idle? ${this.isIdle()}`);
+        await await_interval(() => this.isIdle(), 60 * 1000).catch(() => {
+            throw new Error(`[Node][${this.id}] The node is not idle`);
+        })
+        //console.log(`[Node][${this.id}] node is idle`);
         try {
             // set the status to working
             this.updateStatus('working');
             // get the services that we have connected to
-            let services = this.services.map(
-                (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
-            ).reduce((acc: any, s: ServiceClient) => {
-                acc[s.name] = s;
-                return acc;
-            }, {})
+            let services = await this.get_services();
+            let services_params = { ...services, slave: this, self: this };
             // run method
-            const result = await this.methods[method](parameter, { ...services, slave: this, self: this });
+            const result = await this.methods[method](parameter, services_params);
             // set has done method
             this.doneMethods[method] = true;
             // return the result
@@ -274,13 +280,8 @@ class Node {
         await await_interval(() => this.servicesConnected, 10000).catch(() => {
             throw new Error(`[Service] Could not connect to the services`);
         })
-        let services = this.services.map(
-            (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
-        ).reduce((acc: any, s: ServiceClient) => {
-            acc[s.name] = s;
-            return acc;
-        }, {})
-        let parameter = { ...services, master: this, self: this };
+        let services = await this.get_services();
+        let parameter = { ...services, slave: this, self: this };
         try {
             // run the albitrary code
             let result = await execAsyncCode(code_string, parameter);
@@ -290,12 +291,45 @@ class Node {
         }
     }
 
-    public async _startup(){
+    private async run_startup(){
         // this function should not be here, and Node class should be self contained
         // thus this class need an outside class to call it, after it has set up its
         // addMethods and setServices and connectToMaster functions have run.
-        if(this.methods['_startup'] !== undefined)
-            await this.run_client({ method: '_startup', parameter: null });
+        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+            throw new Error(`[Node][${this.id}] Could not connect to the services`);
+        })
+        if(this.methods['_startup'] === undefined){
+            // if there is no startup method we just return
+            this.hasStartupFinished = true;
+            return true;
+        }
+        try {
+            // set the status to working
+            let services = await this.get_services();
+            let parameter = { ...services, slave: this, self: this };
+            // run method
+            const result = await this.methods['_startup'](null, parameter);
+            // set has done method
+            this.doneMethods['_startup'] = true;
+            this.hasStartupFinished = true;
+            // return the result
+            return { result, isError: false };
+        } catch(error){ // serilize the error
+            this.updateStatus('error');
+            // return the error
+            throw new Error(`[Node][${this.id}] Could not run startup method: ${error}`);
+        } 
+    }
+
+    private async get_services(){
+        // get the services that we have connected with their respective clients
+        let services = this.services.map(
+            (s: ServiceAddress) => new ServiceClient(s.name, this.network as Network)
+        ).reduce((acc: any, s: ServiceClient) => {
+            acc[s.name] = s;
+            return acc;
+        }, {})
+        return services;
     }
 
     // this function will communicate with the master node and set the stash in that moment

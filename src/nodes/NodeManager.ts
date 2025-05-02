@@ -29,6 +29,8 @@ type Options = {
     increase_node_at_requests?: number,
     // the number of node that have to be idle before decreasing the number of processes
     decrease_node_at_idles?: number,
+    // service address for nodes
+    service_address?: ServiceAddress[],
     // you can pass the stash object to the node manager
     stash?: Stash,
 }
@@ -40,6 +42,7 @@ class NodeManager {
     private nodes: Pool<Node> = new Pool();
     private options: Options;
     private cluster = new Cluster({});
+    private services: ServiceAddress[] = [];
     private stash: Stash | null;
 
 
@@ -73,6 +76,8 @@ class NodeManager {
       });
       // set the connection to the node
       node.setNodeConnection(connection, this.network);
+      // set the service address
+      node.setServices(this.services);
       // add callback on status change
       node.setStatusChangeCallback(this.handleStatusChange.bind(this));
       // get the id of the node
@@ -158,11 +163,13 @@ class NodeManager {
       return Promise.all(promises);
   }
 
-  public async registerServices(services: ServiceAddress[]) {
-      // register the services to all the nodes
-      return this.broadcast(
-          async (node: Node) => await node.registerServices(services)
-      );
+  public async setServices(services: ServiceAddress[]) {
+      // set the services to all the nodes
+      this.services = services;
+      if(this.nodes.size() > 0)
+          await this.broadcast( async (node: Node) => {
+                  await node.setServices(services)
+              });
   }
 
   public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {

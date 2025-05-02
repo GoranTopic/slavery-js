@@ -15,7 +15,7 @@ type EntryOptions = {
 const entry = (entryOptions: EntryOptions) => {
     // this function is use to set up the options for the servies
     let options = entryOptions;
-    // make a proxy object will take of xreating each service
+    // make a proxy object will take of creating each service
     let proxyObject = makeProxyObject(handleProxyCall(options));
     // make the peer discovery server
     let peerDiscoveryServer = new PeerDiscoveryServer({
@@ -54,7 +54,8 @@ const handleProxyCall = (globalOptions: EntryOptions) => (
         service.start()
     }
 
-
+// this function will take the parameters and determine what they are
+// and return them in a format that is easy to work with
 const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?: SlaveMethods | ServiceOptions, param3?: ServiceOptions) => {
     let mastercallback: MasterCallback;
     let slaveMethods: SlaveMethods;

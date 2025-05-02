@@ -36,6 +36,7 @@ let awaiter_service = new Service({
     ],
     slaveMethods: {
         '_startup': (params: any , { slave }) => {
+            console.log(`[${process.argv[1].split('/').pop()}] _startup function ran`)
             slave['wait_function'] = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
         },
         // will be called when the service is started

@@ -121,7 +121,7 @@ class Service {
             // add out handle request function to the listener
             l => ({ ...l, callback: this.handle_request(l, 'run') })
         );
-        // add the _exec listner, we have to add it here as the listners in 
+        // add the _exec listner, we have to add it here as the listners in
         // this.getServiceListeners strips the selector
         let exec_listener : Listener = { event: '_exec', callback: ()=>{} };
         listeners.push({ ...exec_listener, callback: this.handle_request(exec_listener, 'exec') });
@@ -152,7 +152,7 @@ class Service {
     }
 
     private async initialize_slaves() {
-        let node = new Node();
+        let node = new Node({methods: this.slaveMethods});
         // TODO: Need to find a better way to pass the host and port
         // to the slave process, so far I am only able to pass it through
         // the metadata in the cluster
@@ -163,12 +163,6 @@ class Service {
         let { host, port } = JSON.parse(metadata)['metadata'];
         // connect with the master process
         await node.connectToMaster(host, port);
-        // add services to the node
-        await node.setServices(this.peerAddresses);
-        // read the methods to be used
-        node.addMethods(this.slaveMethods)
-        // run _startup method
-        await node._startup();
     }
 
     private async initlize_node_manager() {
@@ -190,7 +184,7 @@ class Service {
             metadata: { host: this.nm_host, port: this.nm_port }
         });
         // register the services in the nodes
-        await this.nodes.registerServices(this.peerAddresses);
+        await this.nodes.setServices(this.peerAddresses);
         // get the nodes
         return this.nodes;
     }
@@ -207,7 +201,6 @@ class Service {
                 get_slave: this.nodes.getIdle.bind(this.nodes),
                 process_request:
                     async (node: Node, request: Request) => await node[request.type](request.method, request.parameters)
-                
             });
     }
 
