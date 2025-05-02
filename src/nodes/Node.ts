@@ -234,17 +234,17 @@ class Node {
         // wait until services are connected, with timeout of 10 seconds
         //console.log(`[Node][${this.id}] Running method ${method} with parameter ${parameter}`);
         //console.log(`[Node][${this.id}] waiting for services to be connected`);
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+        await await_interval(() => this.servicesConnected, 10000, 1).catch(() => {
             throw new Error(`[Node][${this.id}] Could not connect to the services`);
         })
         //console.log(`[Node][${this.id}] services connected`);
         //console.log(`[Node][${this.id}] waiting for startup to finish`);
-        await await_interval(() => this.hasStartupFinished, 60 * 1000).catch(() => {
+        await await_interval(() => this.hasStartupFinished, 60 * 1000, 1).catch(() => {
             throw new Error(`[Node][${this.id}] Could not run startup method`);
         });
         //console.log(`[Node][${this.id}] startup finished`);
         //console.log(`[Node][${this.id}] waiting for the node to be idle, is it Idle? ${this.isIdle()}`);
-        await await_interval(() => this.isIdle(), 60 * 1000).catch(() => {
+        await await_interval(() => this.isIdle(), 60 * 1000, 1).catch(() => {
             throw new Error(`[Node][${this.id}] The node is not idle`);
         })
         //console.log(`[Node][${this.id}] node is idle`);
