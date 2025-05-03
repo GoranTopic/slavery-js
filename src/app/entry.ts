@@ -70,8 +70,11 @@ const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?
         } else if( typeof param2 === 'object' ) {
             options = param2;
             slaveMethods = {};
-        } else {
-            throw new Error('Invalid second parameter. Must be either a function or an object');
+        } else if(param2 === undefined ) {
+            options = {};
+            slaveMethods = {};
+        }else{
+            throw new Error(`Invalid second parameter of type of ${typeof param2}. Must be either an object of function, options or undefined`);
         }
     } else if( isSlaveMethods(param1) ) {
         mastercallback = () => {};
@@ -79,7 +82,7 @@ const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?
         // check what the second paramter is
         options = param2 || {};
     } else { 
-        throw new Error('Invalid first parameter. Must be either a funcition or an object');
+        throw new Error(`Invalid first parameter of type of ${typeof param1}. Must be either an function or an object of functions`);
     }
     return { 
         mastercallback,
@@ -87,7 +90,6 @@ const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?
         options
     }
 }
-
 
 
 
