@@ -72,8 +72,11 @@ const paramertesDiscermination = (param1, param2, param3) => {
     } else if (typeof param2 === "object") {
       options = param2;
       slaveMethods = {};
+    } else if (param2 === void 0) {
+      options = {};
+      slaveMethods = {};
     } else {
-      throw new Error("Invalid second parameter. Must be either a function or an object");
+      throw new Error(`Invalid second parameter of type of ${typeof param2}. Must be either an object of function, options or undefined`);
     }
   } else if ((0, import_typeGuards.isSlaveMethods)(param1)) {
     mastercallback = () => {
@@ -81,7 +84,7 @@ const paramertesDiscermination = (param1, param2, param3) => {
     slaveMethods = param1;
     options = param2 || {};
   } else {
-    throw new Error("Invalid first parameter. Must be either a funcition or an object");
+    throw new Error(`Invalid first parameter of type of ${typeof param1}. Must be either an function or an object of functions`);
   }
   return {
     mastercallback,
