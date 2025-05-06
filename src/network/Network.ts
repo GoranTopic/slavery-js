@@ -3,6 +3,17 @@ import { uuid, log, Pool } from '../utils/index.js';
 import type Listener from './types/Listener.js';
 import Server from './Server.js';
 
+type NetworkOptions = {
+    timeout?: number
+}
+
+type NetworkParameters = {
+    name?: string,
+    id?: string | undefined,
+    options?: NetworkOptions
+}
+
+
 class Network {
     /* *
      * this class will handle the connections of a node in the network.
@@ -26,9 +37,10 @@ class Network {
     public serviceDisconnectCallback?: Function;
     // callback for when a new listener is added
     public newListenersCallback?: Function;
+    public timeout: number;
 
 
-    constructor({ name = '', id = undefined } : { name?: string, id?: string }) {
+    constructor({ name = '', id = undefined, options} : NetworkParameters) {
         //log(`[Network][${name}] netowrk created`);
         this.name = name;
         this.listeners = [];
@@ -38,6 +50,7 @@ class Network {
         this.serviceConnectionCallback = undefined;
         this.serviceDisconnectCallback = undefined;
         this.newListenersCallback = undefined;
+        this.timeout = options?.timeout || 10000;
     }
 
     async connect({ name, host, port, as } : { name?: string, host: string, port: number, as?: string }): Promise<Connection> {
@@ -47,7 +60,8 @@ class Network {
          * then run the callback */
         const connection = new Connection({
             name : this.name, host, port, id: this.id,
-            onSetListeners: this.newListenersCallback
+            onSetListeners: this.newListenersCallback,
+            timeout: this.timeout
         });
         // await connection and handshake
         await connection.connected();

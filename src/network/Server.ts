@@ -22,11 +22,12 @@ class NetworkServer {
     public listeners: Listener[];
     public httpServer?: http.Server;
     public isReady: boolean;
+    public timeout: number;
     private ioOptions: any;
 
     constructor({ name, host, port, listeners } : {
-        name: string, host: string, port: number, listeners: Listener[]
-    }, options?: { maxTransferSize: number }) {
+        name: string, host: string, port: number, listeners: Listener[],
+    }, options?: { timeout: number, maxTransferSize: number }) {
         this.host = host || "localhost";
         this.isLan = this.host !== 'localhost'
         this.port = port || 0; // zero means random port
@@ -40,6 +41,7 @@ class NetworkServer {
         this.ioOptions = {
             maxHttpBufferSize: this.maxTransferSize,
         };
+        this.timeout = options?.timeout || 60 * 1000;
         // initiate with the server
         if(this.isLan){ // if we are in a over lan
             // create a http server
@@ -77,7 +79,8 @@ class NetworkServer {
        log("[Server] got new connection");
         // make a new connectection instance
         let connection = new Connection({ 
-            socket, name: this.name, listeners: this.listeners
+            socket, name: this.name, listeners: this.listeners,
+            timeout: this.timeout,
         });
         // await fo connection to be established
         await connection.connected();

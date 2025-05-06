@@ -15,7 +15,12 @@ import { Pool, await_interval, log } from '../utils/index.js';
  * or which are currently busy, or idle, etc
  */
 
-type NodeManagerOptions = {
+type Options = {
+    // name of the service
+    name: string,
+    // the host and port of the service
+    host: string,
+    port: number,
     // the number of processes that will be started on each node
     number_of_nodes?: number,
     max_number_of_nodes?: number,
@@ -28,61 +33,53 @@ type NodeManagerOptions = {
     service_address?: ServiceAddress[],
     // you can pass the stash object to the node manager
     stash?: Stash,
-    // timeout
-    timeout?: number,
 }
-
-type NodeManagerParameters = {
-    // name of the service
-    name: string,
-    // the host and port of the service
-    host: string,
-    port: number,
-    options?: NodeManagerOptions,
-}
-
-
 
 class NodeManager {
     private name: string;
     private network: Network;
     //private heartBeat: number = 1000;
     private nodes: Pool<Node> = new Pool();
-    private options: NodeManagerOptions;
+    private options: Options;
     private cluster = new Cluster({});
     private services: ServiceAddress[] = [];
     private stash: Stash | null;
 
 
-    constructor({ name, host, port, options }: NodeManagerParameters) {
-        this.name = name;
-        this.options = options || {};
-        this.network = new Network({
-            name: this.name + '_node_manager'
-        });
+    constructor(options: Options) {
+        this.name = options.name;
+        this.options = options;
+        this.network = new Network({ name: this.name + '_node_manager' });
         // create server
-        this.network.createServer( this.name + '_node_manager', host, port);
+        this.network.createServer(
+            this.name + '_node_manager',
+            this.options.host,
+            this.options.port
+        );
         // handle when new node is connected
         this.network.onNodeConnection(this.handleNewNode.bind(this));
         // handle when a node is disconnected
         this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
         // set the stash
-        this.stash = options?.stash || null;
+        this.stash = options.stash || null;
   }
 
   private handleNewNode(connection: Connection) {
       /* this function is called when a new node is connected to the master */
       log('[Node manager] Got a new connectection from a node');
       // create a new node
-      let node = new Node({
-          mode: 'server',
-          connection,
-          network: this.network,
-          services: this.services,
-          statusChangeCallback: this.handleStatusChange.bind(this),
-          stashSetFunction: async (key: string, value: any) => await this.stash?.set(key, value),
-          stashGetFunction: async (key: string) => await this.stash?.get(key),
+      let node = new Node();
+      // set the functions for the stash of objects
+      node.setStashFunctions({
+          get: async (key: string) => await this.stash?.get(key),
+          set: async (key: string, value: any) => await this.stash?.set(key, value),
       });
+      // set the connection to the node
+      node.setNodeConnection(connection, this.network);
+      // set the service address
+      node.setServices(this.services);
+      // add callback on status change
+      node.setStatusChangeCallback(this.handleStatusChange.bind(this));
       // get the id of the node
       let id = node.getId();
       if(id === undefined) throw new Error('node id is undefined');
@@ -133,10 +130,8 @@ class NodeManager {
           log('[node manager] (WARNING) no nodes found');
       // await until we get a node which is idle
       // 0 will make it wait for every for a idle node
-      await await_interval({
-          condition: () => this.nodes.hasEnabled(),
-            timeout: 0, // forever
-      }).catch(() => { throw new Error('timeout of 10 seconds, no idle node found') });
+      await await_interval(() => this.nodes.hasEnabled(), 0)
+      .catch(() => { throw new Error('timeout of 10 seconds, no idle node found') });
       //log('[node manager] got idle node');
       // get the next node
       let node = this.nodes.pop();
@@ -247,10 +242,8 @@ class NodeManager {
 
   public async numberOfNodesConnected(count: number) {
       let timeout = 100000;
-      await await_interval({
-        condition: () => this.nodes.size() >= count,
-        timeout: timeout,
-      }).catch(() => { throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`) });
+      await await_interval(() => this.nodes.size() >= count, timeout)
+      .catch(() => { throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`) });
       return true;
   }
 

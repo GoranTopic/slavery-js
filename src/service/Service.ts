@@ -115,7 +115,12 @@ class Service {
         // initialize the request queue
         this.initialize_request_queue();
         // initlieze the network and create a service
-        this.network = new Network({name: this.name + '_service_network'});
+        this.network = new Network({
+            name: this.name + '_service_network',
+            options: {
+                timeout: this.options.timeout,
+            }
+        });
         // list the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
             // add out handle request function to the listener
@@ -152,17 +157,21 @@ class Service {
     }
 
     private async initialize_slaves() {
-        let node = new Node({methods: this.slaveMethods});
-        // TODO: Need to find a better way to pass the host and port
-        // to the slave process, so far I am only able to pass it through
-        // the metadata in the cluster
-        // get the nm_host and nm_port from the metadata
+        // connect to the master process
         let metadata = process.env.metadata;
         if(metadata === undefined)
             throw new Error('could not get post and host of the node manager, metadata is undefined');
         let { host, port } = JSON.parse(metadata)['metadata'];
+        // creater the node
+        let node = new Node({
+            mode: 'client',
+            master_host: host,
+            master_port: port,
+            methods: this.slaveMethods,
+            options: this.options
+        });
         // connect with the master process
-        await node.connectToMaster(host, port);
+        await node.start();
     }
 
     private async initlize_node_manager() {
@@ -177,7 +186,10 @@ class Service {
             name: this.name,
             host: this.nm_host,
             port: this.nm_port,
-            stash: this.stash, // set the stash
+            options: {
+                timeout: this.options.timeout,
+                stash: this.stash, // set the stash
+            }
         })
         // spawn the nodes from the node Manager
         await this.nodes.spawnNodes('slave_' + this.name, this.number_of_nodes, {
@@ -200,7 +212,12 @@ class Service {
                 // we pass the functions that the request queue will use
                 get_slave: this.nodes.getIdle.bind(this.nodes),
                 process_request:
-                    async (node: Node, request: Request) => await node[request.type](request.method, request.parameters)
+                    async (node: Node, request: Request) => await node[request.type](request.method, request.parameters),
+                options: {
+                    heartbeat: 100,
+                    requestTimeout: this.options.timeout,
+                    onError: this.options?.onError || 'throw',
+                }
             });
     }
 
@@ -304,7 +321,9 @@ class Service {
                 if(typeof code_string !== 'string')
                     return { isError: true, error: serializeError(new Error('Code string is not a string')) }
                 // await until service is connected
-                await await_interval(() => this.servicesConnected, 10000).catch(() => {
+                await await_interval({
+                    condition: () => this.servicesConnected, timeout: 1000
+                }).catch(() => {
                     throw new Error(`[Service] Could not connect to the services`);
                 })
                 let service = this.getServices();

@@ -19,6 +19,10 @@ type Options = {
     logError?: boolean,
     // auto scale based on length of Rquest Queue and the idle rate od nodes
     auto_scale?: boolean,
+    // timeout for requests
+    timeout?: number,
+    // how to handle errors
+    onError?: 'throw' | 'log' | 'ignore'
     
 }
 

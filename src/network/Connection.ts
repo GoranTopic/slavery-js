@@ -34,6 +34,7 @@ class Connection {
     private onConnectCallback: Function;
     public onDisconnectCallback: Function;
     public onSetListenersCallback: Function;
+    private timeout: number;
 
     /*
      * @param Node: Node
@@ -55,6 +56,7 @@ class Connection {
         this.onConnectCallback = onConnect || (() => {});
         this.onDisconnectCallback = onDisconnect || (() => {});
         this.onSetListenersCallback = onSetListeners || (() => {});
+        this.timeout = timeout || 1000 * 60; // 1 minute
         // set listeners
         if(listeners) this.listeners = listeners;
         // if get a socket to connect to the server
@@ -77,7 +79,7 @@ class Connection {
             this.id = id;
             this.socket = io(`ws://${host}:${port}`, {
                 auth: { id },
-                timeout: timeout || 1000 * 60 // 1 minute
+                timeout: this.timeout,
             });
             // since we are not connected yet
             this.isConnected = false;
@@ -91,7 +93,7 @@ class Connection {
 
     private initilaizeListeners(): void {
         /* this function inizializes the default listeners for the socket */
-        // set the object listeners 
+        // set the object listeners
         this.listeners.forEach( l => {
             this.socket.removeAllListeners(l.event);
             this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
@@ -200,13 +202,11 @@ class Connection {
             this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
                 // run the callback defined in the listner
                 return await l.callback(parameters);
-            }));    
+            }));
         });
         // update the listeners on the target
         if(this.type === 'server'){
-            //let response = 
             await this.query('_set_listeners', listeners.map(listener => listener.event));
-            //if(response === 'ok') log('[Connection]<setListeners> listeners set successfully')
         }
     }
 
@@ -252,7 +252,9 @@ class Connection {
         /* this function makes the query to the socket and waits for the response */
         return new Promise((resolve, reject) => {
             // set a time out
-            let timeout = setTimeout( () => { reject('timeout') }, 1000 * 60); // 1 minute
+            let timeout = setTimeout( () => { 
+                reject(`Query of ${event} timed out after ${this.timeout}ms`)
+            }, this.timeout); // default 1 minute
             // get request id
             let request_id = ++this.request_id;
             if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;

@@ -19,12 +19,38 @@ import { serializeError, deserializeError } from 'serialize-error';
 
 type NodeStatus = 'idle' | 'working' | 'error';
 
+type NodeOptions = {
+    timeout?: number,
+}
+
+type NodeClientParamters = {
+    mode: 'client',
+    master_host: string,
+    master_port: number,
+    methods: { [key: string]: (parameter: any) => any },
+    services?: ServiceAddress[],
+    options?: NodeOptions,
+}
+
+type NodeServerParameters = {
+    mode: 'server',
+    connection: Connection,
+    network: Network,
+    stashSetFunction: (key: string, value: any) => any,
+    stashGetFunction: (key: string) => any,
+    services: ServiceAddress[],
+    statusChangeCallback: (status: NodeStatus, node: Node) => void,
+    options?: NodeOptions,
+}
+
 class Node {
-    public mode: 'client' | 'server' | undefined  = undefined;
+    public mode: 'client' | 'server';
     public id: string | undefined = undefined;
     public status: NodeStatus = 'idle';
     public listeners: Listener[] = [];
     public lastUpdateAt: number = Date.now();
+    public master_host: string | undefined = undefined;
+    public master_port: number | undefined = undefined;
     public network: Network | undefined = undefined;
     public servicesConnected: boolean = false;
     public hasStartupFinished: boolean = false;
@@ -37,16 +63,40 @@ class Node {
     public services: ServiceAddress[] = [];
     public doneMethods: { [key: string]: boolean } = {};
     public methods: { [key: string]: (parameter?: any, self?: Node) => any } = {};
+    // options
+    public options: NodeOptions = {
+        timeout: 10000,
+    }
 
     // takes and empty parameter or a object with the propertie methods
-    constructor(input?: { methods?: Record<string, (parameter: any) => any> }){
-        // if the methods are passed we add them to the class
-        if(input && input.methods)
-            this.addMethods(input.methods);
+    constructor(params : NodeClientParamters | NodeServerParameters){
+        // set the mode
+        this.mode = params.mode;
+        if(this.mode === 'client'){
+            params = params as NodeClientParamters;
+            // set the master host and port
+            this.master_host = params.master_host;
+            this.master_port = params.master_port;
+            // set the services
+            this.services = params.services || [];
+            // set the options
+            this.options = params.options || {};
+            // add the methods
+            this.addMethods(params.methods);
+        }else if(this.mode === 'server'){
+            params = params as NodeServerParameters;
+            // set the stash functions
+            this.setStashFunctions({ set: params.stashSetFunction, get: params.stashGetFunction });
+            // set the connection
+            this.setNodeConnection(params.connection, params.network);
+            // set the services
+            this.services = params.services;
+            // set the status change callback
+            this.statusChangeCallback = params.statusChangeCallback;
+        }
     }
 
     /* this function will work on any mode the class is on */
-
     public getId = () => this.id;
     public getStatus = () => this.status;
     public lastHeardOfIn = () => Date.now() - this.lastUpdateAt;
@@ -55,48 +105,47 @@ class Node {
     public isError = () => this.status === 'error';
     private updateLastHeardOf = () => this.lastUpdateAt = Date.now();
     private updateStatus = (status: NodeStatus) => this.status = status;
-    public untilFinish = async () => { // await until the node is idle
-        await await_interval(() => this.isIdle(), 1000)
-        .catch(() => { throw new Error('The node is not idle') })
+    public untilFinish = async () => {
+        await await_interval({
+            condition: () => this.isIdle(),
+            interval: 100,
+        }).catch(() => { throw new Error('The node is not idle') })
         return true;
+    }
+
+    public start = async () => {
+        // this function will start the node
+        if(this.mode === 'client') return await this.start_client();
+        else if(this.mode === 'server') throw new Error('no need to await start on server');
     }
 
     public run = async (method: string, parameter: any) => {
         if(this.mode === 'client') return await this.run_client({ method, parameter });
         else if(this.mode === 'server') return await this.run_server({ method, parameter });
-        else throw new Error('The mode has not been set');
     }
 
     public exec = async (method: string, code: string) => {
         if(this.mode === 'client') return await this.exec_client(code);
         else if(this.mode === 'server') return await this.exec_server(code);
-        else throw new Error('The mode has not been set');
     }
 
     public setServices = async (services: ServiceAddress[]) => {
         if(this.mode === 'client') return await this.setServices_client(services);
         else if(this.mode === 'server') return await this.setServices_server(services);
-        else throw new Error('The mode has not been set');
     }
 
     public exit = async () => {
         if(this.mode === 'client') return await this.exit_client();
         else if(this.mode === 'server') return await this.exit_server();
-        else throw new Error('The mode has not been set');
     }
 
     public ping = async () => {
         if(this.mode === 'client') return await this.ping_client();
         else if(this.mode === 'server') return await this.ping_server();
-        else throw new Error('The mode has not been set');
     }
 
     /* this functions will set the Node.ts as a client handler for the server */
     public setNodeConnection(connection: Connection, network: Network){
-        if(this.mode !== undefined && this.mode !== null )
-            throw new Error('The node mode has already been set');
-        // set the mode as a server client hander
-        this.mode = 'server';
         // get the node id from the conenction
         this.id = connection.getTargetId();
         // set the network
@@ -201,17 +250,23 @@ class Node {
         return await connection.send(method, parameter);
     }
 
-
     /* this function will be called when the client node tells us that it is working */
-    public async connectToMaster(host: string, port: number){
+    public async start_client(){
         // conenct the master process which will tell us what to do
         // create an id for the node
         this.id = this.id || Math.random().toString(36).substring(4);
-        this.network = new Network({name: 'node', id: this.id});
+        this.network = new Network({
+            name: 'node',
+            id: this.id,
+            options: {
+                timeout: this.options.timeout || 10000,
+            }
+        });
+        // check if the network is defined
+        if(this.master_host === undefined || this.master_port === undefined)
+            throw new Error('The master host and port have not been set');
         // form the conenction with the master
-        this.network.connect({ host, port, as: 'master' });
-        // set the mode as a client
-        this.mode = 'client';
+        this.network.connect({ host: this.master_host, port: this.master_port, as: 'master' });
         // set the listeners which we will us on the and the master can call on
         this.listeners = [
             { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
@@ -234,19 +289,19 @@ class Node {
         // wait until services are connected, with timeout of 10 seconds
         //console.log(`[Node][${this.id}] Running method ${method} with parameter ${parameter}`);
         //console.log(`[Node][${this.id}] waiting for services to be connected`);
-        await await_interval(() => this.servicesConnected, 10000, 1).catch(() => {
-            throw new Error(`[Node][${this.id}] Could not connect to the services`);
-        })
+        await await_interval({
+            condition: () => this.servicesConnected, timeout: 10000, interval: 10
+        }).catch(() => { throw new Error(`[Node][${this.id}] Could not connect to the services`) })
         //console.log(`[Node][${this.id}] services connected`);
         //console.log(`[Node][${this.id}] waiting for startup to finish`);
-        await await_interval(() => this.hasStartupFinished, 60 * 1000, 1).catch(() => {
-            throw new Error(`[Node][${this.id}] Could not run startup method`);
-        });
+        await await_interval({
+            condition: () => this.hasStartupFinished, timeout: 60 * 1000, interval: 1
+        }).catch(() => { throw new Error(`[Node][${this.id}] Could not run startup method`) });
         //console.log(`[Node][${this.id}] startup finished`);
         //console.log(`[Node][${this.id}] waiting for the node to be idle, is it Idle? ${this.isIdle()}`);
-        await await_interval(() => this.isIdle(), 60 * 1000, 1).catch(() => {
-            throw new Error(`[Node][${this.id}] The node is not idle`);
-        })
+        await await_interval({
+            condition: () => this.isIdle(), timeout: 60 * 1000, interval: 1
+        }).catch(() => { throw new Error(`[Node][${this.id}] The node is not idle`) })
         //console.log(`[Node][${this.id}] node is idle`);
         try {
             // set the status to working
@@ -277,7 +332,9 @@ class Node {
         if(typeof code_string !== 'string')
             return { isError: true, error: serializeError(new Error('Code string is not a string')) }
         // await until service is connected
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+        await await_interval({
+            condition: () => this.servicesConnected, timeout: 10000
+        }).catch(() => {
             throw new Error(`[Service] Could not connect to the services`);
         })
         let services = await this.get_services();
@@ -292,10 +349,10 @@ class Node {
     }
 
     private async run_startup(){
-        // this function should not be here, and Node class should be self contained
-        // thus this class need an outside class to call it, after it has set up its
-        // addMethods and setServices and connectToMaster functions have run.
-        await await_interval(() => this.servicesConnected, 10000).catch(() => {
+        // make  sure that we have the services connected
+        await await_interval({
+            condition: () => this.servicesConnected, timeout: 10000
+        }).catch(() => {
             throw new Error(`[Node][${this.id}] Could not connect to the services`);
         })
         if(this.methods['_startup'] === undefined){
@@ -318,7 +375,7 @@ class Node {
             this.updateStatus('error');
             // return the error
             throw new Error(`[Node][${this.id}] Could not run startup method: ${error}`);
-        } 
+        }
     }
 
     private async get_services(){
