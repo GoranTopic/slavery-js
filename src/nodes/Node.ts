@@ -90,6 +90,7 @@ class Node {
             // set the connection
             this.setNodeConnection(params.connection, params.network);
             // set the services
+            console.log('services', params.services);
             this.services = params.services;
             // set the status change callback
             this.statusChangeCallback = params.statusChangeCallback;
@@ -214,6 +215,7 @@ class Node {
     }
 
     private async setServices_server(services: ServiceAddress[]){
+        console.log(`[Node][${this.id}] Setting services`, services);
         // this function will send send a list of services to the client node
         return await this.send('_set_services', services);
     }

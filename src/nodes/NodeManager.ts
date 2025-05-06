@@ -41,8 +41,6 @@ type NodeManagerParameters = {
     options?: NodeManagerOptions,
 }
 
-
-
 class NodeManager {
     private name: string;
     private network: Network;
@@ -58,7 +56,10 @@ class NodeManager {
         this.name = name;
         this.options = options || {};
         this.network = new Network({
-            name: this.name + '_node_manager'
+            name: this.name + '_node_manager',
+            options: {
+                timeout: this.options.timeout || 10000,
+            }
         });
         // create server
         this.network.createServer( this.name + '_node_manager', host, port);
@@ -122,7 +123,7 @@ class NodeManager {
           // await for seelcted node to be idle
           await await_interval({
               condition: () => node.isIdle(),
-                timeout: 60 * 60 * 60 * 1000,
+                timeout: this.options.timeout || 3600000, // one hour
           }).catch(() => {
               throw new Error(`timeout of one hour, node ${node_id} is not idle`);
           });
@@ -175,9 +176,9 @@ class NodeManager {
       // set the services to all the nodes
       this.services = services;
       if(this.nodes.size() > 0)
-          await this.broadcast( async (node: Node) => {
-                  await node.setServices(services)
-              });
+          await this.broadcast( async (node: Node) => 
+              await node.setServices(services)
+          );
   }
 
   public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {
@@ -192,8 +193,7 @@ class NodeManager {
 
   public async killNode(nodeId: string = '') {
       // this function will get an idle node fom the pool
-      if(this.nodes.isEmpty())
-          return false
+      if(this.nodes.isEmpty()) return false
       // get an idle node
       let node = (nodeId === '')?
           this.nodes.removeOne() :

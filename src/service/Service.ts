@@ -110,17 +110,24 @@ class Service {
         // if we have a peer discovery service we will try to connect to it
         if(this.peerDiscoveryAddress !== undefined) await this.handle_peer_discovery();
         log('peer addresses', this.peerAddresses);
+        console.log(`[${this.name}] > initialize_master peer addresses`, this.peerAddresses);
         // initialize the node manager
+        console.log(`[${this.name}] > initialize_master node manager`);
         await this.initlize_node_manager();
+        console.log(`[${this.name}] > initialize_master node manager done`);
         // initialize the request queue
+        console.log(`[${this.name}] > initialize_master request queue`);
         this.initialize_request_queue();
+        console.log(`[${this.name}] > initialize_master request queue done`);
         // initlieze the network and create a service
+        console.log(`[${this.name}] > initialize_master network`);
         this.network = new Network({
             name: this.name + '_service_network',
             options: {
                 timeout: this.options.timeout,
             }
         });
+        console.log(`[${this.name}] > initialize_master network done`);
         // list the listeners we have for the other services to request
         let listeners = toListeners(this.slaveMethods).map(
             // add out handle request function to the listener
@@ -181,6 +188,7 @@ class Service {
         // get the port for the node manager
         if(this.nm_port === 0)
             this.nm_port = await getPort({host: this.nm_host});
+        console.log(`[${this.name}] > initialize_node_manager peer addresses`, this.peerAddresses);
         // make a node manager
         this.nodes = new NodeManager({
             name: this.name,
