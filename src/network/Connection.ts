@@ -56,7 +56,7 @@ class Connection {
         this.onConnectCallback = onConnect || (() => {});
         this.onDisconnectCallback = onDisconnect || (() => {});
         this.onSetListenersCallback = onSetListeners || (() => {});
-        this.timeout = timeout || 1000 * 60; // 1 minute
+        this.timeout = timeout || 5 * 60 * 1000; // default 5 minutes
         // set listeners
         if(listeners) this.listeners = listeners;
         // if get a socket to connect to the server
@@ -253,7 +253,7 @@ class Connection {
         return new Promise((resolve, reject) => {
             // set a time out
             let timeout = setTimeout( () => { 
-                reject(`Query of ${event} timed out after ${this.timeout}ms`)
+                reject(`Query of '${event}' timed out after ${this.timeout}ms`)
             }, this.timeout); // default 1 minute
             // get request id
             let request_id = ++this.request_id;

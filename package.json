@@ -14,7 +14,7 @@
     },
     "scripts": {
         "start": "tsx ./src/index.ts",
-        "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 tsx",
+        "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; tsx \"$0\"'",
         "build": "tsup",
         "dev": "tsup --watch"
     },

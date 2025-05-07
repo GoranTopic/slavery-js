@@ -10,7 +10,6 @@ process.env.debug = 'false';
  * and the logger service which will log the results of the processing
  * */
 
-
 let test_service = new Service({
     service_name: 'test',
     peerServicesAddresses: [

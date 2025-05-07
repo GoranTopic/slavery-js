@@ -71,9 +71,9 @@ class NodeManager {
         this.stash = options?.stash || null;
   }
 
-  private handleNewNode(connection: Connection) {
+  private async handleNewNode(connection: Connection) {
       /* this function is called when a new node is connected to the master */
-      log('[Node manager] Got a new connectection from a node');
+      console.log('[Node manager] Got a new connectection from a node');
       // create a new node
       let node = new Node({
           mode: 'server',
@@ -84,6 +84,10 @@ class NodeManager {
           stashSetFunction: async (key: string, value: any) => await this.stash?.set(key, value),
           stashGetFunction: async (key: string) => await this.stash?.get(key),
       });
+      // sends the service list to the client node
+      console.log('[Node manager] sending services to node');
+      let res = await node.start();
+      console.log('[Node manager] node started', res);
       // get the id of the node
       let id = node.getId();
       if(id === undefined) throw new Error('node id is undefined');
@@ -184,7 +188,7 @@ class NodeManager {
   public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {
       /* spawn new nodes */
       if(name === '') name = 'node_' + this.name;
-      log('[nodeManager][spawnNodes] spawning nodes', name, count);
+      console.log('[nodeManager][spawnNodes] spawning nodes', name, count);
       this.cluster.spawn(name, {
           numberOfSpawns: count,
           metadata: metadata

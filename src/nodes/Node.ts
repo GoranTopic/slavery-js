@@ -90,7 +90,6 @@ class Node {
             // set the connection
             this.setNodeConnection(params.connection, params.network);
             // set the services
-            console.log('services', params.services);
             this.services = params.services;
             // set the status change callback
             this.statusChangeCallback = params.statusChangeCallback;
@@ -117,7 +116,7 @@ class Node {
     public start = async () => {
         // this function will start the node
         if(this.mode === 'client') return await this.start_client();
-        else if(this.mode === 'server') throw new Error('no need to await start on server');
+        else if(this.mode === 'server') return await this.start_server();
     }
 
     public run = async (method: string, parameter: any) => {
@@ -186,6 +185,17 @@ class Node {
         return this.lastHeardOfIn();
     }
 
+    private async start_server(){
+        // send the list of services to the client node
+        let response = await this.setServices_server(this.services);
+        if(response === true){
+            this.servicesConnected = true;
+            return true;
+        }else
+            throw new Error(`slavery-js: [Node][${this.id}] Could not set services on the client node`);
+    }
+
+
     private async run_server({method, parameter}: {method: string, parameter: any}){
         // this function will send the node a method to be run in the client
         // set the status to working
@@ -215,7 +225,6 @@ class Node {
     }
 
     private async setServices_server(services: ServiceAddress[]){
-        console.log(`[Node][${this.id}] Setting services`, services);
         // this function will send send a list of services to the client node
         return await this.send('_set_services', services);
     }
@@ -289,22 +298,15 @@ class Node {
     private async run_client({method, parameter}: {method: string, parameter: any}){
         // this function will be called by the a service or another node to run a function
         // wait until services are connected, with timeout of 10 seconds
-        //console.log(`[Node][${this.id}] Running method ${method} with parameter ${parameter}`);
-        //console.log(`[Node][${this.id}] waiting for services to be connected`);
         await await_interval({
             condition: () => this.servicesConnected, timeout: 10000, interval: 10
-        }).catch(() => { throw new Error(`[Node][${this.id}] Could not connect to the services`) })
-        //console.log(`[Node][${this.id}] services connected`);
-        //console.log(`[Node][${this.id}] waiting for startup to finish`);
+        }).catch(() => { throw new Error(`slavery-js: [Node][${this.id}] run method, because it could not connect to services`) })
         await await_interval({
             condition: () => this.hasStartupFinished, timeout: 60 * 1000, interval: 1
-        }).catch(() => { throw new Error(`[Node][${this.id}] Could not run startup method`) });
-        //console.log(`[Node][${this.id}] startup finished`);
-        //console.log(`[Node][${this.id}] waiting for the node to be idle, is it Idle? ${this.isIdle()}`);
+        }).catch(() => { throw new Error(`slavery-js: [Node][${this.id}] run method, because the startup method did not finish`) })
         await await_interval({
             condition: () => this.isIdle(), timeout: 60 * 1000, interval: 1
-        }).catch(() => { throw new Error(`[Node][${this.id}] The node is not idle`) })
-        //console.log(`[Node][${this.id}] node is idle`);
+        }).catch(() => { throw new Error(`slavery-js: [Node][${this.id}] run method, because the node timed for becoming idle`) })
         try {
             // set the status to working
             this.updateStatus('working');
@@ -335,9 +337,10 @@ class Node {
             return { isError: true, error: serializeError(new Error('Code string is not a string')) }
         // await until service is connected
         await await_interval({
-            condition: () => this.servicesConnected, timeout: 10000
+            condition: () => this.servicesConnected,
+            timeout: 20 * 1000
         }).catch(() => {
-            throw new Error(`[Service] Could not connect to the services`);
+            throw new Error(`slavery-js: [Node][${this.id}] executing code, because it could not connect to services`);
         })
         let services = await this.get_services();
         let parameter = { ...services, slave: this, self: this };
@@ -353,9 +356,10 @@ class Node {
     private async run_startup(){
         // make  sure that we have the services connected
         await await_interval({
-            condition: () => this.servicesConnected, timeout: 10000
+            condition: () => this.servicesConnected,
+            timeout: 20 * 1000
         }).catch(() => {
-            throw new Error(`[Node][${this.id}] Could not connect to the services`);
+            throw new Error(`slavery-js: [Node][${this.id}] Could not startup Node becasue it could not connect to services`);
         })
         if(this.methods['_startup'] === undefined){
             // if there is no startup method we just return
@@ -410,9 +414,10 @@ class Node {
         // connect to the services
         for(let service of services){
             let res = await this.connectService(service);
-            if(!res)
-                console.error('Could not connect to the service, ', service.name);
-            else
+            if(!res){
+                console.error('slavery-js: [Node] Client could not connect to the service, ', service.name);
+                return false;
+            }else
                 log(`[Node][${this.id}] Connected to the service, ${service.name}`);
         }
         this.servicesConnected = true;

@@ -15,18 +15,25 @@ let test_service = new Service({
     mastercallback: async ({ awaiter, self }) => {
         console.log(`[${process.argv[1].split('/').pop()}] testing with manual up scaling works`)
         // ask the awaiter to create a new node
+        console.log(`making a new node`)
         await awaiter._add_node()
         // wait for some time, 3 seconds
+        console.log(`waiting for the node to be created`)
         await awaiter._number_of_nodes_connected(2)
         // get the number of slaves again
+        console.log(`getting the number of slaves`)
         let second_slave_count = await awaiter._get_nodes_count()
+        console.log(`number of slaves: ${second_slave_count}`)
         expect(second_slave_count).to.be.equal(2)
         // add more nodes
+        console.log(`adding more nodes`)
         await awaiter._add_node(30)
         // wait for some time, 3 seconds
+        console.log(`waiting for the nodes to be created`)
         await awaiter._number_of_nodes_connected(32)
         // get the number of slaves again
         let third_slave_count = await awaiter._get_nodes_count()
+        console.log(`number of slaves: ${third_slave_count}`)
         expect(third_slave_count).to.be.equal(32)
         // pass test
         console.log(`[${process.argv[1].split('/').pop()}] ✅ test passed`)

@@ -41,7 +41,7 @@ class NetworkServer {
         this.ioOptions = {
             maxHttpBufferSize: this.maxTransferSize,
         };
-        this.timeout = options?.timeout || 60 * 1000;
+        this.timeout = options?.timeout || 5 * 60 * 1000; // default 5 minutes
         // initiate with the server
         if(this.isLan){ // if we are in a over lan
             // create a http server
@@ -104,9 +104,7 @@ class NetworkServer {
     }
 
     private handleDisconnection(socket: Socket) {
-        console.log('[Server] got disconnection from node');
         let socketId = socket.id
-        console.log('[Server] socket id: ', socketId);
         // filter every client based on the socket id
         let conn = this.clients.toArray()
         .filter((client: Connection) => client.socketId === socketId)[0];

@@ -50,7 +50,7 @@ class Network {
         this.serviceConnectionCallback = undefined;
         this.serviceDisconnectCallback = undefined;
         this.newListenersCallback = undefined;
-        this.timeout = options?.timeout || 10000;
+        this.timeout = options?.timeout || 5 * 60 * 1000; // 5 minutes
     }
 
     async connect({ name, host, port, as } : { name?: string, host: string, port: number, as?: string }): Promise<Connection> {

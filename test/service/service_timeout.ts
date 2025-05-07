@@ -17,7 +17,6 @@ let test_service = new Service({
         { name: 'waiter', host: 'localhost', port: 3003 },
     ],
     mastercallback: async ({ waiter, self }) => {
-        console.log('[master] waiter', waiter)
         console.log(`[${process.argv[1].split('/').pop()}] testing the timeout function for service calls`)
             try {
                 await waiter.wait();

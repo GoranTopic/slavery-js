@@ -32,7 +32,7 @@ class RequestQueue {
     private turnover_times: number[] = []; // Stores time taken for the last 500 requests
     private MAX_TURNOVER_ENTRIES = 500; // Limit storage to last 500 requests
     private requestTimeout: number; // Timeout for requests
-    private onError: 'throw' | 'log' | 'ignore'; // What to do on error
+    private onError: 'throw' | 'log' | 'return' | 'ignore'; // What to do on error
 
     constructor({ process_request, get_slave, options  }: RequestQueueParameters) {
         //{ heartbeat, requestTimeout, onError }: RequestQueueOptions) {
@@ -89,20 +89,26 @@ class RequestQueue {
             ).catch((err : any) => {
                 if(!request) throw new Error('Request timed out but there is no request, what?');
                 let e;
-                console.log(`[RequestQueue] Request failed: ${err}`);
-                if(err === 'timeout') 
-                    e = new Error(`[slavery-js] Request timed out: ${request.method} on ${slave.network.name}, you can change this vbehavior by setting the 'timeout', and 'onError' request in the service options`);
-                else e = err
-                    // Handle the error
-                    if(this.onError === 'throw') 
-                        throw e;
-                    else if(this.onError === 'log')
-                        console.error(e);
-                    else if(this.onError === 'ignore'){
-                        // Ignore the error
-                        request.completed = true;
-                        request.result = null;
-                    }
+                console.log(err);
+                if(err === 'timeout'){
+                    e = new Error(`slavery-js: Request '${request.method}' on ${slave.network.name}, timed out: ${this.requestTimeout}  you can change this vbehavior by setting the 'timeout', and 'onError' in the options`);
+                }else{ e = err; }
+                // Handle the error
+                if(this.onError === 'throw') 
+                    throw e;
+                else if(this.onError === 'log'){
+                    console.error(e);
+                    request.completed = true;
+                    request.result = null;
+                }else if(this.onError === 'ignore'){
+                    // Ignore the error
+                    request.completed = true;
+                    request.result = null;
+                }else{
+                    // Ignore the error
+                    request.completed = true;
+                    request.result = e;
+                }
             });
         }, 100);
     }
