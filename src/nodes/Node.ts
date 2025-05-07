@@ -159,6 +159,7 @@ class Node {
             { event: '_ping', parameters: [], callback: () => '_pong' },
             { event: '_set_stash', parameters: ['key', 'value'], callback: this.stashSetFunction },
             { event: '_get_stash', parameters: ['key'], callback: this.stashGetFunction },
+            { event: '_get_services_address', parameters: [], callback: () => this.services },
         ]
         // register the listeners on the connection
         connection.setListeners(this.listeners);
@@ -287,10 +288,21 @@ class Node {
             { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
             { event: '_has_done', parameters: ['method'], callback: this.hasDone.bind(this) },
             { event: '_ping', parameters: [], callback: () => 'pong' },
-            { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
+                { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
+        // if we have not recvied the services from the master yet ask for them
+        await await_interval({ 
+            condition: () => this.servicesConnected,
+                timeout: 1000
+        }).catch(async () => {
+            console.warn(`slavery-js: [Node][${this.id}] Could not connect to the services, trying to get them from the master`);
+            // get the services address from the master
+            let services = await this.get_sevices_address();
+            // set the services
+            this.setServices_client(services);
+        })
         // run startup method
         await this.run_startup();
     }
@@ -395,6 +407,7 @@ class Node {
         return services;
     }
 
+
     // this function will communicate with the master node and set the stash in that moment
     public setStash = async (key: any, value: any = null) => await this.send('_set_stash', { key, value });
     public getStash = async (key: string = '') => await this.send('_get_stash', key);
@@ -434,6 +447,13 @@ class Node {
         if(this.network === undefined)
             throw new Error('The network has not been set');
         return await this.network.connect({name, host, port});
+    }
+
+    private async get_sevices_address(){
+        // get the services that we have connected with their respective clients
+        let res = await this.send('_get_services_address');
+        this.services = res;
+        return res;
     }
 
     private async ping_client(){
