@@ -13,7 +13,7 @@ const wait_function = async (time: number) => new Promise(resolve => setTimeout(
 // this will start the peer discovery service
 entry({
     host: 'localhost',
-    port: 3000,
+    port: 4000,
     // create the service discovery service
 })
 //@ts-ignore

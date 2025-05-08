@@ -73,7 +73,6 @@ class NodeManager {
 
   private async handleNewNode(connection: Connection) {
       /* this function is called when a new node is connected to the master */
-      console.log('[Node manager] Got a new connectection from a node');
       // create a new node
       let node = new Node({
           mode: 'server',
@@ -85,9 +84,7 @@ class NodeManager {
           stashGetFunction: async (key: string) => await this.stash?.get(key),
       });
       // sends the service list to the client node
-      console.log('[Node manager] sending services to node');
       let res = await node.start();
-      console.log('[Node manager] node started', res);
       // get the id of the node
       let id = node.getId();
       if(id === undefined) throw new Error('node id is undefined');
@@ -188,7 +185,6 @@ class NodeManager {
   public async spawnNodes(name: string = '', count: number = 1, metadata: any = {}) {
       /* spawn new nodes */
       if(name === '') name = 'node_' + this.name;
-      console.log('[nodeManager][spawnNodes] spawning nodes', name, count);
       this.cluster.spawn(name, {
           numberOfSpawns: count,
           metadata: metadata
@@ -250,11 +246,13 @@ class NodeManager {
   }
 
   public async numberOfNodesConnected(count: number) {
-      let timeout = 100000;
+      let timeout = this.options.timeout || 10 * 1000; // 10 seconds
       await await_interval({
         condition: () => this.nodes.size() >= count,
         timeout: timeout,
-      }).catch(() => { throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`) });
+      }).catch(() => { 
+          throw new Error(`timeout of ${timeout} seconds, only ${this.nodes.size()} nodes connected, expected ${count}`) 
+      });
       return true;
   }
 

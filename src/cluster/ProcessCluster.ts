@@ -1,7 +1,6 @@
 import { fork } from 'child_process';
 import process from 'node:process';
 
-
 type SpawnOptions = {
     numberOfSpawns?: number;
     allowedToSpawn?: boolean;

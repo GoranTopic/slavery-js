@@ -8,13 +8,25 @@ type CallableFunction = (...args: any[]) => any;
 type MasterCallback = Function | CallableFunction;
 
 type EntryOptions = {
-    host: string;
-    port: number;
+    host?: string;
+    port?: number;
+    timeout?: number;
+    retries?: number;
+    autoScale?: boolean;
+    number_of_nodes?: number,
+    max_number_of_nodes?: number,
+    min_number_of_nodes?: number,
+    //onError?: string,
 }
+
+const default_host = 'localhost';
+const default_port = 3000;
 
 const entry = (entryOptions: EntryOptions) => {
     // this function is use to set up the options for the servies
     let options = entryOptions;
+    options.host = options.host || default_host;
+    options.port = options.port || default_port;
     // make a proxy object will take of creating each service
     let proxyObject = makeProxyObject(handleProxyCall(options));
     // make the peer discovery server
@@ -29,11 +41,11 @@ const entry = (entryOptions: EntryOptions) => {
 
 
 const handleProxyCall = (globalOptions: EntryOptions) => (
-    // this are all of the possible input to service now the question is who to know 
+    // this are all of the possible input to service now the question is who to know
     // which one wa passed
     method: string,
     param1: MasterCallback | SlaveMethods,
-    param2?: SlaveMethods | ServiceOptions, 
+    param2?: SlaveMethods | ServiceOptions,
     param3?: ServiceOptions) => {
         // first we check which function where passed
         const { mastercallback, slaveMethods, options } = paramertesDiscermination(param1, param2, param3);
@@ -41,15 +53,21 @@ const handleProxyCall = (globalOptions: EntryOptions) => (
         // get the service name and the functions
         const service_name = method;
         // get the port and the host
-        const port = globalOptions.port;
-        const host = globalOptions.host;
+        const port = globalOptions.port || default_port;
+        const host = globalOptions.host || default_host;
+        const serviceOptions = {
+            ...globalOptions,
+            ...options,
+            host: options.host,
+            port: options.port,
+        }
         // make a new service
         let service = new Service({
             service_name,
             peerDiscoveryAddress: { host, port },
             mastercallback: mastercallback as CallableFunction,
             slaveMethods,
-            options,
+            options: serviceOptions,
         })
         service.start()
     }
@@ -81,10 +99,10 @@ const paramertesDiscermination = (param1: MasterCallback | SlaveMethods, param2?
         slaveMethods = param1;
         // check what the second paramter is
         options = param2 || {};
-    } else { 
+    } else {
         throw new Error(`Invalid first parameter of type of ${typeof param1}. Must be either an function or an object of functions`);
     }
-    return { 
+    return {
         mastercallback,
         slaveMethods,
         options

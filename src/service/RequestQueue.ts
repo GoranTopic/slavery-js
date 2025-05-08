@@ -1,8 +1,6 @@
 import { await_interval, Queue, log } from '../utils/index.js';
 import type { Request } from './types/index.js';
 
-
-
 type RequestQueueOptions = {
     heartbeat?: number;
     requestTimeout?: number; // Timeout for requests

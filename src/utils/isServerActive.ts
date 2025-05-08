@@ -15,7 +15,7 @@ const resolve_timout_pointer = (timeout_pointer: NodeJS.Timeout | null) => {
  * @param timeout - The maximum time to wait for a response from the server, in milliseconds.
  * @returns A promise that resolves to true if the server is running, otherwise false.
  */
-async function isServerActive({ name, host, port, timeout }: { 
+async function isServerActive({ name, host, port, timeout }: {
     name?: string, host: string, port: number, timeout?: number
 }): Promise<boolean> {
     if(timeout === undefined) {
@@ -24,15 +24,15 @@ async function isServerActive({ name, host, port, timeout }: {
     return new Promise((resolve) => {
         let timeout_pointer: NodeJS.Timeout | null = null;
         const connection = new Connection({
-            host,
-            port,
-            id: 'connection_test' + Math.random(),
-            timeout: 10000, // Increased timeout (e.g. 10 second
-            onConnect: (connection: Connection) => {
-                // clear the timeout if the connection is successful
-                connection.close();
-                resolve_timout_pointer(timeout_pointer);
-                resolve(true);
+            host, port, id: 'connection_test' + Math.random(),
+            options: {
+                timeout: 10000, // Increased timeout (e.g. 10 second
+                onConnect: (connection: Connection) => {
+                    // clear the timeout if the connection is successful
+                    connection.close();
+                    resolve_timout_pointer(timeout_pointer);
+                    resolve(true);
+                }
             }
 
         });

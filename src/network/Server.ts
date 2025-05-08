@@ -8,7 +8,7 @@ import Connection from "./Connection.js";
 
 
 class NetworkServer {
-    /* this class will handle the logic managing the server conenctions with clilent, 
+    /* this class will handle the logic managing the server conenctions with clilent,
      * it will keep track of the node id and it will handle connection and dicoections */
     private io: Server;
     private host: string;
@@ -48,7 +48,7 @@ class NetworkServer {
             this.httpServer = createServer();
             this.io = new Server(this.httpServer, this.ioOptions);
             // check if io server was created
-            if(this.io.httpServer.address() === null) 
+            if(this.io.httpServer.address() === null)
                 throw new Error("Host and port already in use or invalid");
             this.httpServer.listen(this.port, this.host, () => {
                 let address = this.httpServer?.address();
@@ -62,7 +62,7 @@ class NetworkServer {
         }else{ // if we are in localhost
             this.io = new Server(this.port, this.ioOptions);
             // check is io server was created
-            if(this.io.httpServer.address() === null) 
+            if(this.io.httpServer.address() === null)
                 throw new Error("Host and port already in use or invalid");
             // get the port number
             this.port = (this.io as any).httpServer.address().port;
@@ -76,11 +76,14 @@ class NetworkServer {
     }
 
     private async handleConnection(socket: Socket) {
-       log("[Server] got new connection");
+        log("[Server] got new connection");
         // make a new connectection instance
-        let connection = new Connection({ 
-            socket, name: this.name, listeners: this.listeners,
-            timeout: this.timeout,
+        let connection = new Connection({
+            socket, name: this.name,
+            options: {
+                listeners: this.listeners,
+                timeout: this.timeout,
+            }
         });
         // await fo connection to be established
         await connection.connected();
@@ -113,11 +116,11 @@ class NetworkServer {
             // close the connection
             conn.close();
             let id = conn.getTargetId();
-            if(id === undefined) 
+            if(id === undefined)
                 throw new Error("Connection id is undefined");
             this.clients.remove(conn.getTargetId() as string);
             // run the disconnect callback
-            if(this.disconnectCallback) 
+            if(this.disconnectCallback)
                 this.disconnectCallback(conn);
         }
     }

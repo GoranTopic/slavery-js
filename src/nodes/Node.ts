@@ -271,7 +271,7 @@ class Node {
             name: 'node',
             id: this.id,
             options: {
-                timeout: this.options.timeout || 10000,
+                timeout: this.options.timeout || 5 * 60 * 1000,
             }
         });
         // check if the network is defined
@@ -279,6 +279,8 @@ class Node {
             throw new Error('The master host and port have not been set');
         // form the conenction with the master
         this.network.connect({ host: this.master_host, port: this.master_port, as: 'master' });
+        // verify that the connection is established
+        
         // set the listeners which we will us on the and the master can call on
         this.listeners = [
             { event: '_run', parameters: ['method', 'parameter'], callback: this.run_client.bind(this) },
@@ -288,19 +290,15 @@ class Node {
             { event: '_is_busy', parameters: [], callback: this.isBusy.bind(this) },
             { event: '_has_done', parameters: ['method'], callback: this.hasDone.bind(this) },
             { event: '_ping', parameters: [], callback: () => 'pong' },
-                { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
+            { event: '_exit', parameters: [], callback: this.exit_client.bind(this) }
         ];
         // register the listeners on the network
         this.network.registerListeners(this.listeners);
         // if we have not recvied the services from the master yet ask for them
         await await_interval({ 
-            condition: () => this.servicesConnected,
-                timeout: 1000
+            condition: () => this.servicesConnected, timeout: 1000
         }).catch(async () => {
-            console.warn(`slavery-js: [Node][${this.id}] Could not connect to the services, trying to get them from the master`);
-            // get the services address from the master
             let services = await this.get_sevices_address();
-            // set the services
             this.setServices_client(services);
         })
         // run startup method

@@ -3,6 +3,36 @@ import { Socket } from 'socket.io';
 import log from '../utils/log.js';
 import type Listener from './types/Listener.js';
 
+type ConnectionOptions = {
+    timeout?: number,
+    listeners?: Listener[],
+    onConnect?: Function,
+    onDisconnect?: Function,
+    onSetListeners?: Function
+};
+
+type ConnectionParametersServer = {
+    socket: Socket,
+    name: string,
+    options?: ConnectionOptions
+};
+
+type ConnectionParametersClient = {
+    host: string,
+    port: number,
+    id: string,
+    options?: ConnectionOptions
+};
+
+function isServer(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersClient {
+  return 'host' in params && 'port' in params && 'id' in params;
+}
+
+function isClient(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersServer {
+  return 'socket' in params && 'name' in params;
+}
+
+
 class Connection {
     /*
      * this class is manager for the socket instance
@@ -16,7 +46,6 @@ class Connection {
     // this node information
     public name?: string;
     public id?: string;
-    public listeners: Listener[] = [];
     public type: 'client' | 'server';
     public host?: string;
     public port?: number;
@@ -31,10 +60,13 @@ class Connection {
     public targetHost?: string;
     public targetPort?: number;
     // callbacks
-    private onConnectCallback: Function;
-    public onDisconnectCallback: Function;
-    public onSetListenersCallback: Function;
-    private timeout: number;
+    public options: {
+        timeout: number,
+        listeners: Listener[],
+        onConnect: Function,
+        onDisconnect: Function,
+        onSetListeners: Function
+    };
 
     /*
      * @param Node: Node
@@ -45,41 +77,41 @@ class Connection {
      * @param name: string
      * */
 
-    constructor({ socket, host, port, id, name, listeners, timeout,
-                onConnect, onDisconnect, onSetListeners } : {
-        id?: string, socket?: Socket, host?: string,
-        port?: number, name?: string, listeners?: Listener[],
-        timeout?: number, onConnect?: Function, onDisconnect?: Function,
-        onSetListeners?: Function
-    }) {
-        // callbacks
-        this.onConnectCallback = onConnect || (() => {});
-        this.onDisconnectCallback = onDisconnect || (() => {});
-        this.onSetListenersCallback = onSetListeners || (() => {});
-        this.timeout = timeout || 5 * 60 * 1000; // default 5 minutes
-        // set listeners
-        if(listeners) this.listeners = listeners;
+    constructor(params : ConnectionParametersServer | ConnectionParametersClient) {
+        // options
+        this.options = { 
+            // callbacks
+            onConnect: params?.options?.onConnect || (() => {}),
+            onDisconnect: params?.options?.onDisconnect || (() => {}),
+            onSetListeners: params?.options?.onSetListeners || (() => {}),
+            // listeners
+            listeners: params?.options?.listeners || [],
+            // timeout
+            timeout: params?.options?.timeout || 5 * 60 * 1000, // 5 minutes
+        };
         // if get a socket to connect to the server
-        if (socket && name) {
+        if (isClient(params)) {
+            params = params as unknown as ConnectionParametersServer;
             this.type = 'server';
-            this.name = name;
+            this.name = params.name;
             this.targetType = 'client';
             // the socket
-            this.socket = socket;
+            this.socket = params.socket;
             // get the id of client
-            this.targetId = socket.handshake.auth.id;
+            this.targetId = params.socket.handshake.auth.id;
             //log('[Connection][server] targetId: ', this.targetId)
             // since we are already getting the socket
             this.isConnected = true;
             // if get a host and port to connect to the server
-        } else if (host && port && id) {
+        } else if (isServer(params)) {
+            params = params as unknown as ConnectionParametersClient;
             this.type = 'client';
             this.targetType = 'server';
             // use the id
-            this.id = id;
-            this.socket = io(`ws://${host}:${port}`, {
-                auth: { id },
-                timeout: this.timeout,
+            this.id = params.id;
+            this.socket = io(`ws://${params.host}:${params.port}`, {
+                auth: { id: params.id },
+                timeout: this.options.timeout || 5 * 60 * 1000, // default 5 minutes
             });
             // since we are not connected yet
             this.isConnected = false;
@@ -94,7 +126,7 @@ class Connection {
     private initilaizeListeners(): void {
         /* this function inizializes the default listeners for the socket */
         // set the object listeners
-        this.listeners.forEach( l => {
+        this.options.listeners.forEach( l => {
             this.socket.removeAllListeners(l.event);
             this.socket.on(l.event, this.respond(l.event, async (parameters:any) => {
                 //log(`[${this.id}] [Connection][initilaizeListeners] got event: ${l.event} from ${this.targetName}: `, parameters)
@@ -108,7 +140,7 @@ class Connection {
             //log(`[${this.id}] [Connection][Node] got liteners from ${this.targetName}: `, listeners)
             this.targetListeners =
                 listeners.map(event => ({ event, callback: () => {} }));
-            this.onSetListenersCallback(this.targetListeners);
+            this.options.onSetListeners(this.targetListeners);
             return 'ok';
         }));
         // if target is asking for name
@@ -123,7 +155,7 @@ class Connection {
             this.targetListeners = await this.queryTargetListeners();
             //log(`[connection][${this.socket.id}] target name: ${this.targetName}, target listeners: ${this.targetListeners}`)
             this.isConnected = true;
-            this.onConnectCallback(this);
+            this.options.onConnect(this);
         });
         // if it disconnects
         this.socket.on("reconnect", async (attempt: number) => {
@@ -131,13 +163,13 @@ class Connection {
             this.targetName = await this.queryTargetName();
             this.targetListeners = await this.queryTargetListeners();
             this.isConnected = true;
-            this.onConnectCallback(this);
+            this.options.onConnect(this);
         });
         // if it disconnects
         this.socket.on("diconnect", () => {
             //log(`[connection][${this.socket.id}] is disconnected`)
             this.isConnected = false;
-            this.onDisconnectCallback(this);
+            this.options.onDisconnect(this);
         });
     }
 
@@ -195,7 +227,7 @@ class Connection {
     public async setListeners(listeners: Listener[]): Promise<void> {
         // set the listeners on the socket
         listeners.forEach( l => {
-            this.listeners.push(l);
+            this.options.listeners.push(l);
             // remove the listener if it exists
             this.socket.removeAllListeners(l.event);
             // add new listener
@@ -212,13 +244,13 @@ class Connection {
 
     public addListeners(listeners: Listener[]): void {
         // make sure we are not adding the same listener
-        const eventMap = new Map(this.listeners.map(l => [l.event, l]));
+        const eventMap = new Map(this.options.listeners.map(l => [l.event, l]));
         // add the listeners
         listeners.forEach( l => eventMap.set(l.event, l) );
         // set the listeners in the connection
-        this.listeners = Array.from(eventMap.values());
+        this.options.listeners = Array.from(eventMap.values());
         // set the listeners on the socket
-        this.setListeners(this.listeners);
+        this.setListeners(this.options.listeners);
     }
 
     public getTargetListeners(): Listener[] {
@@ -226,15 +258,15 @@ class Connection {
     }
 
     public onSetListeners(callback: Function): void {
-        this.onSetListenersCallback = callback;
+        this.options.onSetListeners = callback;
     }
 
     public onConnect(callback: Function): void {
-        this.onConnectCallback = callback;
+        this.options.onConnect = callback;
     }
 
     public onDisconnect(callback: Function): void {
-        this.onDisconnectCallback = callback;
+        this.options.onDisconnect = callback;
     }
 
     private queryTargetListeners(): Promise<Listener[]> {
@@ -247,29 +279,38 @@ class Connection {
         return this.query('_name');
     }
 
-    // this function need to be awaited
-    public query(event: string, data?: any): Promise<any> {
-        /* this function makes the query to the socket and waits for the response */
-        return new Promise((resolve, reject) => {
-            // set a time out
-            let timeout = setTimeout( () => { 
-                reject(`Query of '${event}' timed out after ${this.timeout}ms`)
-            }, this.timeout); // default 1 minute
-            // get request id
-            let request_id = ++this.request_id;
-            if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
-            // send the query
-            this.socket.emit(event, {data, request_id: request_id});
-            this.socket.on(event + `_${request_id}_response`, (response: any) => {
-                //log('[Connection][Query] got response from ', this.targetType, 'event: ', event, 'response: ', response)
-                // clear the timeout
-                clearTimeout(timeout);
-                // clear the listener
-                this.socket.removeAllListeners(event + `_${request_id}_response`);
-                // resolve the response
-                resolve(response);
+    public async query(event: string, data?: any, retries = 3, retryDelay = 500): Promise<any> {
+        let attempt = 0;
+        const tryQuery = (): Promise<any> => {
+            return new Promise((resolve, reject) => {
+                const request_id = ++this.request_id;
+                if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
+                const responseEvent = `${event}_${request_id}_response`;
+                const timeoutDuration = this.options.timeout || 5000;
+                const timeout = setTimeout(() => {
+                    this.socket.removeAllListeners(responseEvent);
+                    reject(new Error(`Query '${event}' timed out after ${timeoutDuration}ms (attempt ${attempt + 1})`));
+                }, timeoutDuration);
+                this.socket.once(responseEvent, (response: any) => {
+                    clearTimeout(timeout);
+                    resolve(response);
+                });
+                this.socket.emit(event, { data, request_id });
             });
-        });
+        };
+        while (attempt <= retries) {
+            try {
+                return await tryQuery();
+            } catch (err) {
+                if (attempt >= retries) {
+                    throw new Error(`Query '${event}' failed after ${retries + 1} attempts: ${err}`);
+                }
+                attempt++;
+                await new Promise((r) => setTimeout(r, retryDelay));
+            }
+        }
+        // This should never be reached, but TypeScript wants a return or throw here
+        throw new Error('Unexpected query failure');
     }
 
     public send = this.query;
@@ -286,7 +327,7 @@ class Connection {
 
     public getListeners(): any[] {
         if(this.type === 'server')
-            return this.listeners;
+            return this.options.listeners;
         else if(this.type === 'client')
             return this.socket._callbacks;
         else

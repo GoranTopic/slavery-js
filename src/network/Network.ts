@@ -60,8 +60,10 @@ class Network {
          * then run the callback */
         const connection = new Connection({
             name : this.name, host, port, id: this.id,
-            onSetListeners: this.newListenersCallback,
-            timeout: this.timeout
+            options: {
+                timeout: this.timeout,
+                onSetListeners: this.newListenersCallback
+            }
         });
         // await connection and handshake
         await connection.connected();
