@@ -24,7 +24,7 @@ let main_service = new Service({
         expect(typeof node_id).to.be.equal('string');
         expect(res.value).to.be.equal(2);
         // remote code service call
-        res = await node.exec( async ({ awaiter, self }: any) => {
+        res = await node.exec( async ({ self }: any) => {
             self['hidden_value'] = 2;
             return { id: self.id, value: 1 + 1 }
         })

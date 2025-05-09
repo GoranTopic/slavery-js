@@ -1,16 +1,22 @@
-import { await_interval, Queue, log } from '../utils/index.js';
 import type { Request } from './types/index.js';
 
 type RequestQueueOptions = {
     heartbeat?: number;
     requestTimeout?: number; // Timeout for requests
-    onError?: 'throw' | 'log' | 'ignore'; 
+    onError?: 'throw' | 'return' | 'log' | 'ignore';
 }
 
 type RequestQueueParameters = {
     process_request: Function;
     get_slave: Function;
     options?: RequestQueueOptions;
+}
+
+type addRequestParameters = {
+    method: string;
+    type: 'run' | 'exec';
+    parameters: any;
+    selector: string;
 }
 
 class RequestQueue {
@@ -21,118 +27,134 @@ class RequestQueue {
      * request individually.
      */
 
-    private queue: Queue<Request> = new Queue();
+    private queue: Request[] = [];
     private process_request: Function;
+    private currentId: number = 0;
     private get_slave: Function;
-    private isRunning: boolean = false;
+    private isIntervalRunning: boolean = false;
     private interval: NodeJS.Timeout;
-    private heartbeat = 100; // Check every 100ms if the request is completed
+    private heartbeat;
     private turnover_times: number[] = []; // Stores time taken for the last 500 requests
     private MAX_TURNOVER_ENTRIES = 500; // Limit storage to last 500 requests
     private requestTimeout: number; // Timeout for requests
-    private onError: 'throw' | 'log' | 'return' | 'ignore'; // What to do on error
 
-    constructor({ process_request, get_slave, options  }: RequestQueueParameters) {
-        //{ heartbeat, requestTimeout, onError }: RequestQueueOptions) {
+    constructor({ process_request, get_slave, options }: RequestQueueParameters) {
         /*
          * Set an interval to check if there are items in the queue.
          * If there are, pop the first element and process it.
          * If there are no elements, wait for the next element to be added.
          */
-        // set functions
-        this.process_request = process_request;
+        // process wrapper for maintainig the request
+        this.process_request = async (slave: any, request: Request) => {
+            let result = await process_request(slave, request);
+            return { result, id: request.id }
+        }
         this.get_slave = get_slave;
-        this.heartbeat = options?.heartbeat || 100;
-        this.requestTimeout = options?.requestTimeout || 60 * 60 * 1000; // 1 hour
-        this.onError = options?.onError || 'throw'; // throw, log, ignore
+        this.heartbeat = options?.heartbeat || 10;  // Check every 10ms if the request is completed
+        this.requestTimeout = options?.requestTimeout || 5 * 60 * 1000; // Default timeout is 5 minutes
         if (!this.process_request) throw new Error('Process request cannot be null');
         if (!this.get_slave) throw new Error('Get slave cannot be null');
         // run interval
-        this.interval = setInterval(async () => {
+        this.interval = setInterval( async () => {
             // do not run another function if the previous one is still running
-            if (this.isRunning) return;
+            if (this.isIntervalRunning) return;
             // if there are no items in the queue
-            if (this.queue.size() === 0) {
-                this.isRunning = false;
+            if (this.queue.length === 0){
+                this.isIntervalRunning = false;
                 return;
             }
             // start the request function
-            this.isRunning = true;
-            // get the first request from queue
-            let request = this.queue.pop();
-            if(request === false) 
-                throw new Error('Request is null... is the request queue empty?'); // get a slave to process the request
-            const slave = await this.get_slave(request.selector);
-            // process the request
-            let startTime = Date.now();
-            let endTime : number;
-            // set running as false
-            this.isRunning = false;
-            // process the request
-            this.process_request(slave, request).then(
-                (result: any) => { // record the time
-                    if(!request) throw new Error('Request is false... is the request queue empty?');
-                    endTime = Date.now();
-                    // add values to the request
-                    request.completed = true;
-                    request.result = result;
-                    // Track the time taken for this request
-                    const timeTaken = endTime - startTime;
-                    //log(`[RequestQueue] Request completed in ${timeTaken}ms`);
-                    this.turnover_times.push(timeTaken);
-                    // Keep only the last 500 entries
-                    if (this.turnover_times.length > this.MAX_TURNOVER_ENTRIES)
-                        this.turnover_times.shift(); // Remove the oldest entry
+            this.isIntervalRunning = true;
+            // start to look at the queue
+            for (let request of this.queue) {
+                if(request.completed){
+                    // remove the request at the index
+                    this.queue = this.queue.filter((r) => r.id !== request.id);
+                    request.onComplete();
+                    this.isIntervalRunning = false;
+                    // get the turnover time
+                    this.addTurnOverTime(request.startTime);
+                    return;
+                }else if(request.isProcessing){
+                    // if check if the request has timed out
+                    if(Date.now() - request.startTime > this.requestTimeout){
+                        request.completed = true;
+                        request.result = {
+                            isError: true,
+                            error: new Error(`slavery-js: Request '${request.method}', timed out after: ${this.requestTimeout}.  You can change this behavior by setting the 'timeout', and 'onError' in the options at slavery({})`),
+                        }
+                    }
+                }else{ // if the is neither completed nor processing
+                    request.isProcessing = true;
+                    // get slave
+                    const slave = await this.get_slave(request.selector);
+                    this.isIntervalRunning = false;
+                    // process the request
+                    this.process_request(slave, request)
+                    .then(({ result, id }: { result: any, id: number }) => {
+                        let request = this.getRequest(id);
+                        if(request){ // complete the request
+                            request.completed = true;
+                            request.result = result;
+                        }
+                    })
+                    .catch((err : any) => {
+                        throw new Error('slavery-js [RequestQueue]: this Error should not be reachable, please report this issue', err);
+                    })
                 }
-            ).catch((err : any) => {
-                if(!request) throw new Error('Request timed out but there is no request, what?');
-                let e;
-                console.log(err);
-                if(err === 'timeout'){
-                    e = new Error(`slavery-js: Request '${request.method}' on ${slave.network.name}, timed out: ${this.requestTimeout}  you can change this vbehavior by setting the 'timeout', and 'onError' in the options`);
-                }else{ e = err; }
-                // Handle the error
-                if(this.onError === 'throw') 
-                    throw e;
-                else if(this.onError === 'log'){
-                    console.error(e);
-                    request.completed = true;
-                    request.result = null;
-                }else if(this.onError === 'ignore'){
-                    // Ignore the error
-                    request.completed = true;
-                    request.result = null;
-                }else{
-                    // Ignore the error
-                    request.completed = true;
-                    request.result = e;
-                }
-            });
-        }, 100);
+            }
+            this.isIntervalRunning = false;
+        }, this.heartbeat);
     }
 
-    public addRequest(request: Request): Promise<any> {
+
+    public addRequest( { method, type, parameters, selector }: addRequestParameters ): Promise<any> {
         // Add request to the queue and return a promise
         // that will be resolved when the request is completed
-        return new Promise(async (resolve, reject) => {
+        return new Promise(async resolve => {
+            let request: Request = {
+                id: ++this.currentId,
+                method: method,
+                type: type,
+                parameters: parameters,
+                selector: selector || undefined,
+                completed: false,
+                isProcessing: false,
+                onComplete: () => { 
+                    resolve(request.result)
+                },
+                startTime: Date.now(),
+                result: null,
+            };
+            // add the request to the queue
             this.queue.push(request);
-            // Wait until the request is completed, or 60 minutes
-            await await_interval({
-                condition: () => request.completed === true,
-                timeout: this.requestTimeout,
-                interval: this.heartbeat,
-            }).catch(err => {
-                console.error(`[RequestQueue] When does this catch run?`);
-                console.error(err);
-                reject(err)
-            });
-            // Resolve the promise with the result of the request
-            resolve(request.result);
         });
     }
 
+    private getRequest(id: number): Request | null {
+        // Get request by id
+        const request = this.queue.find(r => r.id === id);
+        if (request) {
+            return request;
+        } else {
+            return null;
+        }
+        
+    }
+
+
+
+    private addTurnOverTime(startTime: number){
+        const timeTaken = Date.now() - startTime;
+        this.turnover_times.push(timeTaken);
+        // Keep only the last 500 entries
+        if (this.turnover_times.length > this.MAX_TURNOVER_ENTRIES)
+            this.turnover_times.shift(); // Remove the oldest entry
+    }
+
+
     public queueSize() : number {
-        return this.queue.size();
+        return this.queue.length;
     }
 
     public getTurnoverRatio(): number {
@@ -141,8 +163,12 @@ class RequestQueue {
         return sum / this.turnover_times.length;
     }
 
+    public getTurnoverTimes(): number[] {
+        return this.turnover_times;
+    }
+
     public exit() {
-        this.queue.clear();
+        this.queue = [];
         clearInterval(this.interval);
 
     }

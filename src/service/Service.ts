@@ -216,7 +216,8 @@ class Service {
             if(this.nodes === undefined) throw new Error('Node Manager is not defined');
             // create a new request queue
             this.requestQueue = new RequestQueue({
-                // we pass the functions that the request queue will use
+                // we pass the functions that the request queue will use,
+                // such as getting the next node, and the function to process the request
                 get_slave: this.nodes.getIdle.bind(this.nodes),
                 process_request:
                     async (node: Node, request: Request) => await node[request.type](request.method, request.parameters),
@@ -375,12 +376,10 @@ class Service {
                 type: type,
                 parameters: data.parameters,
                 selector: data.selection,
-                completed: false,
-                result: null
             });
             // wait until the request is processed
             let result = await promise;
-            if(result.isError === true) // if there is an error serialize it
+            if(result.isError) // if there is an error serialize it
                 result.error = serializeError(result.error);
             return result;
         }
