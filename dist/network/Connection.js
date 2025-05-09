@@ -2,6 +2,12 @@ import {
   __publicField
 } from "../chunk-V6TY7KAL.js";
 import { io } from "socket.io-client";
+function isServer(params) {
+  return "host" in params && "port" in params && "id" in params;
+}
+function isClient(params) {
+  return "socket" in params && "name" in params;
+}
 class Connection {
   /*
    * @param Node: Node
@@ -11,18 +17,7 @@ class Connection {
    * @param id: string
    * @param name: string
    * */
-  constructor({
-    socket,
-    host,
-    port,
-    id,
-    name,
-    listeners,
-    timeout,
-    onConnect,
-    onDisconnect,
-    onSetListeners
-  }) {
+  constructor(params) {
     /*
      * this class is manager for the socket instance
      * it takes either a socket or a host and port to create the socket
@@ -35,7 +30,6 @@ class Connection {
     // this node information
     __publicField(this, "name");
     __publicField(this, "id");
-    __publicField(this, "listeners", []);
     __publicField(this, "type");
     __publicField(this, "host");
     __publicField(this, "port");
@@ -50,32 +44,39 @@ class Connection {
     __publicField(this, "targetHost");
     __publicField(this, "targetPort");
     // callbacks
-    __publicField(this, "onConnectCallback");
-    __publicField(this, "onDisconnectCallback");
-    __publicField(this, "onSetListenersCallback");
+    __publicField(this, "options");
     __publicField(this, "send", this.query);
-    this.onConnectCallback = onConnect || (() => {
-    });
-    this.onDisconnectCallback = onDisconnect || (() => {
-    });
-    this.onSetListenersCallback = onSetListeners || (() => {
-    });
-    if (listeners) this.listeners = listeners;
-    if (socket && name) {
+    this.options = {
+      // callbacks
+      onConnect: params?.options?.onConnect || (() => {
+      }),
+      onDisconnect: params?.options?.onDisconnect || (() => {
+      }),
+      onSetListeners: params?.options?.onSetListeners || (() => {
+      }),
+      // listeners
+      listeners: params?.options?.listeners || [],
+      // timeout
+      timeout: params?.options?.timeout || 5 * 60 * 1e3
+      // 5 minutes
+    };
+    if (isClient(params)) {
+      params = params;
       this.type = "server";
-      this.name = name;
+      this.name = params.name;
       this.targetType = "client";
-      this.socket = socket;
-      this.targetId = socket.handshake.auth.id;
+      this.socket = params.socket;
+      this.targetId = params.socket.handshake.auth.id;
       this.isConnected = true;
-    } else if (host && port && id) {
+    } else if (isServer(params)) {
+      params = params;
       this.type = "client";
       this.targetType = "server";
-      this.id = id;
-      this.socket = io(`ws://${host}:${port}`, {
-        auth: { id },
-        timeout: timeout || 1e3 * 60
-        // 1 minute
+      this.id = params.id;
+      this.socket = io(`ws://${params.host}:${params.port}`, {
+        auth: { id: params.id },
+        timeout: this.options.timeout || 5 * 60 * 1e3
+        // default 5 minutes
       });
       this.isConnected = false;
     } else
@@ -84,7 +85,7 @@ class Connection {
     this.initilaizeListeners();
   }
   initilaizeListeners() {
-    this.listeners.forEach((l) => {
+    this.options.listeners.forEach((l) => {
       this.socket.removeAllListeners(l.event);
       this.socket.on(l.event, this.respond(l.event, async (parameters) => {
         return await l.callback(parameters);
@@ -94,7 +95,7 @@ class Connection {
     this.socket.on("_set_listeners", this.respond("_set_listeners", (listeners) => {
       this.targetListeners = listeners.map((event) => ({ event, callback: () => {
       } }));
-      this.onSetListenersCallback(this.targetListeners);
+      this.options.onSetListeners(this.targetListeners);
       return "ok";
     }));
     this.socket.on("_name", this.respond("_name", () => this.name));
@@ -103,17 +104,17 @@ class Connection {
       this.targetName = await this.queryTargetName();
       this.targetListeners = await this.queryTargetListeners();
       this.isConnected = true;
-      this.onConnectCallback(this);
+      this.options.onConnect(this);
     });
     this.socket.on("reconnect", async (attempt) => {
       this.targetName = await this.queryTargetName();
       this.targetListeners = await this.queryTargetListeners();
       this.isConnected = true;
-      this.onConnectCallback(this);
+      this.options.onConnect(this);
     });
     this.socket.on("diconnect", () => {
       this.isConnected = false;
-      this.onDisconnectCallback(this);
+      this.options.onDisconnect(this);
     });
   }
   async connected() {
@@ -158,7 +159,7 @@ class Connection {
   }
   async setListeners(listeners) {
     listeners.forEach((l) => {
-      this.listeners.push(l);
+      this.options.listeners.push(l);
       this.socket.removeAllListeners(l.event);
       this.socket.on(l.event, this.respond(l.event, async (parameters) => {
         return await l.callback(parameters);
@@ -169,22 +170,22 @@ class Connection {
     }
   }
   addListeners(listeners) {
-    const eventMap = new Map(this.listeners.map((l) => [l.event, l]));
+    const eventMap = new Map(this.options.listeners.map((l) => [l.event, l]));
     listeners.forEach((l) => eventMap.set(l.event, l));
-    this.listeners = Array.from(eventMap.values());
-    this.setListeners(this.listeners);
+    this.options.listeners = Array.from(eventMap.values());
+    this.setListeners(this.options.listeners);
   }
   getTargetListeners() {
     return this.targetListeners;
   }
   onSetListeners(callback) {
-    this.onSetListenersCallback = callback;
+    this.options.onSetListeners = callback;
   }
   onConnect(callback) {
-    this.onConnectCallback = callback;
+    this.options.onConnect = callback;
   }
   onDisconnect(callback) {
-    this.onDisconnectCallback = callback;
+    this.options.onDisconnect = callback;
   }
   queryTargetListeners() {
     return this.query("_listeners");
@@ -192,21 +193,39 @@ class Connection {
   queryTargetName() {
     return this.query("_name");
   }
-  // this function need to be awaited
-  query(event, data) {
-    return new Promise((resolve, reject) => {
-      let timeout = setTimeout(() => {
-        reject("timeout");
-      }, 1e3 * 60);
-      let request_id = ++this.request_id;
-      if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
-      this.socket.emit(event, { data, request_id });
-      this.socket.on(event + `_${request_id}_response`, (response) => {
-        clearTimeout(timeout);
-        this.socket.removeAllListeners(event + `_${request_id}_response`);
-        resolve(response);
+  async query(event, data, retries = 3, retryDelay = 500) {
+    let attempt = 0;
+    const tryQuery = () => {
+      return new Promise((resolve, reject) => {
+        const request_id = ++this.request_id;
+        if (this.request_id >= Number.MAX_SAFE_INTEGER - 1) this.request_id = 0;
+        const responseEvent = `${event}_${request_id}_response`;
+        const timeoutDuration = this.options.timeout || 5e3;
+        const timeout = setTimeout(() => {
+          this.socket.removeAllListeners(responseEvent);
+          reject(new Error(`Query '${event}' timed out after ${timeoutDuration}ms (attempt ${attempt + 1})`));
+        }, timeoutDuration);
+        this.socket.once(responseEvent, (response) => {
+          clearTimeout(timeout);
+          resolve(response);
+        });
+        this.socket.emit(event, { data, request_id });
       });
-    });
+    };
+    while (attempt <= retries) {
+      try {
+        return await tryQuery();
+      } catch (err) {
+        if (attempt >= retries) {
+          throw new Error(`Query '${event}' failed after ${retries + 1} attempts: ${err}`);
+        }
+        attempt++;
+        await new Promise((r) => setTimeout(r, retryDelay)).catch((e) => {
+          throw new Error(`Error during retry delay: ${e}`);
+        });
+      }
+    }
+    throw new Error("Unexpected query failure");
   }
   respond(event, callback) {
     return async (parameters) => {
@@ -218,7 +237,7 @@ class Connection {
   }
   getListeners() {
     if (this.type === "server")
-      return this.listeners;
+      return this.options.listeners;
     else if (this.type === "client")
       return this.socket._callbacks;
     else

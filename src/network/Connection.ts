@@ -306,7 +306,9 @@ class Connection {
                     throw new Error(`Query '${event}' failed after ${retries + 1} attempts: ${err}`);
                 }
                 attempt++;
-                await new Promise((r) => setTimeout(r, retryDelay));
+                await new Promise((r) => setTimeout(r, retryDelay)).catch(e => {
+                    throw new Error(`Error during retry delay: ${e}`);
+                });
             }
         }
         // This should never be reached, but TypeScript wants a return or throw here

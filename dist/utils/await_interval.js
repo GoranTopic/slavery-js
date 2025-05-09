@@ -1,12 +1,12 @@
 import "../chunk-V6TY7KAL.js";
-async function interval_await(condition, timeout = 1e4, interval = 100) {
+async function interval_await({ condition, timeout = 1e4, interval = 100, error = "hasTimedOut" }) {
   return await new Promise(async (resolve, reject) => {
     let timeout_obj;
     let interval_obj;
     if (timeout > 0) {
       timeout_obj = setTimeout(() => {
         clearInterval(interval_obj);
-        reject("timeout");
+        reject(new Error(error));
       }, timeout);
     }
     interval_obj = setInterval(async () => {
@@ -17,8 +17,8 @@ async function interval_await(condition, timeout = 1e4, interval = 100) {
         resolve(result);
       }
     }, interval);
-  }).catch((error) => {
-    throw error;
+  }).catch((error2) => {
+    throw error2;
   });
 }
 var await_interval_default = interval_await;

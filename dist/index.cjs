@@ -37,6 +37,10 @@ module.exports = __toCommonJS(index_exports);
 var import_app = __toESM(require("./app/index.js"), 1);
 var import_nodes = __toESM(require("./nodes/index.js"), 1);
 var import_service = __toESM(require("./service/index.js"), 1);
+var import_utils = require("./utils/index.js");
+process.on("unhandledRejection", (reason, promise) => {
+  (0, import_utils.log)("[CRITICAL] Unhandled Promise Rejection:", reason);
+});
 var index_default = import_app.default;
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

@@ -5,7 +5,7 @@ import Connection from "./Connection.js";
 import { uuid, log, Pool } from "../utils/index.js";
 import Server from "./Server.js";
 class Network {
-  constructor({ name = "", id = void 0 }) {
+  constructor({ name = "", id = void 0, options }) {
     /* *
      * this class will handle the connections of a node in the network.
      * this node can be in either a server or a client.
@@ -27,6 +27,7 @@ class Network {
     __publicField(this, "serviceDisconnectCallback");
     // callback for when a new listener is added
     __publicField(this, "newListenersCallback");
+    __publicField(this, "timeout");
     this.name = name;
     this.listeners = [];
     this.id = id || uuid();
@@ -35,6 +36,7 @@ class Network {
     this.serviceConnectionCallback = void 0;
     this.serviceDisconnectCallback = void 0;
     this.newListenersCallback = void 0;
+    this.timeout = options?.timeout || 5 * 60 * 1e3;
   }
   async connect({ name, host, port, as }) {
     const connection = new Connection({
@@ -42,7 +44,10 @@ class Network {
       host,
       port,
       id: this.id,
-      onSetListeners: this.newListenersCallback
+      options: {
+        timeout: this.timeout,
+        onSetListeners: this.newListenersCallback
+      }
     });
     await connection.connected();
     let server_name = connection.getTargetName();

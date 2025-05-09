@@ -214,35 +214,60 @@ class Node {
     private async exec_server(code: string){
         // this function will send the node a code to be run in the client
         // set the status to working
-        this.handleStatusChange('working');
-        let res = await this.send('_exec', code);
-        // set the status to idle
-        this.handleStatusChange('idle');
-        // if there is an error
-        if(res.isError === true)
-            res.error = deserializeError(res.error);
-        // return the result
-        return res
+        try {
+            this.handleStatusChange('working');
+            let res = await this.send('_exec', code);
+            // set the status to idle
+            this.handleStatusChange('idle');
+            // if there is an error
+            if(res.isError === true)
+                res.error = deserializeError(res.error);
+            // return the result
+            return res;
+        } catch (error) {
+            this.handleStatusChange('idle'); // Make sure to return to idle state
+            log(`[Node][${this.id}] Error in exec_server: ${error}`);
+            return { isError: true, error: serializeError(error) };
+        }
     }
 
     private async setServices_server(services: ServiceAddress[]){
         // this function will send send a list of services to the client node
-        return await this.send('_set_services', services);
+        try {
+            return await this.send('_set_services', services);
+        } catch (error) {
+            log(`[Node][${this.id}] Error in setServices_server: ${error}`);
+            throw error;
+        }
     }
 
     public async ping_server(){
         // this function will ping the client node
-        let res = await this.send('_ping');
-        if(res === 'pong') this.updateLastHeardOf();
-        return true;
+        try {
+            let res = await this.send('_ping');
+            if(res === 'pong') this.updateLastHeardOf();
+            return true;
+        } catch (error) {
+            log(`[Node][${this.id}] Error in ping_server: ${error}`);
+            return false;
+        }
     }
 
     public async exit_server(){
         // this function tell the node client to exit
-        let res = await this.send('_exit', null)
-        // we catch the timeout erro scince the client node will exit
-        .catch((error) => { if(error === 'timeout') return true; else throw error; });
-        return res
+        try {
+            let res = await this.send('_exit', null)
+            // we catch the timeout erro scince the client node will exit
+            .catch((error) => { 
+                if(error === 'timeout') return true; 
+                log(`[Node][${this.id}] Error in exit_server: ${error}`);
+                return false;
+            });
+            return res;
+        } catch (error) {
+            log(`[Node][${this.id}] Error in exit_server: ${error}`);
+            return false;
+        }
     }
 
     public async send(method: string, parameter: any = null){

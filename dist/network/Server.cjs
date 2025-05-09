@@ -39,7 +39,7 @@ var import_utils = require("../utils/index.js");
 var import_Connection = __toESM(require("./Connection.js"), 1);
 class NetworkServer {
   constructor({ name, host, port, listeners }, options) {
-    /* this class will handle the logic managing the server conenctions with clilent, 
+    /* this class will handle the logic managing the server conenctions with clilent,
      * it will keep track of the node id and it will handle connection and dicoections */
     __publicField(this, "io");
     __publicField(this, "host");
@@ -53,6 +53,7 @@ class NetworkServer {
     __publicField(this, "listeners");
     __publicField(this, "httpServer");
     __publicField(this, "isReady");
+    __publicField(this, "timeout");
     __publicField(this, "ioOptions");
     this.host = host || "localhost";
     this.isLan = this.host !== "localhost";
@@ -67,6 +68,7 @@ class NetworkServer {
     this.ioOptions = {
       maxHttpBufferSize: this.maxTransferSize
     };
+    this.timeout = options?.timeout || 5 * 60 * 1e3;
     if (this.isLan) {
       this.httpServer = (0, import_http2.createServer)();
       this.io = new import_socket.Server(this.httpServer, this.ioOptions);
@@ -97,7 +99,10 @@ class NetworkServer {
     let connection = new import_Connection.default({
       socket,
       name: this.name,
-      listeners: this.listeners
+      options: {
+        listeners: this.listeners,
+        timeout: this.timeout
+      }
     });
     await connection.connected();
     let id = connection.getTargetId();
@@ -112,9 +117,7 @@ class NetworkServer {
       this.connectionCallback(connection);
   }
   handleDisconnection(socket) {
-    console.log("[Server] got disconnection from node");
     let socketId = socket.id;
-    console.log("[Server] socket id: ", socketId);
     let conn = this.clients.toArray().filter((client) => client.socketId === socketId)[0];
     if (conn) {
       conn.close();

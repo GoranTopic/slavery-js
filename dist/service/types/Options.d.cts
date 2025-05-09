@@ -13,6 +13,8 @@ type Options = {
     returnError?: boolean;
     logError?: boolean;
     auto_scale?: boolean;
+    timeout?: number;
+    onError?: 'throw' | 'log' | 'ignore';
 };
 
 export type { Options as default };

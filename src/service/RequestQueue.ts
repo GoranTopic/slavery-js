@@ -112,6 +112,8 @@ class RequestQueue {
         // Add request to the queue and return a promise
         // that will be resolved when the request is completed
         return new Promise(async resolve => {
+            // is id has reached the max value, reset it to 0
+            if(this.currentId >= Number.MAX_SAFE_INTEGER) this.currentId = 0;
             let request: Request = {
                 id: ++this.currentId,
                 method: method,

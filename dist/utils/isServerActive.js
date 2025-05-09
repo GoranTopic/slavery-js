@@ -16,12 +16,14 @@ async function isServerActive({ name, host, port, timeout }) {
       host,
       port,
       id: "connection_test" + Math.random(),
-      timeout: 1e4,
-      // Increased timeout (e.g. 10 second
-      onConnect: (connection2) => {
-        connection2.close();
-        resolve_timout_pointer(timeout_pointer);
-        resolve(true);
+      options: {
+        timeout: 1e4,
+        // Increased timeout (e.g. 10 second
+        onConnect: (connection2) => {
+          connection2.close();
+          resolve_timout_pointer(timeout_pointer);
+          resolve(true);
+        }
       }
     });
     connection.on("connect_error", () => {

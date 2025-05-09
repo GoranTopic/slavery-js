@@ -1,6 +1,7 @@
 import {
   __publicField
 } from "../chunk-V6TY7KAL.js";
+import { log } from "../utils/index.js";
 class Stash {
   constructor() {
     __publicField(this, "store", /* @__PURE__ */ new Map());
@@ -24,9 +25,16 @@ class Stash {
     const next = new Promise((resolve) => release = resolve);
     const prev = this.queue;
     this.queue = next;
-    await prev;
+    try {
+      await prev;
+    } catch (error) {
+      log("[Stash] Error waiting for previous operation: " + error);
+    }
     try {
       return await fn();
+    } catch (error) {
+      log("[Stash] Error in withLock operation: " + error);
+      throw error;
     } finally {
       release();
     }

@@ -13,7 +13,6 @@ import '../network/types/Listener.cjs';
 import '../utils/Pool.cjs';
 import '../network/Server.cjs';
 import 'http';
-import './types/Request.cjs';
 
 
 

@@ -16,6 +16,7 @@ declare class NetworkServer {
     listeners: Listener[];
     httpServer?: http.Server;
     isReady: boolean;
+    timeout: number;
     private ioOptions;
     constructor({ name, host, port, listeners }: {
         name: string;
@@ -23,6 +24,7 @@ declare class NetworkServer {
         port: number;
         listeners: Listener[];
     }, options?: {
+        timeout: number;
         maxTransferSize: number;
     });
     private handleConnection;

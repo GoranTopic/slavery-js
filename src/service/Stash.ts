@@ -1,3 +1,5 @@
+import { log } from '../utils/index.js';
+
 type StashItem = any;
 
 class Stash {
@@ -26,9 +28,18 @@ class Stash {
         const prev = this.queue;
         this.queue = next;
 
-        await prev;
+        try {
+            await prev;
+        } catch (error) {
+            log('[Stash] Error waiting for previous operation: ' + error);
+            // Continue execution even if previous operation failed
+        }
+
         try {
             return await fn();
+        } catch (error) {
+            log('[Stash] Error in withLock operation: ' + error);
+            throw error;
         } finally {
             release!();
         }

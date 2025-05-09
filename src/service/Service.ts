@@ -175,7 +175,9 @@ class Service {
             master_host: host,
             master_port: port,
             methods: this.slaveMethods,
-            options: this.options
+            options: {
+                timeout: this.options.timeout,
+            }
         });
         // connect with the master process
         await node.start();
@@ -331,25 +333,38 @@ class Service {
                 // await until service is connected
                 await await_interval({
                     condition: () => this.servicesConnected, timeout: 1000
-                }).catch(() => {
-                    throw new Error(`[Service] Could not connect to the services`);
-                })
-                let service = this.getServices();
+                }).catch((error) => {
+                    return { isError: true, error: serializeError(error || new Error(`[Service] Could not connect to the services`)) };
+                });
+                
+                let service;
+                try {
+                    service = this.getServices();
+                } catch (e) {
+                    return { isError: true, error: serializeError(e) };
+                }
+                
                 let parameter = { ...service, master: this, self: this };
                 try {
                     // run the albitrary code
                     let result = await execAsyncCode(code_string, parameter);
-                    return { result: result }
-                } catch(e)  {
-                    return { isError: true, error: serializeError(e) }
+                    return { result: result };
+                } catch(e) {
+                    return { isError: true, error: serializeError(e) };
                 }
             }
         },{
             event: 'new_service',
             params: ['service_address'],
             callback: async (service_address: ServiceAddress) => {
-                if(this.network === undefined) throw new Error('Network is not defined');
-                await this.network?.connect(service_address);
+                if(this.network === undefined) return { isError: true, error: serializeError(new Error('Network is not defined')) };
+                
+                try {
+                    await this.network?.connect(service_address);
+                    return { result: true };
+                } catch (error) {
+                    return { isError: true, error: serializeError(error) };
+                }
             }
         },{
             event: 'exit',

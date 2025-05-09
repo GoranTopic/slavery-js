@@ -1,12 +1,29 @@
 import { Socket } from 'socket.io';
 import Listener from './types/Listener.js';
 
+type ConnectionOptions = {
+    timeout?: number;
+    listeners?: Listener[];
+    onConnect?: Function;
+    onDisconnect?: Function;
+    onSetListeners?: Function;
+};
+type ConnectionParametersServer = {
+    socket: Socket;
+    name: string;
+    options?: ConnectionOptions;
+};
+type ConnectionParametersClient = {
+    host: string;
+    port: number;
+    id: string;
+    options?: ConnectionOptions;
+};
 declare class Connection {
     private socket;
     private request_id;
     name?: string;
     id?: string;
-    listeners: Listener[];
     type: 'client' | 'server';
     host?: string;
     port?: number;
@@ -18,21 +35,14 @@ declare class Connection {
     targetListeners: Listener[];
     targetHost?: string;
     targetPort?: number;
-    private onConnectCallback;
-    onDisconnectCallback: Function;
-    onSetListenersCallback: Function;
-    constructor({ socket, host, port, id, name, listeners, timeout, onConnect, onDisconnect, onSetListeners }: {
-        id?: string;
-        socket?: Socket;
-        host?: string;
-        port?: number;
-        name?: string;
-        listeners?: Listener[];
-        timeout?: number;
-        onConnect?: Function;
-        onDisconnect?: Function;
-        onSetListeners?: Function;
-    });
+    options: {
+        timeout: number;
+        listeners: Listener[];
+        onConnect: Function;
+        onDisconnect: Function;
+        onSetListeners: Function;
+    };
+    constructor(params: ConnectionParametersServer | ConnectionParametersClient);
     private initilaizeListeners;
     connected(): Promise<boolean>;
     getType(): "client" | "server";
@@ -50,8 +60,8 @@ declare class Connection {
     onDisconnect(callback: Function): void;
     private queryTargetListeners;
     private queryTargetName;
-    query(event: string, data?: any): Promise<any>;
-    send: (event: string, data?: any) => Promise<any>;
+    query(event: string, data?: any, retries?: number, retryDelay?: number): Promise<any>;
+    send: (event: string, data?: any, retries?: number, retryDelay?: number) => Promise<any>;
     private respond;
     getListeners(): any[];
     close(): void;

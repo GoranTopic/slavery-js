@@ -79,7 +79,12 @@ class Service {
     log("peer addresses", this.peerAddresses);
     await this.initlize_node_manager();
     this.initialize_request_queue();
-    this.network = new Network({ name: this.name + "_service_network" });
+    this.network = new Network({
+      name: this.name + "_service_network",
+      options: {
+        timeout: this.options.timeout
+      }
+    });
     let listeners = toListeners(this.slaveMethods).map(
       // add out handle request function to the listener
       (l) => ({ ...l, callback: this.handle_request(l, "run") })
@@ -105,12 +110,20 @@ class Service {
       this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
   }
   async initialize_slaves() {
-    let node = new Node({ methods: this.slaveMethods });
     let metadata = process.env.metadata;
     if (metadata === void 0)
       throw new Error("could not get post and host of the node manager, metadata is undefined");
     let { host, port } = JSON.parse(metadata)["metadata"];
-    await node.connectToMaster(host, port);
+    let node = new Node({
+      mode: "client",
+      master_host: host,
+      master_port: port,
+      methods: this.slaveMethods,
+      options: {
+        timeout: this.options.timeout
+      }
+    });
+    await node.start();
   }
   async initlize_node_manager() {
     if (Object.keys(this.slaveMethods).length === 0) return null;
@@ -120,8 +133,11 @@ class Service {
       name: this.name,
       host: this.nm_host,
       port: this.nm_port,
-      stash: this.stash
-      // set the stash
+      options: {
+        timeout: this.options.timeout,
+        stash: this.stash
+        // set the stash
+      }
     });
     await this.nodes.spawnNodes("slave_" + this.name, this.number_of_nodes, {
       metadata: { host: this.nm_host, port: this.nm_port }
@@ -133,9 +149,15 @@ class Service {
     if (Object.keys(this.slaveMethods).length === 0) return null;
     if (this.nodes === void 0) throw new Error("Node Manager is not defined");
     this.requestQueue = new RequestQueue({
-      // we pass the functions that the request queue will use
+      // we pass the functions that the request queue will use,
+      // such as getting the next node, and the function to process the request
       get_slave: this.nodes.getIdle.bind(this.nodes),
-      process_request: async (node, request) => await node[request.type](request.method, request.parameters)
+      process_request: async (node, request) => await node[request.type](request.method, request.parameters),
+      options: {
+        heartbeat: 100,
+        requestTimeout: this.options.timeout,
+        onError: this.options?.onError || "throw"
+      }
     });
   }
   initialize_process_balancer() {
@@ -231,10 +253,18 @@ class Service {
       callback: async (code_string) => {
         if (typeof code_string !== "string")
           return { isError: true, error: serializeError(new Error("Code string is not a string")) };
-        await await_interval(() => this.servicesConnected, 1e4).catch(() => {
-          throw new Error(`[Service] Could not connect to the services`);
+        await await_interval({
+          condition: () => this.servicesConnected,
+          timeout: 1e3
+        }).catch((error) => {
+          return { isError: true, error: serializeError(error || new Error(`[Service] Could not connect to the services`)) };
         });
-        let service = this.getServices();
+        let service;
+        try {
+          service = this.getServices();
+        } catch (e) {
+          return { isError: true, error: serializeError(e) };
+        }
         let parameter = { ...service, master: this, self: this };
         try {
           let result = await execAsyncCode(code_string, parameter);
@@ -247,8 +277,13 @@ class Service {
       event: "new_service",
       params: ["service_address"],
       callback: async (service_address) => {
-        if (this.network === void 0) throw new Error("Network is not defined");
-        await this.network?.connect(service_address);
+        if (this.network === void 0) return { isError: true, error: serializeError(new Error("Network is not defined")) };
+        try {
+          await this.network?.connect(service_address);
+          return { result: true };
+        } catch (error) {
+          return { isError: true, error: serializeError(error) };
+        }
       }
     }, {
       event: "exit",
@@ -267,12 +302,10 @@ class Service {
         method: l.event,
         type,
         parameters: data.parameters,
-        selector: data.selection,
-        completed: false,
-        result: null
+        selector: data.selection
       });
       let result = await promise;
-      if (result.isError === true)
+      if (result.isError)
         result.error = serializeError(result.error);
       return result;
     };

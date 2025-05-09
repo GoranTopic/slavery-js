@@ -35,8 +35,12 @@ var import_peerDiscovery = __toESM(require("./peerDiscovery/index.js"), 1);
 var import_makeProxyObject = __toESM(require("./makeProxyObject.js"), 1);
 var import_service = __toESM(require("../service/index.js"), 1);
 var import_typeGuards = require("./typeGuards.js");
+const default_host = "localhost";
+const default_port = 3e3;
 const entry = (entryOptions) => {
   let options = entryOptions;
+  options.host = options.host || default_host;
+  options.port = options.port || default_port;
   let proxyObject = (0, import_makeProxyObject.default)(handleProxyCall(options));
   let peerDiscoveryServer = new import_peerDiscovery.default({
     host: options.host,
@@ -49,14 +53,20 @@ const handleProxyCall = (globalOptions) => (method, param1, param2, param3) => {
   const { mastercallback, slaveMethods, options } = paramertesDiscermination(param1, param2, param3);
   if (mastercallback === void 0) throw new Error("Master callback is undefined");
   const service_name = method;
-  const port = globalOptions.port;
-  const host = globalOptions.host;
+  const port = globalOptions.port || default_port;
+  const host = globalOptions.host || default_host;
+  const serviceOptions = {
+    ...globalOptions,
+    ...options,
+    host: options.host,
+    port: options.port
+  };
   let service = new import_service.default({
     service_name,
     peerDiscoveryAddress: { host, port },
     mastercallback,
     slaveMethods,
-    options
+    options: serviceOptions
   });
   service.start();
 };

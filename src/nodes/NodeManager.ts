@@ -166,11 +166,19 @@ class NodeManager {
       let nodes = this.nodes.toArray();
       // for each node, make a promise
       let promises = nodes.map(async (node: Node) => {
-          if(node.isBusy()) await node.toFinish();
-          return callback(node);
+          try {
+              if(node.isBusy()) await node.toFinish();
+              return callback(node);
+          } catch (error) {
+              log(`[NodeManager][forEach] Error: ${error}`);
+              throw error;
+          }
       });
       // wait for all the promises to resolve
-      return Promise.all(promises);
+      return Promise.all(promises).catch(error => {
+          log(`[NodeManager][forEach] Error in Promise.all: ${error}`);
+          throw error;
+      });
   }
 
   public async setServices(services: ServiceAddress[]) {
@@ -269,10 +277,20 @@ class NodeManager {
       let nodes = this.nodes.toArray();
       // for each node, make a promise
       let promises = nodes.map(
-          async (node: Node) => await callback(node)
+          async (node: Node) => {
+              try {
+                  return await callback(node);
+              } catch (error) {
+                  log(`[NodeManager][broadcast] Error for node ${node.getId()}: ${error}`);
+                  throw error;
+              }
+          }
       );
       // wait for all the promises to resolve
-      return Promise.all(promises);
+      return Promise.all(promises).catch(error => {
+          log(`[NodeManager][broadcast] Error in Promise.all: ${error}`);
+          throw error;
+      });
   }
 
   private setIdle = (NodeId: string) => this.nodes.enable(NodeId);

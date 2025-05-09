@@ -8,12 +8,37 @@ import 'http';
 import 'socket.io';
 
 type NodeStatus = 'idle' | 'working' | 'error';
+type NodeOptions = {
+    timeout?: number;
+};
+type NodeClientParamters = {
+    mode: 'client';
+    master_host: string;
+    master_port: number;
+    methods: {
+        [key: string]: (parameter: any) => any;
+    };
+    services?: ServiceAddress[];
+    options?: NodeOptions;
+};
+type NodeServerParameters = {
+    mode: 'server';
+    connection: Connection;
+    network: Network;
+    stashSetFunction: (key: string, value: any) => any;
+    stashGetFunction: (key: string) => any;
+    services: ServiceAddress[];
+    statusChangeCallback: (status: NodeStatus, node: Node) => void;
+    options?: NodeOptions;
+};
 declare class Node {
-    mode: 'client' | 'server' | undefined;
+    mode: 'client' | 'server';
     id: string | undefined;
     status: NodeStatus;
     listeners: Listener[];
     lastUpdateAt: number;
+    master_host: string | undefined;
+    master_port: number | undefined;
     network: Network | undefined;
     servicesConnected: boolean;
     hasStartupFinished: boolean;
@@ -30,9 +55,8 @@ declare class Node {
     methods: {
         [key: string]: (parameter?: any, self?: Node) => any;
     };
-    constructor(input?: {
-        methods?: Record<string, (parameter: any) => any>;
-    });
+    options: NodeOptions;
+    constructor(params: NodeClientParamters | NodeServerParameters);
     getId: () => string | undefined;
     getStatus: () => NodeStatus;
     lastHeardOfIn: () => number;
@@ -42,11 +66,12 @@ declare class Node {
     private updateLastHeardOf;
     private updateStatus;
     untilFinish: () => Promise<boolean>;
+    start: () => Promise<boolean | void>;
     run: (method: string, parameter: any) => Promise<any>;
     exec: (method: string, code: string) => Promise<any>;
     setServices: (services: ServiceAddress[]) => Promise<any>;
     exit: () => Promise<any>;
-    ping: () => Promise<boolean>;
+    ping: () => Promise<boolean | undefined>;
     setNodeConnection(connection: Connection, network: Network): void;
     setStatusChangeCallback(callback: (status: NodeStatus, node: Node) => void): void;
     setStashFunctions({ set, get }: {
@@ -55,13 +80,14 @@ declare class Node {
     }): void;
     handleStatusChange(status: NodeStatus): void;
     lastHeardOf(): number;
+    private start_server;
     private run_server;
     private exec_server;
     private setServices_server;
     ping_server(): Promise<boolean>;
     exit_server(): Promise<any>;
     send(method: string, parameter?: any): Promise<any>;
-    connectToMaster(host: string, port: number): Promise<void>;
+    start_client(): Promise<void>;
     private run_client;
     private exec_client;
     private run_startup;
@@ -73,6 +99,7 @@ declare class Node {
     }): void;
     private setServices_client;
     connectService({ name, host, port }: ServiceAddress): Promise<Connection>;
+    private get_sevices_address;
     private ping_client;
     private exit_client;
     getListeners(): any[];

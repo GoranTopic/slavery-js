@@ -5,6 +5,14 @@ import NetworkServer from './Server.cjs';
 import 'socket.io';
 import 'http';
 
+type NetworkOptions = {
+    timeout?: number;
+};
+type NetworkParameters = {
+    name?: string;
+    id?: string | undefined;
+    options?: NetworkOptions;
+};
 declare class Network {
     id: string;
     server: NetworkServer | null;
@@ -14,10 +22,8 @@ declare class Network {
     serviceConnectionCallback?: Function;
     serviceDisconnectCallback?: Function;
     newListenersCallback?: Function;
-    constructor({ name, id }: {
-        name?: string;
-        id?: string;
-    });
+    timeout: number;
+    constructor({ name, id, options }: NetworkParameters);
     connect({ name, host, port, as }: {
         name?: string;
         host: string;

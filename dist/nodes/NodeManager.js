@@ -6,7 +6,7 @@ import Network from "../network/index.js";
 import Node from "./Node.js";
 import { Pool, await_interval, log } from "../utils/index.js";
 class NodeManager {
-  constructor(options) {
+  constructor({ name, host, port, options }) {
     __publicField(this, "name");
     __publicField(this, "network");
     //private heartBeat: number = 1000;
@@ -21,28 +21,30 @@ class NodeManager {
     __publicField(this, "addNode", this.spawnNodes);
     __publicField(this, "removeNode", this.killNodes);
     __publicField(this, "getNumberOfNodes", this.getNodeCount);
-    this.name = options.name;
-    this.options = options;
-    this.network = new Network({ name: this.name + "_node_manager" });
-    this.network.createServer(
-      this.name + "_node_manager",
-      this.options.host,
-      this.options.port
-    );
+    this.name = name;
+    this.options = options || {};
+    this.network = new Network({
+      name: this.name + "_node_manager",
+      options: {
+        timeout: this.options.timeout || 1e4
+      }
+    });
+    this.network.createServer(this.name + "_node_manager", host, port);
     this.network.onNodeConnection(this.handleNewNode.bind(this));
     this.network.onNodeDisconnect(this.handleNodeDisconnect.bind(this));
-    this.stash = options.stash || null;
+    this.stash = options?.stash || null;
   }
-  handleNewNode(connection) {
-    log("[Node manager] Got a new connectection from a node");
-    let node = new Node();
-    node.setStashFunctions({
-      get: async (key) => await this.stash?.get(key),
-      set: async (key, value) => await this.stash?.set(key, value)
+  async handleNewNode(connection) {
+    let node = new Node({
+      mode: "server",
+      connection,
+      network: this.network,
+      services: this.services,
+      statusChangeCallback: this.handleStatusChange.bind(this),
+      stashSetFunction: async (key, value) => await this.stash?.set(key, value),
+      stashGetFunction: async (key) => await this.stash?.get(key)
     });
-    node.setNodeConnection(connection, this.network);
-    node.setServices(this.services);
-    node.setStatusChangeCallback(this.handleStatusChange.bind(this));
+    let res = await node.start();
     let id = node.getId();
     if (id === void 0) throw new Error("node id is undefined");
     this.nodes.add(id, node);
@@ -67,14 +69,22 @@ class NodeManager {
   async getIdle(node_id = "") {
     if (node_id !== "") {
       let node2 = this.getNode(node_id);
-      await await_interval(() => node2.isIdle(), 60 * 60 * 60 * 1e3).catch(() => {
+      await await_interval({
+        condition: () => node2.isIdle(),
+        timeout: this.options.timeout || 36e5
+        // one hour
+      }).catch(() => {
         throw new Error(`timeout of one hour, node ${node_id} is not idle`);
       });
       return node2;
     }
     if (this.nodes.isEmpty())
       log("[node manager] (WARNING) no nodes found");
-    await await_interval(() => this.nodes.hasEnabled(), 0).catch(() => {
+    await await_interval({
+      condition: () => this.nodes.hasEnabled(),
+      timeout: 0
+      // forever
+    }).catch(() => {
       throw new Error("timeout of 10 seconds, no idle node found");
     });
     let node = this.nodes.pop();
@@ -93,29 +103,35 @@ class NodeManager {
   async forEach(callback) {
     let nodes = this.nodes.toArray();
     let promises = nodes.map(async (node) => {
-      if (node.isBusy()) await node.toFinish();
-      return callback(node);
+      try {
+        if (node.isBusy()) await node.toFinish();
+        return callback(node);
+      } catch (error) {
+        log(`[NodeManager][forEach] Error: ${error}`);
+        throw error;
+      }
     });
-    return Promise.all(promises);
+    return Promise.all(promises).catch((error) => {
+      log(`[NodeManager][forEach] Error in Promise.all: ${error}`);
+      throw error;
+    });
   }
   async setServices(services) {
     this.services = services;
     if (this.nodes.size() > 0)
-      await this.broadcast(async (node) => {
-        await node.setServices(services);
-      });
+      await this.broadcast(
+        async (node) => await node.setServices(services)
+      );
   }
   async spawnNodes(name = "", count = 1, metadata = {}) {
     if (name === "") name = "node_" + this.name;
-    log("[nodeManager][spawnNodes] spawning nodes", name, count);
     this.cluster.spawn(name, {
       numberOfSpawns: count,
       metadata
     });
   }
   async killNode(nodeId = "") {
-    if (this.nodes.isEmpty())
-      return false;
+    if (this.nodes.isEmpty()) return false;
     let node = nodeId === "" ? this.nodes.removeOne() : this.nodes.remove(nodeId);
     if (node === null || node === void 0)
       throw new Error("Node sentenced to death could not be found");
@@ -150,9 +166,12 @@ class NodeManager {
     return this.network.getRegisteredListeners();
   }
   async numberOfNodesConnected(count) {
-    let timeout = 1e5;
-    await await_interval(() => this.nodes.size() >= count, timeout).catch(() => {
-      throw new Error(`timeout of ${timeout} seconds, not enough nodes connected`);
+    let timeout = this.options.timeout || 10 * 1e3;
+    await await_interval({
+      condition: () => this.nodes.size() >= count,
+      timeout
+    }).catch(() => {
+      throw new Error(`timeout of ${timeout} seconds, only ${this.nodes.size()} nodes connected, expected ${count}`);
     });
     return true;
   }
@@ -164,9 +183,19 @@ class NodeManager {
   async broadcast(callback) {
     let nodes = this.nodes.toArray();
     let promises = nodes.map(
-      async (node) => await callback(node)
+      async (node) => {
+        try {
+          return await callback(node);
+        } catch (error) {
+          log(`[NodeManager][broadcast] Error for node ${node.getId()}: ${error}`);
+          throw error;
+        }
+      }
     );
-    return Promise.all(promises);
+    return Promise.all(promises).catch((error) => {
+      log(`[NodeManager][broadcast] Error in Promise.all: ${error}`);
+      throw error;
+    });
   }
 }
 var NodeManager_default = NodeManager;

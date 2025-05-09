@@ -13,7 +13,6 @@ import '../network/types/Listener.js';
 import '../utils/Pool.js';
 import '../network/Server.js';
 import 'http';
-import './types/Request.js';
 
 
 

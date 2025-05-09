@@ -10,10 +10,7 @@ import '../network/Server.js';
 import 'http';
 import './types/ServiceAddress.js';
 
-type Options = {
-    name: string;
-    host: string;
-    port: number;
+type NodeManagerOptions = {
     number_of_nodes?: number;
     max_number_of_nodes?: number;
     min_number_of_node?: number;
@@ -21,6 +18,13 @@ type Options = {
     decrease_node_at_idles?: number;
     service_address?: ServiceAddress[];
     stash?: Stash;
+    timeout?: number;
+};
+type NodeManagerParameters = {
+    name: string;
+    host: string;
+    port: number;
+    options?: NodeManagerOptions;
 };
 declare class NodeManager {
     private name;
@@ -30,7 +34,7 @@ declare class NodeManager {
     private cluster;
     private services;
     private stash;
-    constructor(options: Options);
+    constructor({ name, host, port, options }: NodeManagerParameters);
     private handleNewNode;
     private handleNodeDisconnect;
     private handleStatusChange;

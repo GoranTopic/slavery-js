@@ -7,12 +7,14 @@ import { await_interval, execAsyncCode, log } from "../utils/index.js";
 import { serializeError, deserializeError } from "serialize-error";
 class Node {
   // takes and empty parameter or a object with the propertie methods
-  constructor(input) {
+  constructor(params) {
     __publicField(this, "mode");
     __publicField(this, "id");
     __publicField(this, "status", "idle");
     __publicField(this, "listeners", []);
     __publicField(this, "lastUpdateAt", Date.now());
+    __publicField(this, "master_host");
+    __publicField(this, "master_port");
     __publicField(this, "network");
     __publicField(this, "servicesConnected", false);
     __publicField(this, "hasStartupFinished", false);
@@ -25,6 +27,10 @@ class Node {
     __publicField(this, "services", []);
     __publicField(this, "doneMethods", {});
     __publicField(this, "methods", {});
+    // options
+    __publicField(this, "options", {
+      timeout: 1e4
+    });
     /* this function will work on any mode the class is on */
     __publicField(this, "getId", () => this.id);
     __publicField(this, "getStatus", () => this.status);
@@ -35,35 +41,37 @@ class Node {
     __publicField(this, "updateLastHeardOf", () => this.lastUpdateAt = Date.now());
     __publicField(this, "updateStatus", (status) => this.status = status);
     __publicField(this, "untilFinish", async () => {
-      await await_interval(() => this.isIdle(), 1e3).catch(() => {
+      await await_interval({
+        condition: () => this.isIdle(),
+        interval: 100
+      }).catch(() => {
         throw new Error("The node is not idle");
       });
       return true;
     });
+    __publicField(this, "start", async () => {
+      if (this.mode === "client") return await this.start_client();
+      else if (this.mode === "server") return await this.start_server();
+    });
     __publicField(this, "run", async (method, parameter) => {
       if (this.mode === "client") return await this.run_client({ method, parameter });
       else if (this.mode === "server") return await this.run_server({ method, parameter });
-      else throw new Error("The mode has not been set");
     });
     __publicField(this, "exec", async (method, code) => {
       if (this.mode === "client") return await this.exec_client(code);
       else if (this.mode === "server") return await this.exec_server(code);
-      else throw new Error("The mode has not been set");
     });
     __publicField(this, "setServices", async (services) => {
       if (this.mode === "client") return await this.setServices_client(services);
       else if (this.mode === "server") return await this.setServices_server(services);
-      else throw new Error("The mode has not been set");
     });
     __publicField(this, "exit", async () => {
       if (this.mode === "client") return await this.exit_client();
       else if (this.mode === "server") return await this.exit_server();
-      else throw new Error("The mode has not been set");
     });
     __publicField(this, "ping", async () => {
       if (this.mode === "client") return await this.ping_client();
       else if (this.mode === "server") return await this.ping_server();
-      else throw new Error("The mode has not been set");
     });
     // this function will communicate with the master node and set the stash in that moment
     __publicField(this, "setStash", async (key, value = null) => await this.send("_set_stash", { key, value }));
@@ -77,14 +85,24 @@ class Node {
     __publicField(this, "get", this.getStash);
     __publicField(this, "stash", this.setStash);
     __publicField(this, "unstash", this.getStash);
-    if (input && input.methods)
-      this.addMethods(input.methods);
+    this.mode = params.mode;
+    if (this.mode === "client") {
+      params = params;
+      this.master_host = params.master_host;
+      this.master_port = params.master_port;
+      this.services = params.services || [];
+      this.options = params.options || {};
+      this.addMethods(params.methods);
+    } else if (this.mode === "server") {
+      params = params;
+      this.setStashFunctions({ set: params.stashSetFunction, get: params.stashGetFunction });
+      this.setNodeConnection(params.connection, params.network);
+      this.services = params.services;
+      this.statusChangeCallback = params.statusChangeCallback;
+    }
   }
   /* this functions will set the Node.ts as a client handler for the server */
   setNodeConnection(connection, network) {
-    if (this.mode !== void 0 && this.mode !== null)
-      throw new Error("The node mode has already been set");
-    this.mode = "server";
     this.id = connection.getTargetId();
     this.network = network;
     if (this.stashSetFunction === null || this.stashGetFunction === null)
@@ -94,7 +112,8 @@ class Node {
       { event: "_set_status", parameters: ["status"], callback: this.handleStatusChange.bind(this) },
       { event: "_ping", parameters: [], callback: () => "_pong" },
       { event: "_set_stash", parameters: ["key", "value"], callback: this.stashSetFunction },
-      { event: "_get_stash", parameters: ["key"], callback: this.stashGetFunction }
+      { event: "_get_stash", parameters: ["key"], callback: this.stashGetFunction },
+      { event: "_get_services_address", parameters: [], callback: () => this.services }
     ];
     connection.setListeners(this.listeners);
   }
@@ -113,6 +132,14 @@ class Node {
     this.updateLastHeardOf();
     return this.lastHeardOfIn();
   }
+  async start_server() {
+    let response = await this.setServices_server(this.services);
+    if (response === true) {
+      this.servicesConnected = true;
+      return true;
+    } else
+      throw new Error(`slavery-js: [Node][${this.id}] Could not set services on the client node`);
+  }
   async run_server({ method, parameter }) {
     this.handleStatusChange("working");
     let res = await this.send("_run", { method, parameter });
@@ -122,27 +149,49 @@ class Node {
     return res;
   }
   async exec_server(code) {
-    this.handleStatusChange("working");
-    let res = await this.send("_exec", code);
-    this.handleStatusChange("idle");
-    if (res.isError === true)
-      res.error = deserializeError(res.error);
-    return res;
+    try {
+      this.handleStatusChange("working");
+      let res = await this.send("_exec", code);
+      this.handleStatusChange("idle");
+      if (res.isError === true)
+        res.error = deserializeError(res.error);
+      return res;
+    } catch (error) {
+      this.handleStatusChange("idle");
+      log(`[Node][${this.id}] Error in exec_server: ${error}`);
+      return { isError: true, error: serializeError(error) };
+    }
   }
   async setServices_server(services) {
-    return await this.send("_set_services", services);
+    try {
+      return await this.send("_set_services", services);
+    } catch (error) {
+      log(`[Node][${this.id}] Error in setServices_server: ${error}`);
+      throw error;
+    }
   }
   async ping_server() {
-    let res = await this.send("_ping");
-    if (res === "pong") this.updateLastHeardOf();
-    return true;
+    try {
+      let res = await this.send("_ping");
+      if (res === "pong") this.updateLastHeardOf();
+      return true;
+    } catch (error) {
+      log(`[Node][${this.id}] Error in ping_server: ${error}`);
+      return false;
+    }
   }
   async exit_server() {
-    let res = await this.send("_exit", null).catch((error) => {
-      if (error === "timeout") return true;
-      else throw error;
-    });
-    return res;
+    try {
+      let res = await this.send("_exit", null).catch((error) => {
+        if (error === "timeout") return true;
+        log(`[Node][${this.id}] Error in exit_server: ${error}`);
+        return false;
+      });
+      return res;
+    } catch (error) {
+      log(`[Node][${this.id}] Error in exit_server: ${error}`);
+      return false;
+    }
   }
   async send(method, parameter = null) {
     if (this.network === void 0) throw new Error("The network has not been set");
@@ -158,11 +207,18 @@ class Node {
     return await connection.send(method, parameter);
   }
   /* this function will be called when the client node tells us that it is working */
-  async connectToMaster(host, port) {
+  async start_client() {
     this.id = this.id || Math.random().toString(36).substring(4);
-    this.network = new Network({ name: "node", id: this.id });
-    this.network.connect({ host, port, as: "master" });
-    this.mode = "client";
+    this.network = new Network({
+      name: "node",
+      id: this.id,
+      options: {
+        timeout: this.options.timeout || 5 * 60 * 1e3
+      }
+    });
+    if (this.master_host === void 0 || this.master_port === void 0)
+      throw new Error("The master host and port have not been set");
+    this.network.connect({ host: this.master_host, port: this.master_port, as: "master" });
     this.listeners = [
       { event: "_run", parameters: ["method", "parameter"], callback: this.run_client.bind(this) },
       { event: "_exec", parameters: ["code_string"], callback: this.exec_client.bind(this) },
@@ -174,17 +230,36 @@ class Node {
       { event: "_exit", parameters: [], callback: this.exit_client.bind(this) }
     ];
     this.network.registerListeners(this.listeners);
+    await await_interval({
+      condition: () => this.servicesConnected,
+      timeout: 1e3
+    }).catch(async () => {
+      let services = await this.get_sevices_address();
+      this.setServices_client(services);
+    });
     await this.run_startup();
   }
   async run_client({ method, parameter }) {
-    await await_interval(() => this.servicesConnected, 1e4, 1).catch(() => {
-      throw new Error(`[Node][${this.id}] Could not connect to the services`);
+    await await_interval({
+      condition: () => this.servicesConnected,
+      timeout: 1e4,
+      interval: 10
+    }).catch(() => {
+      throw new Error(`slavery-js: [Node][${this.id}] run method, because it could not connect to services`);
     });
-    await await_interval(() => this.hasStartupFinished, 60 * 1e3, 1).catch(() => {
-      throw new Error(`[Node][${this.id}] Could not run startup method`);
+    await await_interval({
+      condition: () => this.hasStartupFinished,
+      timeout: 60 * 1e3,
+      interval: 1
+    }).catch(() => {
+      throw new Error(`slavery-js: [Node][${this.id}] run method, because the startup method did not finish`);
     });
-    await await_interval(() => this.isIdle(), 60 * 1e3, 1).catch(() => {
-      throw new Error(`[Node][${this.id}] The node is not idle`);
+    await await_interval({
+      condition: () => this.isIdle(),
+      timeout: 60 * 1e3,
+      interval: 1
+    }).catch(() => {
+      throw new Error(`slavery-js: [Node][${this.id}] run method, because the node timed for becoming idle`);
     });
     try {
       this.updateStatus("working");
@@ -203,8 +278,11 @@ class Node {
   async exec_client(code_string) {
     if (typeof code_string !== "string")
       return { isError: true, error: serializeError(new Error("Code string is not a string")) };
-    await await_interval(() => this.servicesConnected, 1e4).catch(() => {
-      throw new Error(`[Service] Could not connect to the services`);
+    await await_interval({
+      condition: () => this.servicesConnected,
+      timeout: 20 * 1e3
+    }).catch(() => {
+      throw new Error(`slavery-js: [Node][${this.id}] executing code, because it could not connect to services`);
     });
     let services = await this.get_services();
     let parameter = { ...services, slave: this, self: this };
@@ -216,8 +294,11 @@ class Node {
     }
   }
   async run_startup() {
-    await await_interval(() => this.servicesConnected, 1e4).catch(() => {
-      throw new Error(`[Node][${this.id}] Could not connect to the services`);
+    await await_interval({
+      condition: () => this.servicesConnected,
+      timeout: 20 * 1e3
+    }).catch(() => {
+      throw new Error(`slavery-js: [Node][${this.id}] Could not startup Node becasue it could not connect to services`);
     });
     if (this.methods["_startup"] === void 0) {
       this.hasStartupFinished = true;
@@ -253,9 +334,10 @@ class Node {
     this.services = services;
     for (let service of services) {
       let res = await this.connectService(service);
-      if (!res)
-        console.error("Could not connect to the service, ", service.name);
-      else
+      if (!res) {
+        console.error("slavery-js: [Node] Client could not connect to the service, ", service.name);
+        return false;
+      } else
         log(`[Node][${this.id}] Connected to the service, ${service.name}`);
     }
     this.servicesConnected = true;
@@ -267,6 +349,11 @@ class Node {
     if (this.network === void 0)
       throw new Error("The network has not been set");
     return await this.network.connect({ name, host, port });
+  }
+  async get_sevices_address() {
+    let res = await this.send("_get_services_address");
+    this.services = res;
+    return res;
   }
   async ping_client() {
     let res = await this.send("_ping");
