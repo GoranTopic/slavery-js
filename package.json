@@ -4,12 +4,14 @@
     "description": "A simple clustering app that allows you to scale an application on multiple thread, containers or machines ",
     "main": "dist/index.cjs",
     "module": "dist/index.js",
-    "types": "dist/types/index.d.ts",
+    "types": "./dist/index.d.ts",
     "type": "module",
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "require": "./dist/index.cjs",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         }
     },
     "scripts": {

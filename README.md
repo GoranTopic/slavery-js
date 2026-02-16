@@ -34,7 +34,7 @@ const { slavery } = require('slavery-js')['default']['default'];
 ## Usage
 
 ```javascript
-import slavery from 'slaveryr-js';
+import slavery from 'slavery-js';
 //Make different timeouts
 let make_timeout = s =>
     new Promise( resolve => {
