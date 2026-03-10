@@ -23,7 +23,6 @@ type Options = {
     timeout?: number,
     // how to handle errors
     onError?: 'throw' | 'log' | 'ignore'
-    
 }
 
 export default Options;

@@ -1,10 +1,8 @@
 import Service from '../../src/service'
 import { expect } from 'chai'
-import { log } from '../../src/utils'
 process.env.debug = 'false';
 
 /* this will test the feature if _startup and _cleanup functions are called */
-
 
 let main_service = new Service({
     service_name: 'tester',
