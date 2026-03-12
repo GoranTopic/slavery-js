@@ -1,12 +1,6 @@
 import Network, { Listener } from '../network/index.js';
 import { deserializeError } from 'serialize-error';
-
-type Options = {
-    throwError?: boolean,
-    returnError?: boolean,
-    logError?: boolean
-}
-
+import type { Options } from './types/index.js';
 
 class ServiceClient {
     /* this class will be used to connect to a diffrent service,
@@ -23,7 +17,6 @@ class ServiceClient {
     constructor(name: string, network: Network, options: Options = {}, selection?: [] ) {
         this.name = name;
         this.network = network;
-        if(options.throwError === undefined) options.throwError = true;
         this.options = options;
         this.selection = selection || [];
         // get the conenction from the network
@@ -114,10 +107,14 @@ class ServiceClient {
     private handleErrors(error_obj: Error) {
         // deserialize the error, handle according to the options
         let error = deserializeError(error_obj);
-        if (this.options.throwError) throw error;
-        if (this.options.logError) console.error(error);
-        if (this.options.returnError) return error;
-        else return null;
+        const mode = this.options.onError ?? 'throw';
+        if (mode === 'throw') throw error;
+        if (mode === 'log') {
+            console.error(error);
+            return error;
+        }
+        // 'ignore': return error to caller without throwing
+        return error;
     }
     
 }

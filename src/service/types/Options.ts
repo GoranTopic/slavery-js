@@ -13,16 +13,12 @@ type Options = {
     increase_processes_at_requests?: number,
     // the number of node that have to be idle before decreasing the number of processes
     decrease_processes_at_idles?: number,
-    // thow exception on error
-    throwError?: boolean,
-    returnError?: boolean,
-    logError?: boolean,
+    // how to handle errors: 'throw' | 'log' | 'ignore'
+    onError?: 'throw' | 'log' | 'ignore',
     // auto scale based on length of Rquest Queue and the idle rate od nodes
     auto_scale?: boolean,
     // timeout for requests
     timeout?: number,
-    // how to handle errors
-    onError?: 'throw' | 'log' | 'ignore'
 }
 
 export default Options;

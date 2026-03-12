@@ -76,6 +76,7 @@ class Service {
             throw new Error('Peer Addresses or Peer Discovery Service Address must be defined');
         // the options that will be passed to the service
         this.options = params.options || {};
+        if (this.options.onError === undefined) this.options.onError = 'throw';
         // smallest number of processes need to run
         // the master and a slave
         if(this.options.number_of_nodes === undefined){
@@ -216,7 +217,7 @@ class Service {
     }
 
     private initialize_request_queue() {
-        /* this function will give the request queue all the values an callback it need tow work */
+        /* this function will give the request queue all the values an callback it need to work */
         // if there are no nodes to make don't create a request queue
         if(Object.keys(this.slaveMethods).length === 0) return null
             // if node manager is not defined throw an error
@@ -231,7 +232,7 @@ class Service {
                 options: {
                     heartbeat: 100,
                     requestTimeout: this.options.timeout,
-                    onError: this.options?.onError || 'throw',
+                    onError: this.options.onError,
                 }
             });
     }

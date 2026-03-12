@@ -21,9 +21,7 @@ let test_service = new Service({
     options: {
         host: 'localhost',
         port: 3002,
-        throwError: false,
-        returnError: false,
-        logError: true,
+        onError: 'log',
     }
 })
 test_service.start()

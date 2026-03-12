@@ -22,9 +22,7 @@ let test_service = new Service({
     options: {
         host: 'localhost',
         port: 3002,
-        throwError: false,
-        returnError: true,
-        logError: false,
+        onError: 'ignore',
     }
 })
 test_service.start()

@@ -251,8 +251,7 @@ Pass as the last argument to the entry proxy or in `options` when creating a `Se
 | `auto_scale`                                 | If `true`, scale workers by queue size and idle count.           |
 | `max_number_of_nodes`, `min_number_of_nodes` | Bounds when auto-scaling.                                        |
 | `timeout`                                    | Request timeout (ms).                                            |
-| `throwError`, `returnError`, `logError`      | How to handle errors from workers.                               |
-| `onError`                                    | `'throw' | 'log' | 'ignore'` for request handling.               |
+| `onError`                                    | `'throw' \| 'log' \| 'ignore'` — how to handle worker errors.    |
 
 
 ### Prohibited names
