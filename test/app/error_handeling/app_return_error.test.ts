@@ -4,7 +4,7 @@ process.env.debug = 'false';
 
 /*
  * This test checks that the app API forwards the error as a return value
- * to the service that is requesting the process when onError is 'ignore'.
+ * to the service that is requesting the process when onError is 'return'.
  */
 
 entry({
@@ -23,4 +23,4 @@ entry({
     console.log(`[${process.argv[1].split('/').pop()}] ✅ Error object was returned`)
     await errorer.exit()
     await self.exit()
-}, { onError: 'ignore' })
+}, { onError: 'return' })

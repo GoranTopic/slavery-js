@@ -13,8 +13,8 @@ type Options = {
     increase_processes_at_requests?: number,
     // the number of node that have to be idle before decreasing the number of processes
     decrease_processes_at_idles?: number,
-    // how to handle errors: 'throw' | 'log' | 'ignore'
-    onError?: 'throw' | 'log' | 'ignore',
+    // how to handle errors: 'throw' | 'log' | 'ignore' | 'return'
+    onError?: 'throw' | 'log' | 'ignore' | 'return',
     // auto scale based on length of Rquest Queue and the idle rate od nodes
     auto_scale?: boolean,
     

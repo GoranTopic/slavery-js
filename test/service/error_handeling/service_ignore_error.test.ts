@@ -3,41 +3,39 @@ import Service from '../../../src/service'
 process.env.debug = 'false';
 
 /*
- * This test checks that the error is returned to the service that
- * is requesting the process when onError is 'return'.
+ * This test checks that the error is ignored and null is returned
+ * when onError is 'ignore'.
  */
 
 let test_service = new Service({
     service_name: 'error_test',
     peerServicesAddresses: [
-        { name: 'errorer', host: 'localhost', port: 3003 }
+        { name: 'errorer', host: 'localhost', port: 3005 }
     ],
     mastercallback: async ({ errorer, self }) => {
         let result = await errorer.throw_error()
-        // if the result is and error pass the test
-        expect(result).to.be.an.instanceof(Error)
-        console.log(`[${process.argv[1].split('/').pop()}] ✅ Error object was returned`)
+        expect(result).to.be.null
+        console.log(`[${process.argv[1].split('/').pop()}] ✅ Error was ignored, null returned`)
         await errorer.exit()
         await self.exit()
     },
     options: {
         host: 'localhost',
-        port: 3002,
-        onError: 'return',
+        port: 3004,
+        onError: 'ignore',
     }
 })
 test_service.start()
 
-// this is the service we will use to throw an error
 let error_service = new Service({
     service_name: 'errorer',
     peerServicesAddresses: [],
     slaveMethods: {
         'throw_error': async () => { throw new Error('this is an error') }
-    }, // the methods that the slaves will
+    },
     options: {
         host: 'localhost',
-        port: 3003,
+        port: 3005,
         number_of_nodes: 4,
     }
 });

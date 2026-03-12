@@ -3,7 +3,7 @@ import type { Request } from './types/index.js';
 type RequestQueueOptions = {
     heartbeat?: number;
     requestTimeout?: number; // Timeout for requests
-    onError?: 'throw' | 'log' | 'ignore';
+    onError?: 'throw' | 'log' | 'ignore' | 'return';
 }
 
 type RequestQueueParameters = {

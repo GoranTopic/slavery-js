@@ -113,8 +113,9 @@ class ServiceClient {
             console.error(error);
             return error;
         }
-        // 'ignore': return error to caller without throwing
-        return error;
+        if (mode === 'return') return error;
+        if (mode === 'ignore') return null;
+        throw error;
     }
     
 }

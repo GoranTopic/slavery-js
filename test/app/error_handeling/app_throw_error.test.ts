@@ -21,7 +21,10 @@ entry({
         await errorer.throw_error(2)
             .then((result: any) => {
                 console.log('result: ' + result)
-            })
+            }).catch((err: Error) => {
+                expect(err).to.be.an.instanceof(Error)
+                console.log(`[${process.argv[1].split('/').pop()}] ✅ Error was thrown and caught successfully`)
+            });
         await errorer.exit()
         await self.exit()
     }, { onError: 'throw' })
