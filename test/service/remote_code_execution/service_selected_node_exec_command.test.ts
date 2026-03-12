@@ -13,6 +13,7 @@ let main_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3004 }
     ], 
     mastercallback: async ({ remote_executioner, awaiter, self}) => {
+        try{
         console.log(`[${process.argv[1].split('/').pop()}] testing remote arbitrary code execution on a selected node`)
         // select a node
         await awaiter._number_of_nodes_connected(1);
@@ -55,10 +56,14 @@ let main_service = new Service({
         expect(res.id).to.be.equal(node_id)
         expect(res.value).to.be.equal(2)
         console.log(`[${process.argv[1].split('/').pop()}] ✅ arbitrary code execution on selected node works correctly`)
+        }catch(e){
+        console.log(`[${process.argv[1].split('/').pop()}] ❌ arbitrary code execution on selected node works correctly:` + e)
+        }finally{
         // exit
         await remote_executioner.exit()
         await awaiter.exit()
         await self.exit()
+        }
     },
     options: {
         host: 'localhost',

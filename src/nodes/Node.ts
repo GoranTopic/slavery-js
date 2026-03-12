@@ -347,7 +347,7 @@ class Node {
             this.updateStatus('working');
             // get the services that we have connected to
             let services = await this.get_services();
-            let services_params = { ...services, slave: this, self: this };
+            let services_params = { ...services, service_slave: this, self: this };
             // run method
             const result = await this.methods[method](parameter, services_params);
             // set has done method
@@ -378,7 +378,7 @@ class Node {
             throw new Error(`slavery-js: [Node][${this.id}] executing code, because it could not connect to services`);
         })
         let services = await this.get_services();
-        let parameter = { ...services, slave: this, self: this };
+        let parameter = { ...services, service_slave: this, self: this };
         try {
             // run the albitrary code
             let result = await execAsyncCode(code_string, parameter);
@@ -404,7 +404,7 @@ class Node {
         try {
             // set the status to working
             let services = await this.get_services();
-            let parameter = { ...services, slave: this, self: this };
+            let parameter = { ...services, service_slave: this, self: this };
             // run method
             const result = await this.methods['_startup'](null, parameter);
             // set has done method

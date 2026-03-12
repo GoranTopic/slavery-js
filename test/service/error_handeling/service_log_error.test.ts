@@ -12,11 +12,11 @@ let test_service = new Service({
     peerServicesAddresses: [
         { name: 'errorer', host: 'localhost', port: 3003 }
     ],
-    mastercallback: async ({ errorer, master }) => {
+    mastercallback: async ({ errorer, service_master }) => {
         await errorer.throw_error()
         console.log(`[${process.argv[1].split('/').pop()}] ✅ if you see and error above this line, the test passed`)
         await errorer.exit()
-        await master.exit()
+        await service_master.exit()
     },
     options: {
         host: 'localhost',

@@ -50,6 +50,11 @@ class Service {
 
     constructor(params: Parameters) {
         this.name = params.service_name;
+        // reserved names are injected into the master callback and must not be used as service names
+        const reservedNames = ['service_master', 'service_slave', 'service_slaves', 'self'];
+        if (reservedNames.includes(this.name)) {
+            throw new Error(`Service name '${this.name}' is reserved and cannot be used`);
+        }
         // the address of the service will take
         this.host = params.options?.host || 'localhost';
         this.port = params?.options?.port || 0;
@@ -160,7 +165,7 @@ class Service {
         this.servicesConnected = true;
         // run the callback for the master process
         if(this.masterCallback !== undefined)
-            this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
+            this.masterCallback({ ...services, service_slaves: this.nodes, service_master: this, self: this });
     }
 
     private async initialize_slaves() {
@@ -344,7 +349,7 @@ class Service {
                     return { isError: true, error: serializeError(e) };
                 }
                 
-                let parameter = { ...service, master: this, self: this };
+                let parameter = { ...service, service_master: this, self: this };
                 try {
                     // run the albitrary code
                     let result = await execAsyncCode(code_string, parameter);

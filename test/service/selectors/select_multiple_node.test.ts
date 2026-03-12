@@ -63,16 +63,16 @@ let awaiter_service = new Service({
         { name: 'test', host: 'localhost', port: 3002 },
     ],
     slaveMethods: {
-        'getId': (params, {slave}) => { return slave.id },
-        'setup': async (params, {slave}) => {
-            slave.wait = async (s: number) : Promise<number> => new Promise( r => setTimeout( () => r(s), s * 1000))
-            return 'setup done ' + slave.id;
+        'getId': (params, {service_slave}) => { return service_slave.id },
+        'setup': async (params, {service_slave}) => {
+            service_slave.wait = async (s: number) : Promise<number> => new Promise( r => setTimeout( () => r(s), s * 1000))
+            return 'setup done ' + service_slave.id;
         },
-        'wait': async (wating_time: number, { slave }) => {
-            let s = await slave.wait(wating_time)
-            return `waited for ${s} seconds, 😄 ` + slave.id;
+        'wait': async (wating_time: number, { service_slave }) => {
+            let s = await service_slave.wait(wating_time)
+            return `waited for ${s} seconds, 😄 ` + service_slave.id;
         },
-        'close': async ({}, {slave}) => { return slave['wait'] = undefined },
+        'close': async ({}, {service_slave}) => { return service_slave['wait'] = undefined },
     },
     options: {
         host: 'localhost',

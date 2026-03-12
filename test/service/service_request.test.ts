@@ -57,10 +57,10 @@ let awaiter_service = new Service({
         { name: 'tester', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
-        'wait': async (wating_time: number, { slave }) => {
+        'wait': async (wating_time: number, { service_slave }) => {
             // count sum of numbers
-            slave['wait_function'] = wait_function
-            let s = await slave['wait_function'](wating_time)
+            service_slave['wait_function'] = wait_function
+            let s = await service_slave['wait_function'](wating_time)
             // run some code
             if( s > 7 ) return `waited for ${s} seconds, 😡`
             else if( s > 5 ) return `waited for ${s} seconds, 😐`

@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import extractFunctions from '../../../src/app/extractFunctions';
 
 const code = `
-function hello(value, {hello, word, logger, master}){
+function hello(value, {hello, word, logger, service_master}){
     // some code 
     1 + 4;
     let internal = 5;
@@ -42,7 +42,7 @@ const result = extractFunctions(code);
 const outer = result.outer_function.toString();
 
 // Check outer function includes only the non-inner-function code
-expect(outer).to.include('function hello(value, {hello, word, logger, master})');
+expect(outer).to.include('function hello(value, {hello, word, logger, service_master})');
 expect(outer).to.include('1 + 4;');
 expect(outer).to.include('let internal = 5;');
 expect(outer).to.include('let internal2 = 10;');

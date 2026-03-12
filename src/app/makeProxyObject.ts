@@ -3,12 +3,12 @@
  * it allows the api to have a syntax of:
  *
  * proxy
- *  .master( (master) => {
- *      console.log(master)
+ *  .master( (service_master) => {
+ *      console.log(service_master)
  *      console.log('some function')
  *  })
- *  .slave( slave => {
- *      console.log('something else', slave)
+ *  .slave( service_slave => {
+ *      console.log('something else', service_slave)
  *  }, 9090, 'someArgString')
  *  .yetAnotherMethod();
  */

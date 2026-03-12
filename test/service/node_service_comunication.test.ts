@@ -16,7 +16,7 @@ let test_service = new Service({
         { name: 'awaiter', host: 'localhost', port: 3003 },
         { name: 'logger', host: 'localhost', port: 3004 }
     ],
-    mastercallback: async ({ awaiter, logger, master }) => {
+    mastercallback: async ({ awaiter, logger, service_master }) => {
         console.log(`[${process.argv[1].split('/').pop()}] starting test, node communication with a service`)
         let start = performance.now();
         await Promise.all( [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ].map(
@@ -31,7 +31,7 @@ let test_service = new Service({
         // this will send a signal to exit every node and every service
         await awaiter.exit();
         await logger.exit();
-        await master.exit();
+        await service_master.exit();
     },
     options: {
         host: 'localhost',

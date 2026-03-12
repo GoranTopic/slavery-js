@@ -33,14 +33,14 @@ let awaiter_service = new Service({
         { name: 'tester', host: 'localhost', port: 3002 }
     ],
     slaveMethods: {
-        '_startup': (params: any , { slave }) => {
+        '_startup': (params: any , { service_slave }) => {
             console.log(`[${process.argv[1].split('/').pop()}] _startup function ran`)
-            slave['wait_function'] = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
+            service_slave['wait_function'] = (s: number) => new Promise( r => { setTimeout( () => { r(s) }, s * 1000) })
         },
         // will be called when the service is started
-        'wait': async (wating_time: number, { slave }) => {
+        'wait': async (wating_time: number, { service_slave }) => {
             // count sum of numbers
-            return await slave['wait_function'](wating_time)
+            return await service_slave['wait_function'](wating_time)
         }, 
         '_cleanup': async (params: any, salve: any) => {
             console.log(`[${process.argv[1].split('/').pop()}] ✅ the _cleanup function was called`)
