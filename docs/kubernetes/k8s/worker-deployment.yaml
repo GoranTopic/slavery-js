@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slavery-worker
+  namespace: slavery
+  labels:
+    app: slavery-worker
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: worker
+spec:
+  # replicas is intentionally omitted — managed by the HPA / KEDA ScaledObject.
+  # Setting it here would fight with the autoscaler on every kubectl apply.
+  selector:
+    matchLabels:
+      app: slavery-worker
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  template:
+    metadata:
+      labels:
+        app: slavery-worker
+        app.kubernetes.io/name: slavery-js
+        app.kubernetes.io/component: worker
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: slavery-js/worker:local
+          imagePullPolicy: Always
+          args: ["--enable-source-maps", "dist/distributed/worker-process.js"]
+          ports:
+            - name: health
+              containerPort: 3001
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: slavery-config
+            - secretRef:
+                name: slavery-secrets
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+              ephemeral-storage: "64Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+              ephemeral-storage: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /health
+              port: health
+            failureThreshold: 15
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            initialDelaySeconds: 0
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 2
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "10"]

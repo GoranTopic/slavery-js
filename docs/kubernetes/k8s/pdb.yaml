@@ -1,0 +1,46 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: slavery-api-pdb
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: slavery-api
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: slavery-worker-pdb
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: worker
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: slavery-worker
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: slavery-redis-pdb
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: redis
+spec:
+  # Single-replica Redis: maxUnavailable 0 prevents involuntary disruption.
+  # Change to minAvailable: 1 if you scale Redis to 3+ replicas.
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: redis

@@ -1,0 +1,41 @@
+# ── KEDA ScaledObject — queue-depth-based autoscaling ─────────────────────────
+# Prerequisite: install KEDA in your cluster:
+#   helm repo add kedacore https://kedacore.github.io/charts
+#   helm install keda kedacore/keda --namespace keda --create-namespace
+#
+# This ScaledObject scales workers to 0 when the queue is empty and up to 20
+# when each pod's share of waiting jobs exceeds the threshold.
+#
+# If you use this, REMOVE the HPA (worker-hpa.yaml) — they conflict.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: slavery-worker-keda
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: slavery-worker
+  minReplicaCount: 1      # Set to 0 to scale to zero when queue is empty
+  maxReplicaCount: 20
+  pollingInterval: 5      # Check queue every 5 seconds
+  cooldownPeriod: 30      # Wait 30s after last job before scaling down
+  triggers:
+    - type: redis
+      metadata:
+        # Adjust listName to match your SERVICE_NAME and method name.
+        # Pattern: bull:{SERVICE_NAME}--{method}:wait  (note '--' separator)
+        listName: "bull:slavery-example--compute:wait"
+        listLength: "5"          # Target: 5 jobs per replica
+        address: redis-service.slavery.svc.cluster.local:6379
+        # passwordFromEnv: REDIS_PASSWORD   # Uncomment if Redis has auth
+    # Add more triggers for other slave methods:
+    # - type: redis
+    #   metadata:
+    #     listName: "bull:slavery-example--process:wait"
+    #     listLength: "5"
+    #     address: redis-service.slavery.svc.cluster.local:6379

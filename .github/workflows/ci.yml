@@ -1,0 +1,267 @@
+name: CI / CD
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+# ── Jobs ───────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ── 1a. Monolithic tests (no Redis) ────────────────────────────────────────
+  test:
+    name: Monolithic tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["20", "22"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Run monolithic tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+  # ── 1b. Distributed tests (need Redis) ─────────────────────────────────────
+  test-distributed:
+    name: Distributed tests (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["20", "22"]
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run distributed tests
+        run: npm run test:distributed
+        env:
+          NODE_ENV: test
+          REDIS_URL: redis://localhost:6379
+
+  # ── 1c. K8s manifest validation ────────────────────────────────────────────
+  test-k8s-manifests:
+    name: Validate K8s manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: latest
+
+      - name: Validate manifests (dry-run, offline)
+        # --validate=false skips OpenAPI download — no cluster needed.
+        # Schema validation is handled by kubeconform in the next step.
+        run: |
+          kubectl apply --dry-run=client --validate=false \
+            -f examples/kubernetes/k8s/namespace.yaml
+          for f in examples/kubernetes/k8s/*.yaml; do
+            kubectl apply --dry-run=client --validate=false -f "$f"
+          done
+
+      - name: Install kubeconform + kube-score
+        run: |
+          # kubeconform — offline schema validation
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz kubeconform
+          chmod +x kubeconform && sudo mv kubeconform /usr/local/bin/
+          # kube-score — best-practice analysis
+          curl -sL https://github.com/zegl/kube-score/releases/latest/download/kube-score_linux_amd64.tar.gz \
+            | tar xz kube-score
+          chmod +x kube-score && sudo mv kube-score /usr/local/bin/
+
+      - name: kubeconform schema validation
+        run: |
+          for f in examples/kubernetes/k8s/*.yaml; do
+            kubeconform -strict -ignore-missing-schemas "$f"
+          done
+
+      - name: kube-score best-practice analysis
+        # Informational only — doesn't fail the build
+        run: |
+          ls examples/kubernetes/k8s/*.yaml | grep -v keda \
+            | xargs kube-score score --ignore-test=container-image-tag || true
+
+  # ── 2. Build library ────────────────────────────────────────────────────────
+  build-lib:
+    name: Build library
+    runs-on: ubuntu-latest
+    needs: [test, test-distributed, test-k8s-manifests]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ── 3. Build & push Docker images (on push to master only) ─────────────────
+  docker:
+    name: Build & push Docker images
+    runs-on: ubuntu-latest
+    needs: [test, test-distributed, test-k8s-manifests, build-lib]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── API image ────────────────────────────────────────────────────────────
+      - name: Docker metadata (API)
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+      # ── Worker image ─────────────────────────────────────────────────────────
+      - name: Docker metadata (Worker)
+        id: meta-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.worker
+          push: true
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,scope=worker,mode=max
+
+      - name: Summary
+        run: |
+          echo "### Docker images pushed" >> $GITHUB_STEP_SUMMARY
+          echo "- API:    ${{ steps.meta-api.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Worker: ${{ steps.meta-worker.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+  # ── 4. Deploy to Kubernetes (requires KUBECONFIG secret) ───────────────────
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/master'
+    environment: production       # Require manual approval in GitHub Environments
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: latest
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Update image tags
+        run: |
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          kubectl set image deployment/slavery-api \
+            api=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api:${SHA} \
+            -n slavery
+          kubectl set image deployment/slavery-worker \
+            worker=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/worker:${SHA} \
+            -n slavery
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/slavery-api   -n slavery --timeout=120s
+          kubectl rollout status deployment/slavery-worker -n slavery --timeout=120s
+
+      - name: Smoke test
+        run: |
+          kubectl run smoke-test --rm -i --restart=Never \
+            --image=curlimages/curl:latest \
+            --namespace=slavery \
+            -- curl -sf http://slavery-api/health

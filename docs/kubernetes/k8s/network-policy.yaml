@@ -1,0 +1,106 @@
+---
+# ── NetworkPolicy for API pods ────────────────────────────────────────────────
+# API pods may:
+#   - receive traffic from anywhere (Ingress/LoadBalancer) on port 3000
+#   - connect outbound to Redis (port 6379) within the namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: slavery-api
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: api
+spec:
+  podSelector:
+    matchLabels:
+      app: slavery-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: 3000
+          protocol: TCP
+  egress:
+    # Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+---
+# ── NetworkPolicy for worker pods ─────────────────────────────────────────────
+# Workers have no inbound traffic (health port 3001 is pod-internal only).
+# They only need outbound access to Redis.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: slavery-worker
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: worker
+spec:
+  podSelector:
+    matchLabels:
+      app: slavery-worker
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only allow kubelet health probes (no port restriction = kubelet on node)
+    - {}
+  egress:
+    # Redis
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+
+---
+# ── NetworkPolicy for Redis ───────────────────────────────────────────────────
+# Redis only accepts connections from API and worker pods.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: slavery-redis
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: slavery-api
+        - podSelector:
+            matchLabels:
+              app: slavery-worker
+      ports:
+        - port: 6379
+          protocol: TCP

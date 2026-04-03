@@ -1,0 +1,44 @@
+# ── Standard HPA (CPU/memory) ─────────────────────────────────────────────────
+# Scales workers based on CPU utilisation.
+# For queue-depth-based scaling, use keda-scaledobject.yaml instead.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: slavery-worker-hpa
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: worker
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: slavery-worker
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30      # React quickly to bursts
+      policies:
+        - type: Percent
+          value: 100                      # Double replicas at most per window
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 120     # Be conservative on scale-down
+      policies:
+        - type: Percent
+          value: 25
+          periodSeconds: 60

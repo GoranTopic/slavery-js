@@ -1,0 +1,76 @@
+version: '3.9'
+
+# ── Local development stack ────────────────────────────────────────────────────
+# Mirrors the Kubernetes topology: Redis + API pod + N worker pods.
+#
+#   docker compose up --build
+#   docker compose up --scale worker=4   # spin up 4 worker replicas
+#   docker compose down -v               # tear down + wipe volumes
+
+services:
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── API / master service ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      SERVICE_NAME: slavery-example
+      REDIS_URL: redis://redis:6379
+      PORT: "3000"
+      TIMEOUT_MS: "30000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Worker pods ───────────────────────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      NODE_ENV: development
+      SERVICE_NAME: slavery-example
+      REDIS_URL: redis://redis:6379
+      WORKER_CONCURRENCY: "2"
+      HEALTH_PORT: "3001"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    # Scale locally: docker compose up --scale worker=4
+    deploy:
+      replicas: 2
+
+volumes:
+  redis-data:
+    driver: local

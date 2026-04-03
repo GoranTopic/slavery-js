@@ -1,0 +1,50 @@
+# ── Kubernetes smoke-test Job ──────────────────────────────────────────────────
+# Runs after each deploy to verify the API pod is healthy and the worker
+# round-trip works.  Execute with:
+#
+#   kubectl apply  -f k8s/smoke-test-job.yaml
+#   kubectl wait job/slavery-smoke-test --for=condition=complete -n slavery --timeout=60s
+#   kubectl logs  job/slavery-smoke-test -n slavery
+#   kubectl delete job/slavery-smoke-test -n slavery
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slavery-smoke-test
+  namespace: slavery
+  labels:
+    app.kubernetes.io/name: slavery-js
+    app.kubernetes.io/component: smoke-test
+spec:
+  ttlSecondsAfterFinished: 300    # auto-delete after 5 min
+  backoffLimit: 0                  # fail fast — no retries on smoke test
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: smoke-test
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: smoke
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              BASE="http://slavery-api.slavery.svc.cluster.local"
+
+              echo "── health check ─────────────────────────────────"
+              curl -sf "${BASE}/health" | grep '"status":"healthy"'
+              echo "  ✅ /health"
+
+              echo "── readiness check ──────────────────────────────"
+              curl -sf "${BASE}/ready" | grep '"status":"ready"'
+              echo "  ✅ /ready"
+
+              echo "── metrics endpoint ─────────────────────────────"
+              curl -sf "${BASE}/metrics" | grep 'slavery_uptime_seconds'
+              echo "  ✅ /metrics"
+
+              echo ""
+              echo "✅ smoke test passed"

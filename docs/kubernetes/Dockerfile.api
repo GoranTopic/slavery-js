@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1.4
+#
+# Template Dockerfile for the API (master) container of a project that uses slavery-js.
+# Build context must be your project root, NOT this directory:
+#
+#   docker build -f examples/kubernetes/Dockerfile.api -t my-app-api .
+#
+# ── Stage 1: install all deps (build tools needed) ────────────────────────────
+FROM node:22-slim AS deps
+WORKDIR /app
+# Patch OS packages in the build stage to clear known CVEs.
+# This layer is discarded in the final distroless image.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci
+
+# ── Stage 2: compile TypeScript ───────────────────────────────────────────────
+FROM deps AS builder
+COPY tsconfig.json tsup.config.ts ./
+COPY src/ ./src/
+RUN npm run build
+
+# ── Stage 3: install production deps only ─────────────────────────────────────
+FROM node:22-slim AS prod-deps
+WORKDIR /app
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
+COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+# ── Stage 4: distroless runtime ───────────────────────────────────────────────
+# gcr.io/distroless/nodejs22-debian12 contains ONLY the Node.js runtime.
+# No shell, no package manager, no wget — minimal CVE surface.
+# Kubernetes liveness/readiness probes hit /health over HTTP directly,
+# so no in-container health-check binary is needed.
+FROM gcr.io/distroless/nodejs22-debian12 AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder   /app/dist         ./dist
+
+# distroless runs as nonroot (uid 65532) by default
+EXPOSE 3000
+
+# With distroless the entrypoint is already /nodejs/bin/node;
+# CMD supplies the arguments.
+CMD ["--enable-source-maps", "dist/distributed/api-server.js"]

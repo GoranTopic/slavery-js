@@ -16,7 +16,10 @@
     },
     "scripts": {
         "start": "tsx ./src/index.ts",
-        "test": "find ./test/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; tsx \"$0\"'",
+        "test": "find ./test/ -type f -name '*.test.ts' ! -path '*/distributed/*' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; tsx \"$0\"'",
+        "test:distributed": "find ./test/distributed/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; tsx \"$0\"'",
+        "test:all": "npm test && npm run test:distributed",
+        "test:k8s": "bash examples/kubernetes/validate-manifests.sh",
         "build": "tsup",
         "dev": "tsup --watch"
     },
@@ -43,8 +46,10 @@
     },
     "homepage": "https://github.com/GoranTopic/slavery-js#readme",
     "dependencies": {
+        "bullmq": "^5.0.0",
         "esprima": "^4.0.1",
         "get-port": "^7.1.0",
+        "ioredis": "^5.0.0",
         "ip": "^2.0.1",
         "json-stringify-safe": "^5.0.1",
         "serialize-error": "^11.0.0",
