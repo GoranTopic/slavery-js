@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: slavery
-  labels:
-    app.kubernetes.io/managed-by: kubectl
-    app.kubernetes.io/name: slavery-js

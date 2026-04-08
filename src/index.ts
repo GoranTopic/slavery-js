@@ -14,4 +14,8 @@ export default entry
 
 export { Service, Node, PeerDiscoverer }
 
+// Distributed mode (Redis/BullMQ)
+export { DistributedService, DistributedWorker, RedisQueue, RedisStash } from './distributed/index.js'
+export type { DistributedServiceOptions, DistributedWorkerOptions, SlaveMethods, SlaveMethod, JobPayload } from './distributed/index.js'
+
 

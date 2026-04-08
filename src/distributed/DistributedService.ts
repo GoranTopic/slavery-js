@@ -23,6 +23,10 @@ export interface DistributedServiceOptions {
  * (BullMQ) and waits for results.  Workers running in separate containers
  * (DistributedWorker) pull and process jobs asynchronously.
  *
+ * Container orchestration (spawn / scale / remove workers) is handled by
+ * the Cluster class in src/cluster/ProcessCluster.ts with mode 'docker'
+ * or 'k8s'.
+ *
  * Health endpoints are served on the configured HTTP port so Kubernetes
  * liveness/readiness probes work out of the box.
  */
@@ -37,7 +41,7 @@ export class DistributedService {
   private readonly startTime = Date.now();
 
   constructor(options: DistributedServiceOptions) {
-    this.name = options.serviceName;
+    this.name    = options.serviceName;
     this.timeout = options.timeout ?? 30_000;
 
     // BullMQ requires maxRetriesPerRequest: null
@@ -46,7 +50,7 @@ export class DistributedService {
     this.server = this.createHttpServer(options.port ?? 3000);
 
     this.redis.on('error', (err: Error) =>
-      this.log('error', 'redis_error', { message: (err as Error).message }),
+      this.log('error', 'redis_error', { message: err.message }),
     );
     this.log('info', 'service_started', { service: this.name });
   }
@@ -58,7 +62,7 @@ export class DistributedService {
    * Mirrors the existing service.methodName(params) call pattern.
    */
   async run<T = unknown>(method: string, parameters: unknown): Promise<T> {
-    const queue = this.getQueue(method);
+    const queue  = this.getQueue(method);
     const events = this.getQueueEvents(method);
     const payload: JobPayload = { method, parameters };
     const job = await queue.add(payload);
@@ -86,7 +90,6 @@ export class DistributedService {
   // ── Internals ─────────────────────────────────────────────────────────────
 
   private getQueue(method: string): RedisQueue {
-    // BullMQ forbids ':' in queue names — use '--' as separator.
     const key = `${this.name}--${method}`;
     if (!this.queues.has(key)) {
       this.queues.set(key, new RedisQueue(key, this.redis));
@@ -95,12 +98,10 @@ export class DistributedService {
   }
 
   private getQueueEvents(method: string): QueueEvents {
-    // BullMQ forbids ':' in queue names — use '--' as separator.
     const key = `${this.name}--${method}`;
     if (!this.queueEvents.has(key)) {
-      // QueueEvents needs its own blocking connection (SUBSCRIBE)
       const conn = new Redis(this.redis.options);
-      const ev = new QueueEvents(key, { connection: conn });
+      const ev   = new QueueEvents(key, { connection: conn });
       this.queueEvents.set(key, ev);
     }
     return this.queueEvents.get(key)!;
@@ -113,10 +114,7 @@ export class DistributedService {
       if (url === '/health' || url === '/healthz') {
         try {
           await this.redis.ping();
-          this.json(res, 200, {
-            status: 'healthy',
-            uptime_ms: Date.now() - this.startTime,
-          });
+          this.json(res, 200, { status: 'healthy', uptime_ms: Date.now() - this.startTime });
         } catch {
           this.json(res, 503, { status: 'unhealthy', reason: 'redis_unreachable' });
         }
@@ -130,9 +128,7 @@ export class DistributedService {
       }
     });
 
-    server.listen(port, () =>
-      this.log('info', 'http_server_listening', { port }),
-    );
+    server.listen(port, () => this.log('info', 'http_server_listening', { port }));
     return server;
   }
 
@@ -175,14 +171,8 @@ export class DistributedService {
   }
 
   private log(level: string, event: string, extra: object): void {
-    console.log(
-      JSON.stringify({
-        level,
-        event,
-        service: this.name,
-        ts: new Date().toISOString(),
-        ...extra,
-      }),
-    );
+    console.log(JSON.stringify({
+      level, event, service: this.name, ts: new Date().toISOString(), ...extra,
+    }));
   }
 }

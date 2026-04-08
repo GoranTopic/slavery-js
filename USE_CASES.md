@@ -1,357 +1,264 @@
-# slavery-js — Casos de uso
+# slavery-js — Caso de uso: pipeline distribuido en Kubernetes
 
-Guía práctica de para qué sirve la librería y cómo usarla en proyectos reales.
-
----
-
-## ¿Para qué sirve?
-
-`slavery-js` es una librería de clustering para Node.js. Permite dividir el trabajo entre **múltiples procesos** que corren en paralelo, ya sea en la misma máquina o en distintas máquinas/contenedores.
-
-El problema que resuelve: Node.js es single-threaded. Una tarea pesada (imagen, video, IA, cálculo) bloquea toda la aplicación. Con `slavery-js` esa tarea se delega a un worker, el proceso principal sigue respondiendo, y múltiples workers la procesan en paralelo.
+Sistema de procesamiento de reportes donde **slavery-js es el contenedor primario** que orquesta toda la infraestructura. Tú solo levantas ese contenedor — él hace el resto.
 
 ---
 
-## Dos modos de uso
+## La jerarquía
 
-| Modo | Cuándo usarlo |
-|---|---|
-| **Monolítico** (`Service` / entry API) | Todo corre en la misma máquina con `cluster.fork()` |
-| **Distribuido** (`DistributedService` + `DistributedWorker`) | Workers en contenedores/servidores separados, coordinados por Redis |
-
----
-
-## Modo monolítico
-
-### Caso 1 — Pipeline de procesamiento de imágenes
-
-Un servidor web recibe imágenes, las pone en cola y workers paralelos las procesan (resize, compresión, marca de agua). El servidor principal nunca se bloquea.
-
-```typescript
-import slavery from 'slavery-js';
-import sharp from 'sharp';
-
-slavery({ host: 'localhost', port: 3000 })
-  .imageProcessor(
-    // masterCallback — recibe trabajos del servidor HTTP
-    async ({ self, imageProcessor }) => {
-      const express = (await import('express')).default;
-      const app = express();
-
-      app.post('/upload', async (req, res) => {
-        const result = await imageProcessor.resize({
-          buffer: req.body,
-          width: 800,
-        });
-        res.json({ url: result.url });
-      });
-
-      app.listen(8080);
-    },
-    // slaveMethods — corren en workers paralelos
-    {
-      resize: async ({ buffer, width }, { slave }) => {
-        const output = await sharp(buffer).resize(width).toBuffer();
-        return { url: await uploadToS3(output) };
-      },
-    },
-    // opciones
-    { number_of_nodes: 4, auto_scale: true, max_number_of_nodes: 8 }
-  );
+```
+[tú]
+  └── kubectl apply -f slavery-deployment.yaml
+        └── [slavery — primary]
+              ├── spawnMaster('reports')  → Deployment k8s
+              │     └── spawnProcess('send-email')  → Job k8s (efímero)
+              ├── spawnMaster('notify')   → Deployment k8s
+              └── spawnMaster('storage')  → Deployment k8s
 ```
 
-**Beneficio:** Con `auto_scale: true`, si llegan muchas imágenes a la vez el sistema crea más workers automáticamente. Cuando baja la carga los elimina.
+- **primary** — el contenedor de slavery-js. Lo levantas tú una sola vez. Configura y levanta los masters automáticamente al iniciar.
+- **master** — contenedor persistente levantado por el primary. Cada master importa slavery-js y procesa trabajo. Cuando necesita ejecutar una tarea puntual, lanza un process.
+- **process** — Job efímero de Kubernetes lanzado por un master. Ejecuta una tarea y se auto-elimina.
 
 ---
 
-### Caso 2 — Múltiples servicios que se comunican entre sí
+## Paso 1 — El primary (slavery)
 
-Un sistema de e-commerce con tres servicios independientes que se llaman entre sí: `orders`, `inventory`, `notifications`.
-
-```typescript
-import slavery from 'slavery-js';
-
-slavery({ host: 'localhost', port: 3000 })
-  // Servicio de inventario
-  .inventory(
-    () => {}, // sin lógica en el master, solo expone métodos
-    {
-      checkStock: async ({ productId }) => {
-        return await db.query('SELECT stock FROM products WHERE id = ?', [productId]);
-      },
-      decrementStock: async ({ productId, qty }) => {
-        await db.query('UPDATE products SET stock = stock - ? WHERE id = ?', [qty, productId]);
-        return true;
-      },
-    }
-  )
-  // Servicio de notificaciones
-  .notifications(
-    () => {},
-    {
-      sendEmail: async ({ to, subject, body }) => {
-        await mailer.send({ to, subject, body });
-        return 'sent';
-      },
-    }
-  )
-  // Servicio de órdenes — orquesta los otros dos
-  .orders(
-    async ({ inventory, notifications, self }) => {
-      const express = (await import('express')).default;
-      const app = express();
-
-      app.post('/order', async (req, res) => {
-        const { productId, qty, email } = req.body;
-
-        // Llama al servicio de inventario
-        const stock = await inventory.checkStock({ productId });
-        if (stock < qty) return res.status(409).json({ error: 'Sin stock' });
-
-        await inventory.decrementStock({ productId, qty });
-
-        // Llama al servicio de notificaciones
-        await notifications.sendEmail({
-          to: email,
-          subject: 'Orden confirmada',
-          body: `Tu orden de ${qty} unidades fue procesada.`,
-        });
-
-        res.json({ ok: true });
-      });
-
-      app.listen(8080);
-    }
-  );
-```
-
-**Beneficio:** Cada servicio corre en su propio proceso. Un error en `notifications` no derriba `orders`. Los servicios se descubren automáticamente con peer discovery.
-
----
-
-### Caso 3 — Worker pool con estado compartido (Stash)
-
-Un scraper paralelo donde los workers comparten una lista de URLs ya visitadas para no procesarlas dos veces.
+Este es el único contenedor que tú despliegas. Al arrancar, configura el cluster en modo `k8s` y levanta los masters automáticamente.
 
 ```typescript
-import { Service } from 'slavery-js';
+// src/primary.ts  ← CMD del contenedor slavery
+import Cluster from 'slavery-js/cluster';
 
-const scraper = new Service({
-  service_name: 'scraper',
-  mastercallback: async ({ self, slaves }) => {
-    // Inicializa la lista de visitados en el stash compartido
-    await self.set('visited', []);
-
-    const urls = await fetchUrlsToScrape();
-
-    // Despacha trabajo a workers en paralelo
-    await Promise.all(
-      urls.map(async (url) => {
-        const worker = await slaves.getIdle();
-        return worker.run('scrape', { url });
-      })
-    );
-
-    const results = await self.get('results');
-    await saveResults(results);
-    await self.exit();
-  },
-  slaveMethods: {
-    scrape: async ({ url }, { self }) => {
-      // Lee el stash compartido entre todos los workers
-      const visited = await self.get('visited') as string[];
-      if (visited.includes(url)) return null;
-
-      const data = await fetch(url).then(r => r.json());
-
-      // Actualiza el stash — el master lo persiste
-      await self.set('visited', [...visited, url]);
-      const results = await self.get('results') ?? [];
-      await self.set('results', [...results, data]);
-
-      return data;
+const cluster = new Cluster({
+  mode: 'k8s',
+  node: {
+    // config base compartida por todos los nodos
+    serviceName: 'reports-app',
+    redisUrl:    'redis://redis-master.reports-app:6379',
+    namespace:   'reports-app',
+    resources: {
+      requests: { cpu: '200m', memory: '256Mi' },
+      limits:   { cpu: '1',    memory: '512Mi' },
     },
   },
-  options: { number_of_nodes: 6 },
+  services: {
+    // cada master tiene su propia imagen con su lógica
+    reports: { image: 'myorg/reports-master:latest', concurrency: 4 },
+    notify:  { image: 'myorg/notify-master:latest',  concurrency: 2 },
+    storage: { image: 'myorg/storage-master:latest', concurrency: 2 },
+  },
 });
 
-scraper.start();
+// Al iniciar, levanta los masters en Kubernetes — tú no haces nada más
+await cluster.spawnMaster('reports');
+await cluster.spawnMaster('notify');
+await cluster.spawnMaster('storage');
+
+console.log('Primary listo. Masters desplegados en k8s.');
+
+// Opcional: escalar masters según carga
+// await cluster.scaleNodes(3, 'reports');
+
+process.on('SIGTERM', async () => {
+  await cluster.close(); // elimina los masters antes de morir
+  process.exit(0);
+});
 ```
+
+Lo que hace Kubernetes con esto:
+- `spawnMaster('reports')` → crea un `Deployment` llamado `slavery-master-reports-...` en el namespace `reports-app`
+- Ese Deployment usa la imagen `myorg/reports-master:latest` y se reinicia si falla
 
 ---
 
-## Modo distribuido (Kubernetes / microservicios)
+## Paso 2 — Un master (levantado por el primary)
 
-Cuando los workers necesitan escalar horizontalmente en contenedores separados. Usa Redis (BullMQ) como cola en lugar de Socket.IO.
-
-### Caso 4 — API + workers en Kubernetes
-
-**API pod** — recibe requests, encola trabajo:
+Cada master importa slavery-js. Procesa trabajo de la cola y cuando necesita una tarea efímera lanza un process.
 
 ```typescript
-// src/distributed/api-server.ts
-import { DistributedService } from 'slavery-js/distributed';
+// src/masters/reports.ts  ← imagen myorg/reports-master:latest
+import Cluster from 'slavery-js/cluster';
+import { DistributedWorker } from 'slavery-js';
 
-const service = new DistributedService({
-  serviceName: 'video-processor',
-  redisUrl: process.env.REDIS_URL ?? 'redis://redis-service:6379',
-  port: 3000,
-  timeout: 60_000,
+// El master también tiene su propio Cluster para spawner processes
+const cluster = new Cluster({
+  mode: 'k8s',
+  node: {
+    serviceName: 'reports-app',
+    redisUrl:    process.env['REDIS_URL']!,
+    namespace:   'reports-app',
+  },
+  services: {
+    // Los processes que este master puede lanzar
+    'send-email': { image: 'myorg/send-email-process:latest' },
+    'upload-s3':  { image: 'myorg/upload-s3-process:latest' },
+  },
 });
 
-// El master-callback puede enganchar cualquier lógica
-const app = express();
-app.post('/process', async (req, res) => {
-  const result = await service.run('transcode', {
-    videoUrl: req.body.url,
-    format: 'mp4',
-  });
-  res.json(result);
-});
-app.listen(3000);
-```
-
-**Worker pod** — procesa trabajos de la cola:
-
-```typescript
-// src/distributed/worker-process.ts
-import { DistributedWorker } from 'slavery-js/distributed';
-
+// Escucha la cola BullMQ y procesa solicitudes
 const worker = new DistributedWorker({
-  serviceName: 'video-processor',
-  redisUrl: process.env.REDIS_URL ?? 'redis://redis-service:6379',
-  concurrency: 2,
-  healthPort: 3001,
+  serviceName: 'reports',
+  redisUrl:    process.env['REDIS_URL']!,
+  concurrency: parseInt(process.env['WORKER_CONCURRENCY'] ?? '4'),
+  healthPort:  3001,
   methods: {
-    transcode: async ({ videoUrl, format }, { stash, jobId }) => {
-      const result = await ffmpegTranscode(videoUrl, format);
-      await stash.set(`job_${jobId}`, result.path);
-      return result;
+    generate: async ({ userId, type, dateRange }, { stash, jobId }) => {
+      // 1. Genera el reporte
+      const data = await fetchUserData(userId, dateRange);
+      const file = await renderReport(type, data);
+
+      // 2. Guarda en stash para que el process pueda leerlo
+      await stash.set(`report_${jobId}`, { file, userId });
+
+      // 3. Lanza un process efímero para subir a S3 → Job k8s
+      await cluster.spawnProcess('upload-s3', {
+        env: { JOB_ID: jobId, USER_ID: userId },
+      });
+
+      // 4. Lanza otro process efímero para notificar → Job k8s
+      await cluster.spawnProcess('send-email', {
+        env: { JOB_ID: jobId, USER_ID: userId },
+      });
+
+      return { jobId, status: 'processing' };
     },
   },
 });
+
+process.on('SIGTERM', async () => {
+  await worker.close();
+  await cluster.close();
+  process.exit(0);
+});
 ```
 
-**Escalar workers** sin tocar el código:
+---
+
+## Paso 3 — Un process efímero (lanzado por el master)
+
+Cuando el master llama `cluster.spawnProcess('send-email')`, Kubernetes crea un **Job**. Este script corre, hace su trabajo, y el Job se marca `Completed` y se borra solo en 60 segundos.
+
+```typescript
+// src/processes/send-email.ts  ← imagen myorg/send-email-process:latest
+import { RedisStash } from 'slavery-js';
+import { Redis } from 'ioredis';
+
+const redis = new Redis(process.env['REDIS_URL']!);
+const stash = new RedisStash(redis, 'reports-app');
+
+// Lee el contexto guardado por el master en el stash
+const jobId  = process.env['JOB_ID']!;
+const userId = process.env['USER_ID']!;
+const data   = await stash.get(`report_${jobId}`) as { file: Buffer; userId: string };
+
+// Hace su tarea y muere
+await sendEmail({
+  to:      `${userId}@company.com`,
+  subject: 'Tu reporte está listo',
+  attachment: data.file,
+});
+
+console.log(`Email enviado para job ${jobId}`);
+redis.disconnect();
+process.exit(0); // Job → Completed → k8s lo borra en 60s
+```
+
+---
+
+## Paso 4 — Desplegar
+
+Solo despliegas **un** contenedor — el primary. Él hace el resto.
 
 ```bash
-kubectl scale deployment video-worker --replicas=10
+# Construir todas las imágenes
+docker build -f Dockerfile.primary    -t myorg/slavery-primary:latest       .
+docker build -f Dockerfile.reports    -t myorg/reports-master:latest        .
+docker build -f Dockerfile.notify     -t myorg/notify-master:latest         .
+docker build -f Dockerfile.storage    -t myorg/storage-master:latest        .
+docker build -f Dockerfile.send-email -t myorg/send-email-process:latest    .
+docker build -f Dockerfile.upload-s3  -t myorg/upload-s3-process:latest     .
+
+docker push myorg/slavery-primary:latest
+# ... push del resto
+
+# Desplegar solo el primary — él levanta masters automáticamente
+kubectl apply -f k8s/slavery-deployment.yaml -n reports-app
 ```
 
-**Beneficio:** La API y los workers son contenedores independientes. Se escalan por separado. Si un worker pod se cae, BullMQ reencola el trabajo automáticamente (ver `retry.test.ts`).
+```yaml
+# k8s/slavery-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slavery-primary
+  namespace: reports-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slavery-primary
+  template:
+    metadata:
+      labels:
+        app: slavery-primary
+    spec:
+      containers:
+        - name: primary
+          image: myorg/slavery-primary:latest
+          env:
+            - name: REDIS_URL
+              value: redis://redis-master.reports-app:6379
+```
 
----
-
-### Caso 5 — Múltiples métodos en el mismo worker
-
-Un worker que expone varias operaciones de procesamiento de datos:
+O generar los YAMLs de los masters desde código (útil para GitOps):
 
 ```typescript
-const worker = new DistributedWorker({
-  serviceName: 'data-pipeline',
-  redisUrl: REDIS_URL,
-  concurrency: 4,
-  methods: {
-    // Cada método va a su propia cola BullMQ: data-pipeline--parse
-    parse: async ({ raw }) => {
-      return JSON.parse(raw);
-    },
+// scripts/generate-manifests.ts
+import Cluster from 'slavery-js/cluster';
 
-    // data-pipeline--transform
-    transform: async ({ record }, { stash }) => {
-      const config = await stash.get('transform_config');
-      return applyTransform(record, config);
-    },
-
-    // data-pipeline--validate
-    validate: async ({ record }) => {
-      const errors = runValidationRules(record);
-      if (errors.length) throw new Error(errors.join(', '));
-      return true;
-    },
+const cluster = new Cluster({
+  mode: 'k8s',
+  node: { serviceName: 'reports-app', redisUrl: '...', namespace: 'reports-app' },
+  services: {
+    reports: { image: 'myorg/reports-master:latest' },
+    notify:  { image: 'myorg/notify-master:latest' },
   },
 });
+
+// Imprime el YAML — no toca el API server
+process.stdout.write(cluster.generateManifest('reports', 'master') + '\n---\n');
+process.stdout.write(cluster.generateManifest('notify',  'master') + '\n');
 ```
 
-Desde la API se orquesta el pipeline en secuencia:
-
-```typescript
-const raw    = await service.run('parse',     { raw: csvLine });
-const record = await service.run('transform', { record: raw });
-await          service.run('validate',         { record });
-```
-
----
-
-### Caso 6 — Reintentos automáticos ante fallos transitorios
-
-BullMQ reintenta automáticamente si el worker falla (conexión caída, timeout externo, etc.).
-
-```typescript
-const worker = new DistributedWorker({
-  serviceName: 'payment-processor',
-  redisUrl: REDIS_URL,
-  methods: {
-    charge: async ({ amount, cardToken }, { jobId }) => {
-      // Si Stripe devuelve un error 503, el job se reintenta
-      const result = await stripe.charges.create({
-        amount,
-        source: cardToken,
-        currency: 'usd',
-      });
-      return result.id;
-    },
-  },
-});
-```
-
-La cola está configurada con reintentos en `RedisQueue`:
-
-```typescript
-// Los jobs fallidos se reintentan hasta 3 veces con backoff exponencial
-new Queue(queueName, {
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 1000 },
-  },
-});
+```bash
+node -r tsx/esm scripts/generate-manifests.ts | kubectl apply -f -
 ```
 
 ---
 
-## Comparativa rápida: ¿qué modo usar?
+## Qué crea cada llamada en Kubernetes
 
-| Escenario | Modo recomendado |
-|---|---|
-| App en un solo servidor, quiero usar todos los cores | Monolítico (`Service` + `cluster.fork`) |
-| Múltiples servicios en la misma máquina que se llaman entre sí | Monolítico (entry API con peer discovery) |
-| Workers que necesitan escalar en contenedores separados | Distribuido (`DistributedService` + `DistributedWorker`) |
-| Cola de trabajos que persiste aunque se caiga el proceso | Distribuido (BullMQ + Redis persiste la cola) |
-| Tareas lentas (video, ML, PDF) que no deben bloquear la API | Cualquiera de los dos |
-| Múltiples equipos desplegando servicios independientes | Distribuido en Kubernetes |
+| Llamada | K8s resource | Quién la hace | Comportamiento |
+|---|---|---|---|
+| `spawnMaster('reports')` | `Deployment` | primary (slavery) | Persistente, reinicia si falla |
+| `spawnProcess('send-email')` | `Job` | master | Efímero, se borra 60s tras terminar |
+| `scaleNodes(5, 'reports')` | patch `Deployment` | primary o master | Escala réplicas en caliente |
 
 ---
 
-## Patrón de error handling
+## Flujo completo de una solicitud
 
-Ambos modos propagan errores del worker al caller:
-
-```typescript
-try {
-  const result = await service.run('riskyMethod', { input });
-} catch (err) {
-  // El error que lanzó el worker llega aquí
-  console.error('Worker falló:', err.message);
-}
 ```
-
-En el modo monolítico también se puede configurar `onError`:
-
-```typescript
-const service = new Service({
-  // ...
-  options: {
-    onError: 'log',    // 'throw' | 'log' | 'ignore'
-  },
-});
+Cliente POST /reports
+  → primary recibe la solicitud HTTP
+  → encola 'generate' en BullMQ (queue: reports--generate)
+  → master 'reports' toma el job
+      → genera el reporte
+      → guarda en RedisStash
+      → spawnProcess('upload-s3')  → Job k8s nace
+      → spawnProcess('send-email') → Job k8s nace
+  → Job upload-s3:  lee stash → sube a S3 → muere → k8s lo borra
+  → Job send-email: lee stash → envía email → muere → k8s lo borra
+  → primary devuelve { ok: true }
 ```
