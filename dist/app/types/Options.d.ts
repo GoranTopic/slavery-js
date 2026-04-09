@@ -9,9 +9,7 @@ type Options = {
     min_number_of_nodes?: number;
     increase_processes_at_requests?: number;
     decrease_processes_at_idles?: number;
-    throwError?: boolean;
-    returnError?: boolean;
-    logError?: boolean;
+    onError?: 'throw' | 'log' | 'ignore' | 'return';
     auto_scale?: boolean;
 };
 

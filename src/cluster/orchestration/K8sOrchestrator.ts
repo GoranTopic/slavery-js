@@ -64,7 +64,7 @@ export class K8sOrchestrator implements ContainerOrchestrator {
     const role = cfg.role ?? 'master';
 
     if (role === 'process') return this.spawnJob(cfg);
-    return this.spawnDeployment(cfg);
+    return this.spawnDeployment(cfg, role);
   }
 
   async removeNode(id: string): Promise<void> {
@@ -139,21 +139,21 @@ export class K8sOrchestrator implements ContainerOrchestrator {
 
   // ── Private: spawn strategies ───────────────────────────────────────────
 
-  private async spawnDeployment(cfg: NodeConfig): Promise<ContainerInfo> {
-    const name = cfg.name ?? this.nodeName(cfg, 'master');
+  private async spawnDeployment(cfg: NodeConfig, role: NodeRole = 'master'): Promise<ContainerInfo> {
+    const name = cfg.name ?? this.nodeName(cfg, role);
     const body: k8s.V1Deployment = {
       apiVersion: 'apps/v1',
       kind: 'Deployment',
       metadata: {
         name,
         namespace: this.namespace,
-        labels: this.labels(cfg, 'master'),
+        labels: this.labels(cfg, role),
       },
       spec: {
         replicas: cfg.replicas ?? 1,
         selector: { matchLabels: { 'slavery-js.node': name } },
         template: {
-          metadata: { labels: { ...this.labels(cfg, 'master'), 'slavery-js.node': name } },
+          metadata: { labels: { ...this.labels(cfg, role), 'slavery-js.node': name } },
           spec: {
             terminationGracePeriodSeconds: 30,
             containers: [this.containerSpec(cfg)],
@@ -165,7 +165,7 @@ export class K8sOrchestrator implements ContainerOrchestrator {
     const created = await this.appsApi.createNamespacedDeployment({
       namespace: this.namespace, body,
     });
-    return this.deploymentToInfo(created);
+    return this.deploymentToInfo(created, role);
   }
 
   private async spawnJob(cfg: NodeConfig): Promise<ContainerInfo> {
@@ -219,28 +219,42 @@ export class K8sOrchestrator implements ContainerOrchestrator {
 
   private containerSpec(cfg: NodeConfig): k8s.V1Container {
     const port = cfg.healthPort ?? 3001;
-    return {
+    const spec: k8s.V1Container = {
       name:      'worker',
       image:     cfg.image,
+      imagePullPolicy: cfg.imagePullPolicy ?? 'IfNotPresent',
       env:       this.buildEnv(cfg),
       resources: cfg.resources
         ? { requests: cfg.resources.requests, limits: cfg.resources.limits }
         : undefined,
       ports: [{ containerPort: port, name: 'health' }],
-      readinessProbe: {
+    };
+
+    if (cfg.command) spec.command = cfg.command;
+    if (cfg.args)    spec.args = cfg.args;
+
+    // Probes only make sense for long-running workloads (primary / master)
+    const role = cfg.role ?? 'master';
+    if (role !== 'process') {
+      spec.readinessProbe = {
         httpGet: { path: '/ready', port: port as any },
         periodSeconds: 5, failureThreshold: 3,
-      },
-      livenessProbe: {
+      };
+      spec.livenessProbe = {
         httpGet: { path: '/health', port: port as any },
         periodSeconds: 15, failureThreshold: 3,
-      },
-    };
+      };
+    }
+
+    return spec;
   }
 
   private buildEnv(cfg: NodeConfig): k8s.V1EnvVar[] {
     const base: Record<string, string> = {
-      SERVICE_NAME:       cfg.serviceName,
+      CLUSTER_NAME:       cfg.serviceName,
+      SERVICE_NAME:       cfg.serviceType ?? cfg.serviceName,
+      SERVICE_TYPE:       cfg.serviceType ?? cfg.serviceName,
+      NODE_ROLE:          cfg.role ?? 'master',
       REDIS_URL:          cfg.redisUrl,
       WORKER_CONCURRENCY: String(cfg.concurrency ?? 1),
       HEALTH_PORT:        String(cfg.healthPort ?? 3001),
@@ -249,13 +263,14 @@ export class K8sOrchestrator implements ContainerOrchestrator {
     return Object.entries({ ...base, ...(cfg.env ?? {}) }).map(([name, value]) => ({ name, value }));
   }
 
-  private deploymentToInfo(d: k8s.V1Deployment): ContainerInfo {
+  private deploymentToInfo(d: k8s.V1Deployment, role?: NodeRole): ContainerInfo {
     const available = d.status?.availableReplicas ?? 0;
     const desired   = d.spec?.replicas ?? 1;
+    const resolvedRole = role ?? (d.metadata?.labels?.[ROLE_LABEL] as NodeRole) ?? 'master';
     return {
       id:        d.metadata?.name ?? '',
       name:      d.metadata?.name ?? '',
-      role:      'master',
+      role:      resolvedRole,
       status:    available >= desired ? 'running' : 'creating',
       createdAt: d.metadata?.creationTimestamp ? new Date(d.metadata.creationTimestamp) : new Date(),
       labels:    d.metadata?.labels ?? {},
@@ -285,12 +300,13 @@ export class K8sOrchestrator implements ContainerOrchestrator {
   // ── Private: YAML builders ──────────────────────────────────────────────
 
   private static buildDeploymentYaml(cfg: NodeConfig): string {
+    const role    = cfg.role ?? 'master';
     const svcType = cfg.serviceType ?? cfg.serviceName;
-    const name = cfg.name ?? `slavery-master-${svcType}`;
-    const ns   = cfg.namespace ?? 'default';
-    const port = cfg.healthPort ?? 3001;
+    const name    = cfg.name ?? `slavery-${role}-${svcType}`;
+    const ns      = cfg.namespace ?? 'default';
+    const port    = cfg.healthPort ?? 3001;
 
-    const envLines = K8sOrchestrator.envYaml(cfg, 8);
+    const envLines  = K8sOrchestrator.envYaml(cfg, 8);
     const resources = K8sOrchestrator.resourcesYaml(cfg, 10);
 
     return [
@@ -300,31 +316,31 @@ export class K8sOrchestrator implements ContainerOrchestrator {
       `  name: ${name}`,
       `  namespace: ${ns}`,
       `  labels:`,
-      `    app: slavery-master`,
+      `    app: slavery-${role}`,
       `    ${MANAGED_LABEL}: "true"`,
       `    ${SERVICE_LABEL}: "${cfg.serviceName}"`,
       `    ${SERVICE_TYPE_LABEL}: "${svcType}"`,
-      `    ${ROLE_LABEL}: master`,
+      `    ${ROLE_LABEL}: ${role}`,
       `spec:`,
       `  replicas: ${cfg.replicas ?? 1}`,
       `  selector:`,
       `    matchLabels:`,
-      `      app: slavery-master`,
-      `      ${SERVICE_LABEL}: "${cfg.serviceName}"`,
-      `      ${SERVICE_TYPE_LABEL}: "${svcType}"`,
+      `      slavery-js.node: ${name}`,
       `  template:`,
       `    metadata:`,
       `      labels:`,
-      `        app: slavery-master`,
+      `        app: slavery-${role}`,
       `        ${MANAGED_LABEL}: "true"`,
       `        ${SERVICE_LABEL}: "${cfg.serviceName}"`,
       `        ${SERVICE_TYPE_LABEL}: "${svcType}"`,
-      `        ${ROLE_LABEL}: master`,
+      `        ${ROLE_LABEL}: ${role}`,
+      `        slavery-js.node: ${name}`,
       `    spec:`,
       `      terminationGracePeriodSeconds: 30`,
       `      containers:`,
       `        - name: worker`,
       `          image: ${cfg.image}`,
+      `          imagePullPolicy: ${cfg.imagePullPolicy ?? 'IfNotPresent'}`,
       `          env:`,
       envLines,
       `          ports:`,
@@ -379,6 +395,7 @@ export class K8sOrchestrator implements ContainerOrchestrator {
       `      containers:`,
       `        - name: worker`,
       `          image: ${cfg.image}`,
+      `          imagePullPolicy: ${cfg.imagePullPolicy ?? 'IfNotPresent'}`,
       `          env:`,
       envLines,
       `          ports:`,
@@ -390,7 +407,10 @@ export class K8sOrchestrator implements ContainerOrchestrator {
   private static envYaml(cfg: NodeConfig, indent: number): string {
     const pad = ' '.repeat(indent);
     const base: Record<string, string> = {
-      SERVICE_NAME:       cfg.serviceName,
+      CLUSTER_NAME:       cfg.serviceName,
+      SERVICE_NAME:       cfg.serviceType ?? cfg.serviceName,
+      SERVICE_TYPE:       cfg.serviceType ?? cfg.serviceName,
+      NODE_ROLE:          cfg.role ?? 'master',
       REDIS_URL:          cfg.redisUrl,
       WORKER_CONCURRENCY: String(cfg.concurrency ?? 1),
       HEALTH_PORT:        String(cfg.healthPort ?? 3001),

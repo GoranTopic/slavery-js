@@ -59,6 +59,8 @@ export class DockerOrchestrator implements ContainerOrchestrator {
           : { Name: 'on-failure', MaximumRetryCount: 3 },
       },
     };
+    if (cfg.command) createOpts.Entrypoint = cfg.command;
+    if (cfg.args)    createOpts.Cmd = cfg.args;
 
     const container = await this.docker.createContainer(createOpts);
     await container.start();
@@ -136,7 +138,10 @@ export class DockerOrchestrator implements ContainerOrchestrator {
 
   private buildEnv(cfg: NodeConfig): string[] {
     const base: Record<string, string> = {
-      SERVICE_NAME:       cfg.serviceName,
+      CLUSTER_NAME:       cfg.serviceName,
+      SERVICE_NAME:       cfg.serviceType ?? cfg.serviceName,
+      SERVICE_TYPE:       cfg.serviceType ?? cfg.serviceName,
+      NODE_ROLE:          cfg.role ?? 'master',
       REDIS_URL:          cfg.redisUrl,
       WORKER_CONCURRENCY: String(cfg.concurrency ?? 1),
       HEALTH_PORT:        String(cfg.healthPort ?? 3001),

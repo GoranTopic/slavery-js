@@ -218,7 +218,7 @@ class Node {
     });
     if (this.master_host === void 0 || this.master_port === void 0)
       throw new Error("The master host and port have not been set");
-    this.network.connect({ host: this.master_host, port: this.master_port, as: "master" });
+    await this.network.connect({ host: this.master_host, port: this.master_port, as: "master" });
     this.listeners = [
       { event: "_run", parameters: ["method", "parameter"], callback: this.run_client.bind(this) },
       { event: "_exec", parameters: ["code_string"], callback: this.exec_client.bind(this) },
@@ -264,7 +264,7 @@ class Node {
     try {
       this.updateStatus("working");
       let services = await this.get_services();
-      let services_params = { ...services, slave: this, self: this };
+      let services_params = { ...services, service_slave: this, self: this };
       const result = await this.methods[method](parameter, services_params);
       this.doneMethods[method] = true;
       return { result, isError: false };
@@ -285,7 +285,7 @@ class Node {
       throw new Error(`slavery-js: [Node][${this.id}] executing code, because it could not connect to services`);
     });
     let services = await this.get_services();
-    let parameter = { ...services, slave: this, self: this };
+    let parameter = { ...services, service_slave: this, self: this };
     try {
       let result = await execAsyncCode(code_string, parameter);
       return { result, isError: false };
@@ -306,7 +306,7 @@ class Node {
     }
     try {
       let services = await this.get_services();
-      let parameter = { ...services, slave: this, self: this };
+      let parameter = { ...services, service_slave: this, self: this };
       const result = await this.methods["_startup"](null, parameter);
       this.doneMethods["_startup"] = true;
       this.hasStartupFinished = true;
@@ -357,7 +357,7 @@ class Node {
   }
   async ping_client() {
     let res = await this.send("_ping");
-    if (res === "_pong") this.updateLastHeardOf();
+    if (res === "pong") this.updateLastHeardOf();
     return true;
   }
   async exit_client() {

@@ -1,7 +1,7 @@
 type RequestQueueOptions = {
     heartbeat?: number;
     requestTimeout?: number;
-    onError?: 'throw' | 'return' | 'log' | 'ignore';
+    onError?: 'throw' | 'log' | 'ignore' | 'return';
 };
 type RequestQueueParameters = {
     process_request: Function;

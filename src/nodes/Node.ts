@@ -303,7 +303,7 @@ class Node {
         if(this.master_host === undefined || this.master_port === undefined)
             throw new Error('The master host and port have not been set');
         // form the conenction with the master
-        this.network.connect({ host: this.master_host, port: this.master_port, as: 'master' });
+        await this.network.connect({ host: this.master_host, port: this.master_port, as: 'master' });
         // verify that the connection is established
         
         // set the listeners which we will us on the and the master can call on
@@ -482,7 +482,7 @@ class Node {
     private async ping_client(){
         // this function will ping the master node
         let res = await this.send('_ping');
-        if(res === '_pong') this.updateLastHeardOf();
+        if(res === 'pong') this.updateLastHeardOf();
         return true;
     }
 

@@ -2,7 +2,9 @@ import { Worker as BullWorker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
 import http from 'node:http';
 import { RedisStash } from './RedisStash.js';
+import { ServiceRegistry, type ServiceEntry } from './ServiceRegistry.js';
 import type { JobPayload } from './RedisQueue.js';
+import execAsyncCode from '../utils/execAsyncCode.js';
 
 export type SlaveMethod<P = unknown, R = unknown> = (
   parameters: P,
@@ -25,16 +27,21 @@ export interface DistributedWorkerOptions {
   concurrency?: number;
   /** HTTP port for /health and /ready (default: 3001) */
   healthPort?: number;
+  /** Enable _exec method for remote code execution (default: false) */
+  enableExec?: boolean;
+  /** Register this worker in the service registry (default: true if redisUrl provided) */
+  registerWorker?: boolean;
 }
 
 /**
  * Distributed replacement for Node/NodeManager (worker side).
  *
  * Each instance subscribes to BullMQ queues for every slave method and
- * processes jobs as they arrive.  Workers are completely stateless — any
- * shared state is stored in the Redis-backed RedisStash.
+ * processes jobs as they arrive.
  *
- * Run as a standalone container; scale via Kubernetes HPA or KEDA.
+ * Built-in system methods (auto-registered):
+ *   _exec         — Execute arbitrary code (if enableExec is true)
+ *   _worker_info  — Return worker ID, status, uptime, methods
  */
 export class DistributedWorker {
   private readonly workers: BullWorker[] = [];
@@ -42,19 +49,47 @@ export class DistributedWorker {
   private readonly stash: RedisStash;
   private readonly server: http.Server;
   private readonly name: string;
+  private readonly workerId: string;
+  private readonly startTime = Date.now();
+  private readonly methodNames: string[];
+  private readonly registry: ServiceRegistry | null;
+  private jobsProcessed = 0;
+  private jobsFailed = 0;
 
   constructor(options: DistributedWorkerOptions) {
     this.name = options.serviceName;
+    this.workerId = `${this.name}-worker-${process.pid}-${Date.now()}`;
+    this.methodNames = Object.keys(options.methods);
 
-    // Primary connection — used for stash reads/writes
     this.redis = new Redis(options.redisUrl, { maxRetriesPerRequest: null });
     this.stash = new RedisStash(this.redis, this.name);
 
-    for (const [method, handler] of Object.entries(options.methods)) {
-      // BullMQ forbids ':' in queue names — use '--' to match DistributedService.
-      const queueName = `${this.name}--${method}`;
+    this.registry = (options.registerWorker !== false)
+      ? new ServiceRegistry(this.redis)
+      : null;
 
-      // BullMQ requires a dedicated connection per Worker instance
+    const allMethods: SlaveMethods = { ...options.methods };
+
+    allMethods['_worker_info'] = async () => ({
+      workerId: this.workerId,
+      service: this.name,
+      pid: process.pid,
+      uptime_ms: Date.now() - this.startTime,
+      methods: this.methodNames,
+      jobsProcessed: this.jobsProcessed,
+      jobsFailed: this.jobsFailed,
+    });
+
+    if (options.enableExec === true) {
+      allMethods['_exec'] = async (params: any, { stash }) => {
+        const code = typeof params === 'string' ? params : params?.code;
+        if (typeof code !== 'string') throw new Error('_exec requires a code string');
+        return execAsyncCode(code, { stash });
+      };
+    }
+
+    for (const [method, handler] of Object.entries(allMethods)) {
+      const queueName = `${this.name}--${method}`;
       const conn = new Redis(options.redisUrl, { maxRetriesPerRequest: null });
 
       const worker = new BullWorker<JobPayload>(
@@ -66,15 +101,17 @@ export class DistributedWorker {
               stash: this.stash,
               jobId: job.id ?? '',
             });
+            this.jobsProcessed++;
             this.log('info', 'job_completed', { queue: queueName, jobId: job.id });
             return result;
           } catch (err) {
+            this.jobsFailed++;
             this.log('error', 'job_threw', {
               queue: queueName,
               jobId: job.id,
               error: (err as Error).message,
             });
-            throw err; // re-throw so BullMQ records the failure and retries
+            throw err;
           }
         },
         {
@@ -106,19 +143,47 @@ export class DistributedWorker {
     this.server = this.createHealthServer(options.healthPort ?? 3001);
     this.log('info', 'worker_started', {
       service: this.name,
-      methods: Object.keys(options.methods),
+      workerId: this.workerId,
+      methods: this.methodNames,
       concurrency: options.concurrency ?? 1,
     });
   }
 
-  // ── Graceful shutdown ─────────────────────────────────────────────────────
+  /** Register this worker in the service registry for worker listing. */
+  async registerInCluster(): Promise<void> {
+    if (!this.registry) return;
+    await this.registry.register({
+      serviceName: this.workerId,
+      methods: this.methodNames,
+      heartbeat: new Date().toISOString(),
+      meta: {
+        type: 'worker',
+        parentService: this.name,
+        pid: process.pid,
+      },
+    });
+    this.log('info', 'worker_registered', { workerId: this.workerId });
+  }
 
-  /**
-   * Drain in-flight jobs, then shut down.
-   * Call on SIGTERM to ensure Kubernetes drains gracefully.
-   */
+  /** Get worker stats. */
+  getStats() {
+    return {
+      workerId: this.workerId,
+      service: this.name,
+      uptime_ms: Date.now() - this.startTime,
+      jobsProcessed: this.jobsProcessed,
+      jobsFailed: this.jobsFailed,
+      workersRunning: this.workers.filter(w => w.isRunning()).length,
+      totalWorkers: this.workers.length,
+    };
+  }
+
   async close(): Promise<void> {
     this.log('info', 'worker_draining', {});
+    if (this.registry) {
+      await this.registry.deregister(this.workerId).catch(() => {});
+      this.registry.close();
+    }
     await Promise.all(this.workers.map((w) => w.close()));
     this.redis.disconnect();
     await new Promise<void>((resolve) => this.server.close(() => resolve()));
@@ -139,8 +204,11 @@ export class DistributedWorker {
           res.end(
             JSON.stringify({
               status: 'healthy',
+              workerId: this.workerId,
               workers_running: running,
               total_workers: this.workers.length,
+              jobsProcessed: this.jobsProcessed,
+              jobsFailed: this.jobsFailed,
             }),
           );
         } catch {

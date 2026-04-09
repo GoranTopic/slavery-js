@@ -143,6 +143,28 @@ class Cluster {
     // ── Hierarchical spawn API ─────────────────────────────────────────────
 
     /**
+     * Deploy the primary node as a persistent Deployment in k8s / container
+     * in Docker.  The primary is the root of the hierarchy — it orchestrates
+     * masters and stays alive indefinitely.
+     *
+     * In local mode this is a no-op (the current process IS the primary).
+     */
+    async spawnPrimary(
+        overrides: Partial<NodeConfig> = {},
+    ): Promise<ContainerInfo> {
+        if (this.mode === 'local') {
+            return {
+                id: String(process.pid), name: 'primary',
+                role: 'primary', status: 'running',
+                createdAt: new Date(), labels: {},
+            };
+        }
+        this.requireOrchestrator('spawnPrimary');
+        const cfg = this.buildNodeConfig('primary', 'primary', overrides, 1);
+        return this.orchestrator!.spawnNode(cfg);
+    }
+
+    /**
      * Spawn a persistent master node for the named service.
      *
      * In k8s: creates a Deployment (replicas=count, restarts on failure).

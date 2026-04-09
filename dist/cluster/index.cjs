@@ -28,9 +28,18 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var cluster_exports = {};
 __export(cluster_exports, {
+  DockerOrchestrator: () => import_DockerOrchestrator.DockerOrchestrator,
+  K8sOrchestrator: () => import_K8sOrchestrator.K8sOrchestrator,
   default: () => cluster_default
 });
 module.exports = __toCommonJS(cluster_exports);
 var import_ProcessCluster = __toESM(require("./ProcessCluster.js"), 1);
+var import_DockerOrchestrator = require("./orchestration/DockerOrchestrator.js");
+var import_K8sOrchestrator = require("./orchestration/K8sOrchestrator.js");
 var cluster_default = import_ProcessCluster.default;
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  DockerOrchestrator,
+  K8sOrchestrator
+});
 //# sourceMappingURL=index.cjs.map

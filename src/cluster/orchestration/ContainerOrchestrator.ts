@@ -75,6 +75,10 @@ export interface NodeConfig {
   replicas?: number;
   /** Override the generated container/pod name */
   name?: string;
+  /** Override the container entrypoint (ENTRYPOINT / k8s command) */
+  command?: string[];
+  /** Override the container arguments (CMD / k8s args) */
+  args?: string[];
 
   // ── Docker-specific ──────────────────────────────────────────────────────
   /** Docker network to join (default: bridge) */
@@ -88,6 +92,8 @@ export interface NodeConfig {
     requests?: { cpu?: string; memory?: string };
     limits?: { cpu?: string; memory?: string };
   };
+  /** K8s imagePullPolicy (default: "IfNotPresent") */
+  imagePullPolicy?: 'Always' | 'Never' | 'IfNotPresent';
 }
 
 /** @deprecated Use NodeConfig */

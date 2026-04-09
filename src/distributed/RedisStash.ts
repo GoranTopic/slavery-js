@@ -32,8 +32,14 @@ export class RedisStash {
 
   async keys(): Promise<string[]> {
     const pattern = `${this.namespace}:stash:*`;
-    const found = await this.client.keys(pattern);
     const prefix = `${this.namespace}:stash:`;
+    const found: string[] = [];
+    let cursor = '0';
+    do {
+      const [next, batch] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = next;
+      found.push(...batch);
+    } while (cursor !== '0');
     return found.map((k) => k.slice(prefix.length));
   }
 }

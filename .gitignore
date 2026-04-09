@@ -1,1 +1,6 @@
 node_modules
+dist
+dump.rdb
+.env
+*.log
+.DS_Store

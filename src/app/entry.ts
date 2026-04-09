@@ -69,7 +69,9 @@ const handleProxyCall = (globalOptions: EntryOptions) => (
             slaveMethods,
             options: serviceOptions,
         })
-        service.start()
+        service.start().catch((err: Error) =>
+            console.error(`[slavery] Service "${service_name}" failed to start:`, err),
+        );
     }
 
 // this function will take the parameters and determine what they are

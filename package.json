@@ -19,6 +19,7 @@
         "test": "find ./test/ -type f -name '*.test.ts' ! -path '*/cluster/*' ! -path '*/distributed/*' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; npx tsx \"$0\"'",
         "test:distributed": "find ./test/distributed/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; npx tsx \"$0\"'",
         "test:k8s": "find ./test/cluster/ -type f -name '*.test.ts' -print0 | xargs -0 -n1 bash -c 'echo \"Running: $0\"; npx tsx \"$0\"'",
+        "test:e2e": "npx tsx test/e2e/e2e_k8s.test.ts",
         "test:all": "npm test && npm run test:distributed && npm run test:k8s",
         "build": "tsup",
         "dev": "tsup --watch"
