@@ -2,10 +2,10 @@ import {
   __publicField
 } from "../chunk-V6TY7KAL.js";
 import { io } from "socket.io-client";
-function isServer(params) {
+function hasClientParams(params) {
   return "host" in params && "port" in params && "id" in params;
 }
-function isClient(params) {
+function hasServerParams(params) {
   return "socket" in params && "name" in params;
 }
 class Connection {
@@ -60,7 +60,7 @@ class Connection {
       timeout: params?.options?.timeout || 5 * 60 * 1e3
       // 5 minutes
     };
-    if (isClient(params)) {
+    if (hasServerParams(params)) {
       params = params;
       this.type = "server";
       this.name = params.name;
@@ -68,7 +68,7 @@ class Connection {
       this.socket = params.socket;
       this.targetId = params.socket.handshake.auth.id;
       this.isConnected = true;
-    } else if (isServer(params)) {
+    } else if (hasClientParams(params)) {
       params = params;
       this.type = "client";
       this.targetType = "server";
@@ -112,7 +112,7 @@ class Connection {
       this.isConnected = true;
       this.options.onConnect(this);
     });
-    this.socket.on("diconnect", () => {
+    this.socket.on("disconnect", () => {
       this.isConnected = false;
       this.options.onDisconnect(this);
     });

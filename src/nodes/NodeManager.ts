@@ -259,7 +259,7 @@ class NodeManager {
         condition: () => this.nodes.size() >= count,
         timeout: timeout,
       }).catch(() => { 
-          throw new Error(`timeout of ${timeout} seconds, only ${this.nodes.size()} nodes connected, expected ${count}`) 
+          throw new Error(`timeout of ${timeout}ms, only ${this.nodes.size()} nodes connected, expected ${count}`) 
       });
       return true;
   }

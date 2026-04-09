@@ -68,6 +68,10 @@ class Service {
     __publicField(this, "set", async (key, value = null) => await this.stash.set(key, value));
     __publicField(this, "get", async (key = "") => await this.stash.get(key));
     this.name = params.service_name;
+    const reservedNames = ["service_master", "service_slave", "service_slaves", "self"];
+    if (reservedNames.includes(this.name)) {
+      throw new Error(`Service name '${this.name}' is reserved and cannot be used`);
+    }
     this.host = params.options?.host || "localhost";
     this.port = params?.options?.port || 0;
     this.nm_host = params.options?.nm_host || "localhost";
@@ -77,9 +81,10 @@ class Service {
     this.peerAddresses = params.peerServicesAddresses || [];
     this.peerDiscoveryAddress = params.peerDiscoveryAddress || void 0;
     this.peerDiscovery = void 0;
-    if (this.peerAddresses === void 0 && this.peerDiscoveryAddress === void 0)
+    if (this.peerAddresses.length === 0 && this.peerDiscoveryAddress === void 0)
       throw new Error("Peer Addresses or Peer Discovery Service Address must be defined");
     this.options = params.options || {};
+    if (this.options.onError === void 0) this.options.onError = "throw";
     if (this.options.number_of_nodes === void 0) {
       this.number_of_nodes = 1;
       if (this.options.auto_scale === void 0)
@@ -139,7 +144,7 @@ class Service {
     }, {});
     this.servicesConnected = true;
     if (this.masterCallback !== void 0)
-      this.masterCallback({ ...services, slaves: this.nodes, master: this, self: this });
+      await this.masterCallback({ ...services, service_slaves: this.nodes, service_master: this, self: this });
   }
   async initialize_slaves() {
     let metadata = process.env.metadata;
@@ -188,7 +193,7 @@ class Service {
       options: {
         heartbeat: 100,
         requestTimeout: this.options.timeout,
-        onError: this.options?.onError || "throw"
+        onError: this.options.onError
       }
     });
   }
@@ -297,7 +302,7 @@ class Service {
         } catch (e) {
           return { isError: true, error: (0, import_serialize_error.serializeError)(e) };
         }
-        let parameter = { ...service, master: this, self: this };
+        let parameter = { ...service, service_master: this, self: this };
         try {
           let result = await (0, import_utils.execAsyncCode)(code_string, parameter);
           return { result };

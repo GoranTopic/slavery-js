@@ -1,4 +1,5 @@
 import Network from '../network/Network.cjs';
+import Options from './types/Options.cjs';
 import '../network/Connection.cjs';
 import 'socket.io';
 import '../network/types/Listener.cjs';
@@ -6,11 +7,6 @@ import '../utils/Pool.cjs';
 import '../network/Server.cjs';
 import 'http';
 
-type Options = {
-    throwError?: boolean;
-    returnError?: boolean;
-    logError?: boolean;
-};
 declare class ServiceClient {
     name: string;
     network: Network;

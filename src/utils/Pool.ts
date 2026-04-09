@@ -27,8 +27,7 @@ class Pool<T> {
         this.enabled.enqueue(id);
         // add the item to the pool
         this.items[id] = item;
-        // return true
-        return false;
+        return true;
     }
 
     disable(id: string): boolean {
@@ -65,12 +64,14 @@ class Pool<T> {
         if(time) setTimeout(() => this.enable(id), time);
         // if condition is defined, set a interval
         if(condition){
+            let checks = 0;
             let interval = setInterval(() => {
-                if(condition()){
+                if(condition() || ++checks > 6000){
                     clearInterval(interval);
                     this.enable(id);
                 }
             }, 100);
+            if (interval.unref) interval.unref();
         }
     }
 

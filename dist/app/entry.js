@@ -36,7 +36,9 @@ const handleProxyCall = (globalOptions) => (method, param1, param2, param3) => {
     slaveMethods,
     options: serviceOptions
   });
-  service.start();
+  service.start().catch(
+    (err) => console.error(`[slavery] Service "${service_name}" failed to start:`, err)
+  );
 };
 const paramertesDiscermination = (param1, param2, param3) => {
   let mastercallback;

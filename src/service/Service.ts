@@ -72,7 +72,7 @@ class Service {
         this.peerDiscovery = undefined;
         // if both the peerAddresses and the peerDiscoveryServiceAddress are not defined,
         // we will throw an error
-        if(this.peerAddresses === undefined && this.peerDiscoveryAddress === undefined)
+        if(this.peerAddresses.length === 0 && this.peerDiscoveryAddress === undefined)
             throw new Error('Peer Addresses or Peer Discovery Service Address must be defined');
         // the options that will be passed to the service
         this.options = params.options || {};
@@ -166,7 +166,7 @@ class Service {
         this.servicesConnected = true;
         // run the callback for the master process
         if(this.masterCallback !== undefined)
-            this.masterCallback({ ...services, service_slaves: this.nodes, service_master: this, self: this });
+            await this.masterCallback({ ...services, service_slaves: this.nodes, service_master: this, self: this });
     }
 
     private async initialize_slaves() {

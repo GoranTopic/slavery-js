@@ -24,11 +24,11 @@ type ConnectionParametersClient = {
     options?: ConnectionOptions
 };
 
-function isServer(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersClient {
+function hasClientParams(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersClient {
   return 'host' in params && 'port' in params && 'id' in params;
 }
 
-function isClient(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersServer {
+function hasServerParams(params: ConnectionParametersServer | ConnectionParametersClient): params is ConnectionParametersServer {
   return 'socket' in params && 'name' in params;
 }
 
@@ -90,7 +90,7 @@ class Connection {
             timeout: params?.options?.timeout || 5 * 60 * 1000, // 5 minutes
         };
         // if get a socket to connect to the server
-        if (isClient(params)) {
+        if (hasServerParams(params)) {
             params = params as unknown as ConnectionParametersServer;
             this.type = 'server';
             this.name = params.name;
@@ -103,7 +103,7 @@ class Connection {
             // since we are already getting the socket
             this.isConnected = true;
             // if get a host and port to connect to the server
-        } else if (isServer(params)) {
+        } else if (hasClientParams(params)) {
             params = params as unknown as ConnectionParametersClient;
             this.type = 'client';
             this.targetType = 'server';
@@ -166,7 +166,7 @@ class Connection {
             this.options.onConnect(this);
         });
         // if it disconnects
-        this.socket.on("diconnect", () => {
+        this.socket.on("disconnect", () => {
             //log(`[connection][${this.socket.id}] is disconnected`)
             this.isConnected = false;
             this.options.onDisconnect(this);

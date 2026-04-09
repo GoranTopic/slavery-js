@@ -31,7 +31,7 @@ class Pool {
     if (this.has(id)) this.remove(id);
     this.enabled.enqueue(id);
     this.items[id] = item;
-    return false;
+    return true;
   }
   disable(id) {
     if (!this.has(id)) return false;
@@ -56,12 +56,14 @@ class Pool {
     if (this.disabled.indexOf(id) === -1) throw new Error("id is not in the disabled list");
     if (time) setTimeout(() => this.enable(id), time);
     if (condition) {
+      let checks = 0;
       let interval = setInterval(() => {
-        if (condition()) {
+        if (condition() || ++checks > 6e3) {
           clearInterval(interval);
           this.enable(id);
         }
       }, 100);
+      if (interval.unref) interval.unref();
     }
   }
   enable(id) {

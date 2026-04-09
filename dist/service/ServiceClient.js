@@ -17,7 +17,6 @@ class ServiceClient {
     __publicField(this, "listeners", []);
     this.name = name;
     this.network = network;
-    if (options.throwError === void 0) options.throwError = true;
     this.options = options;
     this.selection = selection || [];
     let connection = this.network.getService(name);
@@ -83,10 +82,15 @@ class ServiceClient {
   }
   handleErrors(error_obj) {
     let error = deserializeError(error_obj);
-    if (this.options.throwError) throw error;
-    if (this.options.logError) console.error(error);
-    if (this.options.returnError) return error;
-    else return null;
+    const mode = this.options.onError ?? "throw";
+    if (mode === "throw") throw error;
+    if (mode === "log") {
+      console.error(error);
+      return error;
+    }
+    if (mode === "return") return error;
+    if (mode === "ignore") return null;
+    throw error;
   }
 }
 var ServiceClient_default = ServiceClient;

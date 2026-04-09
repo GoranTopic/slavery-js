@@ -187,8 +187,10 @@ class NetworkServer {
     }
 
     async close() {
-        // close all sockets
         this.io.close();
+        if (this.httpServer) {
+            await new Promise<void>((resolve) => this.httpServer!.close(() => resolve()));
+        }
     }
 
 }

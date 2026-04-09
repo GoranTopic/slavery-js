@@ -79,7 +79,8 @@ class ProcessBalancer {
         const { idleCount, workingCount } = this.checkSlaves();
         if(idleCount === undefined || workingCount === undefined)
             throw new Error('checkSlaves function returned idleCount or workingCount with value of undefined')
-        const idleRate = idleCount / workingCount + idleCount
+        const total = idleCount + workingCount;
+        const idleRate = total > 0 ? idleCount / total : 0;
         const queueGrowth = queueSize - this.prevQueueSize;
         this.prevQueueSize = queueSize;
         const avgCpu = this.getCpuUsage();

@@ -169,6 +169,9 @@ class NetworkServer {
   }
   async close() {
     this.io.close();
+    if (this.httpServer) {
+      await new Promise((resolve) => this.httpServer.close(() => resolve()));
+    }
   }
 }
 var Server_default = NetworkServer;
